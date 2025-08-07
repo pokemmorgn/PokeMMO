@@ -45,13 +45,15 @@ export class BattleScene extends Phaser.Scene {
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
-    // Positions optimisées style Game Boy
-    this.pokemonPositions = {
-      player: { x: 0.18, y: 0.78 },      // Plus à gauche et bas
-      opponent: { x: 0.75, y: 0.32 },    // Plus haut à droite
-      playerPlatform: { x: 0.22, y: 0.88 },
-      opponentPlatform: { x: 0.78, y: 0.42 }
-    };
+  // === ⚡ POSITIONS POKÉMON OPTIMISÉES ===
+
+  // Positions optimisées pour éviter les superpositions
+  pokemonPositions = {
+    player: { x: 0.15, y: 0.78 },        // Plus à gauche et bas
+    opponent: { x: 0.70, y: 0.25 },      // Plus au centre-haut pour éviter la barre
+    playerPlatform: { x: 0.18, y: 0.88 },
+    opponentPlatform: { x: 0.73, y: 0.35 }
+  };
     
     // Interface state (inchangé pour compatibilité)
     this.interfaceMode = 'hidden';
@@ -258,26 +260,26 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === 📊 BARRES DE VIE GAME BOY ===
+  // === 📊 BARRES DE VIE GAME BOY REPOSITIONNÉES ===
 
   createGameBoyHealthBars() {
     const { width, height } = this.cameras.main;
     
-    // Barre adversaire (haut droite, style Game Boy)
+    // Barre adversaire (haut gauche, pas sur le Pokémon)
     this.createGameBoyHealthBar('player2', {
-      x: width * 0.55,
-      y: height * 0.08,
-      width: 320,
-      height: 85,
+      x: width * 0.05,  // Plus à gauche
+      y: height * 0.05, // Plus haut
+      width: 280,
+      height: 70,       // Plus compact
       isPlayer: false
     });
     
-    // Barre joueur (bas gauche, plus détaillée)
+    // Barre joueur (bas gauche, au-dessus de l'interface)
     this.createGameBoyHealthBar('player1', {
-      x: width * 0.05,
-      y: height * 0.68,
-      width: 380,
-      height: 110,
+      x: width * 0.55,  // À droite pour pas gêner
+      y: height * 0.65, // Plus haut que l'interface
+      width: 320,
+      height: 85,       // Légèrement plus compact
       isPlayer: true
     });
   }
@@ -423,18 +425,18 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
   }
 
-  // === 🎮 INTERFACE D'ACTIONS GAME BOY ADAPTIVE ===
+  // === 🎮 INTERFACE D'ACTIONS GAME BOY ADAPTIVE (COMPACTE) ===
 
   createGameBoyActionInterface() {
     const { width, height } = this.cameras.main;
     
-    // Conteneur principal en bas (position dynamique)
-    this.actionInterface = this.add.container(0, height - 160);
+    // Conteneur principal en bas (plus compact)
+    this.actionInterface = this.add.container(0, height - 120); // Réduit de 160 à 120
     this.actionInterface.setDepth(190);
     
-    // Panel principal style Game Boy (taille dynamique)
+    // Panel principal style Game Boy (taille réduite)
     this.mainPanel = this.add.graphics();
-    this.drawMainPanel(width, 140, 'buttons'); // Mode par défaut
+    this.drawMainPanel(width, 100, 'buttons'); // Réduit de 140 à 100
     this.actionInterface.add(this.mainPanel);
     
     // Zone de texte adaptative (masquée par défaut)
@@ -443,8 +445,8 @@ export class BattleScene extends Phaser.Scene {
     this.actionInterface.add(this.textPanel);
     
     // Texte d'action/narratif adaptatif
-    this.actionMessageText = this.add.text(width/2, 40, '', {
-      fontSize: '18px',
+    this.actionMessageText = this.add.text(width/2, 30, '', { // Position plus haute
+      fontSize: '16px', // Police plus petite
       fontFamily: 'monospace',
       color: '#1a1a1a',
       fontWeight: 'bold',
@@ -459,8 +461,8 @@ export class BattleScene extends Phaser.Scene {
     this.createGameBoyActionButtons(width);
     
     // Indicateur de continuation pour texte narratif
-    this.continueArrow = this.add.text(width - 50, 100, '▼', {
-      fontSize: '16px',
+    this.continueArrow = this.add.text(width - 50, 80, '▼', { // Position ajustée
+      fontSize: '14px', // Plus petit
       fontFamily: 'monospace',
       color: '#1a1a1a'
     });
@@ -486,21 +488,21 @@ export class BattleScene extends Phaser.Scene {
     
     this.mainPanel.clear();
     
-    // Adapter la hauteur selon le mode
-    const panelHeight = mode === 'narrative' ? 120 : height;
-    const panelY = mode === 'narrative' ? 20 : 0;
+    // Adapter la hauteur selon le mode (plus compact)
+    const panelHeight = mode === 'narrative' ? 90 : height; // Réduit
+    const panelY = mode === 'narrative' ? 10 : 0; // Position ajustée
     
     // Panel principal
     this.mainPanel.fillStyle(0xf0f8f0, 0.98);
-    this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 12);
+    this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 8); // Bordures plus petites
     
     // Bordure épaisse
-    this.mainPanel.lineStyle(5, 0x1a1a1a, 1);
-    this.mainPanel.strokeRoundedRect(20, panelY, width - 40, panelHeight, 12);
+    this.mainPanel.lineStyle(4, 0x1a1a1a, 1); // Plus fine
+    this.mainPanel.strokeRoundedRect(20, panelY, width - 40, panelHeight, 8);
     
     // Bordure intérieure
     this.mainPanel.lineStyle(2, 0x8fad8f, 1);
-    this.mainPanel.strokeRoundedRect(26, panelY + 6, width - 52, panelHeight - 12, 8);
+    this.mainPanel.strokeRoundedRect(24, panelY + 4, width - 48, panelHeight - 8, 6); // Ajusté
   }
 
   drawTextPanel(width, mode) {
@@ -509,17 +511,17 @@ export class BattleScene extends Phaser.Scene {
     this.textPanel.clear();
     
     if (mode === 'narrative') {
-      // Panel pleine largeur pour le texte narratif
+      // Panel pour le texte narratif (plus compact)
       this.textPanel.fillStyle(0xe8f4e8, 1);
-      this.textPanel.fillRoundedRect(35, 30, width - 70, 80, 6);
+      this.textPanel.fillRoundedRect(30, 20, width - 60, 60, 6); // Plus petit
       this.textPanel.lineStyle(2, 0x6b8e6b, 1);
-      this.textPanel.strokeRoundedRect(35, 30, width - 70, 80, 6);
+      this.textPanel.strokeRoundedRect(30, 20, width - 60, 60, 6);
     } else if (mode === 'message') {
       // Panel plus petit pour les messages d'action
       this.textPanel.fillStyle(0xe8f4e8, 1);
-      this.textPanel.fillRoundedRect(35, 15, width - 70, 50, 6);
+      this.textPanel.fillRoundedRect(30, 10, width - 60, 35, 6); // Plus petit
       this.textPanel.lineStyle(2, 0x6b8e6b, 1);
-      this.textPanel.strokeRoundedRect(35, 15, width - 70, 50, 6);
+      this.textPanel.strokeRoundedRect(30, 10, width - 60, 35, 6);
     }
   }
 
@@ -531,20 +533,20 @@ export class BattleScene extends Phaser.Scene {
       { key: 'run', text: 'FUITE', color: 0x607d8b, icon: '🏃' }
     ];
     
-    // Positions remontées pour laisser place au texte
-    const buttonWidth = (width - 120) / 2;
-    const buttonHeight = 35;
-    const startX = 40;
-    const startY = 95; // Remonté de 95 au lieu de 80
-    const gapX = 20;
-    const gapY = 10;
+    // Positions optimisées pour interface compacte
+    const buttonWidth = (width - 100) / 2;  // Largeur ajustée
+    const buttonHeight = 28;                // Plus compact
+    const startX = 30;                      // Marge réduite
+    const startY = 55;                      // Position plus haute
+    const gapX = 15;                        // Espacement réduit
+    const gapY = 8;                         // Espacement vertical réduit
     
     actions.forEach((action, index) => {
       const x = startX + (index % 2) * (buttonWidth + gapX);
       const y = startY + Math.floor(index / 2) * (buttonHeight + gapY);
       
       const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, action);
-      button.isActionButton = true; // Marquer comme bouton d'action
+      button.isActionButton = true;
       this.actionInterface.add(button);
     });
   }
@@ -555,27 +557,27 @@ export class BattleScene extends Phaser.Scene {
     // Fond du bouton
     const bg = this.add.graphics();
     bg.fillStyle(action.color, 0.9);
-    bg.fillRoundedRect(0, 0, width, height, 6);
+    bg.fillRoundedRect(0, 0, width, height, 4); // Bordures plus petites
     
     // Bordure style Game Boy
-    bg.lineStyle(3, 0x1a1a1a, 1);
-    bg.strokeRoundedRect(0, 0, width, height, 6);
+    bg.lineStyle(2, 0x1a1a1a, 1); // Plus fine
+    bg.strokeRoundedRect(0, 0, width, height, 4);
     
     // Effet de relief
-    bg.lineStyle(2, 0xffffff, 0.7);
-    bg.strokeRoundedRect(2, 2, width - 4, height - 4, 4);
+    bg.lineStyle(1, 0xffffff, 0.7); // Plus fin
+    bg.strokeRoundedRect(1, 1, width - 2, height - 2, 3);
     
-    // Icône
-    const icon = this.add.text(12, height/2, action.icon, {
-      fontSize: '20px',
+    // Icône (plus petite)
+    const icon = this.add.text(8, height/2, action.icon, {
+      fontSize: '14px', // Réduit
       fontFamily: 'monospace',
       color: '#1a1a1a'
     });
     icon.setOrigin(0, 0.5);
     
-    // Texte
+    // Texte (plus petit)
     const text = this.add.text(width/2, height/2, action.text, {
-      fontSize: '16px',
+      fontSize: '12px', // Réduit
       fontFamily: 'monospace',
       color: '#1a1a1a',
       fontWeight: 'bold'
@@ -586,13 +588,13 @@ export class BattleScene extends Phaser.Scene {
     buttonContainer.setSize(width, height);
     buttonContainer.setInteractive();
     
-    // Effets hover Game Boy
+    // Effets hover Game Boy (conservés)
     buttonContainer.on('pointerover', () => {
       bg.clear();
       bg.fillStyle(action.color, 1);
-      bg.fillRoundedRect(0, 0, width, height, 6);
-      bg.lineStyle(4, 0xffd700, 1);
-      bg.strokeRoundedRect(0, 0, width, height, 6);
+      bg.fillRoundedRect(0, 0, width, height, 4);
+      bg.lineStyle(3, 0xffd700, 1);
+      bg.strokeRoundedRect(0, 0, width, height, 4);
       
       this.tweens.add({
         targets: buttonContainer,
@@ -604,11 +606,11 @@ export class BattleScene extends Phaser.Scene {
     buttonContainer.on('pointerout', () => {
       bg.clear();
       bg.fillStyle(action.color, 0.9);
-      bg.fillRoundedRect(0, 0, width, height, 6);
-      bg.lineStyle(3, 0x1a1a1a, 1);
-      bg.strokeRoundedRect(0, 0, width, height, 6);
-      bg.lineStyle(2, 0xffffff, 0.7);
-      bg.strokeRoundedRect(2, 2, width - 4, height - 4, 4);
+      bg.fillRoundedRect(0, 0, width, height, 4);
+      bg.lineStyle(2, 0x1a1a1a, 1);
+      bg.strokeRoundedRect(0, 0, width, height, 4);
+      bg.lineStyle(1, 0xffffff, 0.7);
+      bg.strokeRoundedRect(1, 1, width - 2, height - 2, 3);
       
       this.tweens.add({
         targets: buttonContainer,
@@ -1302,7 +1304,7 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(1, 1, Math.max(0, width - 2), 3, 1);
   }
 
-  // === 📱 GESTION ADAPTATIVE DES MODES D'AFFICHAGE ===
+  // === 📱 GESTION ADAPTATIVE DES MODES D'AFFICHAGE (POSITIONS AJUSTÉES) ===
 
   // Mode boutons d'action
   showActionButtons() {
@@ -1312,8 +1314,8 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMessage();
     this.hideNarrativeMode();
     
-    // Redessiner le panel pour les boutons
-    this.drawMainPanel(width, 140, 'buttons');
+    // Redessiner le panel pour les boutons (compact)
+    this.drawMainPanel(width, 100, 'buttons');
     
     // Cacher le panel de texte
     if (this.textPanel) {
@@ -1349,13 +1351,13 @@ export class BattleScene extends Phaser.Scene {
     this.hideNarrativeMode();
     
     // Redessiner le panel pour message court
-    this.drawMainPanel(width, 140, 'message');
+    this.drawMainPanel(width, 100, 'message');
     this.drawTextPanel(width, 'message');
     
     if (!this.actionMessageText) return;
     
-    // Repositionner le texte pour le mode message
-    this.actionMessageText.setPosition(width/2, 40);
+    // Repositionner le texte pour le mode message (position ajustée)
+    this.actionMessageText.setPosition(width/2, 27); // Plus haut
     this.actionMessageText.setText(message.toUpperCase());
     this.actionMessageText.setVisible(true);
     
@@ -1391,14 +1393,14 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionButtons();
     this.hideActionMessage();
     
-    // Redessiner le panel pour narratif (plus compact)
-    this.drawMainPanel(width, 120, 'narrative');
+    // Redessiner le panel pour narratif (compact)
+    this.drawMainPanel(width, 90, 'narrative');
     this.drawTextPanel(width, 'narrative');
     
     if (!this.actionMessageText) return;
     
-    // Repositionner le texte pour le mode narratif (plus centré)
-    this.actionMessageText.setPosition(width/2, 70);
+    // Repositionner le texte pour le mode narratif (position ajustée)
+    this.actionMessageText.setPosition(width/2, 50); // Position centrée
     this.actionMessageText.setText(message.toUpperCase());
     this.actionMessageText.setVisible(true);
     
