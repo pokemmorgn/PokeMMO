@@ -176,9 +176,9 @@ async emitTimed(eventId: string, data: any): Promise<void> {
  * Séquence complète d'attaque SANS timing (timing géré par BattleEngine)
  */
 async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
-  console.log(`⚔️ [BroadcastManager] Séquence attaque: ${attackData.move.name}`);
+  console.log(`⚔️ [BroadcastManager] Séquence attaque AVEC timing: ${attackData.move.name}`);
   
-  // 1. Annonce de l'attaque (INSTANTANÉ)
+  // 1. Annonce de l'attaque
   this.emit('moveUsed', {
     attackerName: attackData.attacker.name,
     attackerRole: attackData.attacker.role,
@@ -186,7 +186,10 @@ async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
     moveId: attackData.move.id
   });
   
-  // 2. Dégâts infligés (INSTANTANÉ - données pour barre de vie)
+  // ✅ DÉLAI APRÈS L'ANNONCE (1.8s - timing authentique Pokémon)
+  await this.delay(BATTLE_TIMINGS.moveUsed);
+  
+  // 2. Dégâts infligés
   if (attackData.damage > 0) {
     this.emit('damageDealt', {
       targetName: attackData.target.name,
@@ -198,18 +201,24 @@ async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
       maxHp: attackData.maxHp,
       hpPercentage: Math.round((attackData.newHp / attackData.maxHp) * 100)
     });
+    
+    // ✅ DÉLAI APRÈS LES DÉGÂTS (1.2s)
+    await this.delay(BATTLE_TIMINGS.damageDealt);
   }
   
-  // 3. K.O. si applicable (INSTANTANÉ)
+  // 3. K.O. si applicable
   if (attackData.isKnockedOut) {
     this.emit('pokemonFainted', {
       pokemonName: attackData.target.name,
       targetRole: attackData.target.role,
       playerId: attackData.target.role === 'player1' ? this.gameState.player1.sessionId : this.gameState.player2.sessionId
     });
+    
+    // ✅ DÉLAI APRÈS K.O. (2s - important pour voir l'animation)
+    await this.delay(BATTLE_TIMINGS.pokemonFainted);
   }
   
-  console.log(`✅ [BroadcastManager] Séquence attaque envoyée (sans timing)`);
+  console.log(`✅ [BroadcastManager] Séquence attaque terminée avec timing authentique`);
 }
   
   /**
