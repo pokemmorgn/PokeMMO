@@ -1136,6 +1136,13 @@ private async executeQuestAction(
   }
   
   console.log(`📭 [executeQuestAction] Aucune quête trouvée, fallback vers dialogue`);
+  
+  // ✅ CORRECTION : Fallback vers dialogue SANS capacité quest
+  const fallbackCapabilities = capabilities.filter(cap => cap !== 'quest'); // ✅ Supprimer 'quest' des capacités
+  
+  if (fallbackCapabilities.length === 0) {
+    fallbackCapabilities.push('dialogue'); // ✅ Assurer qu'il y a au moins dialogue
+  }
   // Fallback vers dialogue si pas de quêtes
   return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
 }
