@@ -195,15 +195,13 @@ export class PokemonUISystem {
           '.ui-icon', '#questTracker'
         ];
         
-        if (stateName === 'battle') {
-          iconsSelectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-              if (!el.id.includes('options')) { // Garder Options visible en battle
-                el.style.display = 'none';
-              }
-            });
+      if (stateName === 'battle') {
+        iconsSelectors.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            el.style.display = 'none'; // ← MASQUER TOUT, même options
           });
-        } else if (stateName === 'exploration') {
+        });
+      } else if (stateName === 'exploration') {
           iconsSelectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(el => {
               el.style.display = '';
