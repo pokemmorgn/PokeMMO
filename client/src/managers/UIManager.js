@@ -1,9 +1,9 @@
-// managers/UIManager.js - Version finale propre avec gameStates complets
+// managers/UIManager.js - Version corrigée avec cohérence battle pour tous les modules
 export class UIManager {
   constructor(options = {}) {
     this.debug = options.debug || false;
     
-    // ✅ Configuration gameStates par défaut avec bataille
+    // ✅ Configuration gameStates par défaut avec bataille cohérente
     this.gameStates = options.gameStates || {
       exploration: {
         visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat', 'options', 'timeWeather'],
@@ -490,6 +490,15 @@ export class UIManager {
         transform: scale(1.1) !important;
       }
       
+      /* 🥊 NOUVEAU : État battle spécifique */
+      .ui-icon.battle-hidden {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(50px) scale(0.8) !important;
+      }
+      
       .ui-icon[data-positioned-by="uimanager"]::before {
         content: "🛡️";
         position: absolute;
@@ -828,98 +837,92 @@ export class UIManager {
     return this;
   }
 
-showModule(moduleId, options = {}) {
-  const config = this.modules.get(moduleId);
-  const state = this.moduleStates.get(moduleId);
-  const iconConfig = this.registeredIcons.get(moduleId);
-  
-  if (!config || !state) {
-    return false;
-  }
-  
-  // Afficher l'icône
-  if (iconConfig && iconConfig.element) {
-    // ✅ RESTAURATION COMPLÈTE
-    iconConfig.element.style.display = 'block';
-    iconConfig.element.style.visibility = 'visible';
-    iconConfig.element.style.opacity = '1';
-    iconConfig.element.style.pointerEvents = 'auto';
-    iconConfig.element.style.filter = '';
-    iconConfig.element.classList.remove('ui-disabled', 'battle-hidden');
+  showModule(moduleId, options = {}) {
+    const config = this.modules.get(moduleId);
+    const state = this.moduleStates.get(moduleId);
+    const iconConfig = this.registeredIcons.get(moduleId);
     
-    console.log(`✅ [UIManager] Module ${moduleId} restauré`);
-  }
-  
-  // Afficher l'interface du module si demandé
-  if (options.openInterface && config.instance && typeof config.instance.show === 'function') {
-    try {
-      config.instance.show();
-    } catch (error) {
-      console.warn(`⚠️ Erreur affichage module ${moduleId}:`, error);
+    if (!config || !state) {
+      return false;
     }
-  }
-  
-  // Mettre à jour l'état
-  state.visible = true;
-  this.moduleStates.set(moduleId, state);
-  
-  return true;
-}
-
-  
-hideModule(moduleId, options = {}) {
-  const config = this.modules.get(moduleId);
-  const state = this.moduleStates.get(moduleId);
-  const iconConfig = this.registeredIcons.get(moduleId);
-  
-  if (!config || !state) {
-    return false;
-  }
-  
-  // ✅ SPÉCIAL QUEST : Forcer masquage complet en battle
-  const isBattleMode = this.globalState.currentGameState === 'battle';
-  const isQuestModule = moduleId === 'quest' || moduleId === 'questTracker';
-  
-  if (iconConfig && iconConfig.element) {
-    if (isBattleMode && isQuestModule) {
-      // ✅ QUEST EN BATTLE : MASQUAGE TOTAL
-      iconConfig.element.style.display = 'none';
-      iconConfig.element.style.visibility = 'hidden';
-      iconConfig.element.style.opacity = '0';
-      iconConfig.element.style.pointerEvents = 'none';
-      iconConfig.element.classList.add('battle-hidden', 'quest-battle-hidden');
+    
+    // 🎯 FIX PRINCIPAL : RESTAURATION UNIFORME POUR TOUS LES MODULES
+    if (iconConfig && iconConfig.element) {
+      // ✅ RESTAURATION COMPLÈTE IDENTIQUE POUR TOUS
+      iconConfig.element.style.display = 'block';
+      iconConfig.element.style.visibility = 'visible';
+      iconConfig.element.style.opacity = '1';
+      iconConfig.element.style.pointerEvents = 'auto';
+      iconConfig.element.style.filter = '';
+      iconConfig.element.classList.remove('ui-disabled', 'battle-hidden', 'ui-hidden');
       
-      console.log(`🥊 [UIManager] Quest masqué complètement (battle)`);
-    } else if (isBattleMode) {
-      // ✅ AUTRES MODULES EN BATTLE : MASQUAGE NORMAL
-      iconConfig.element.style.display = 'none';
-      iconConfig.element.style.visibility = 'hidden';
-      iconConfig.element.style.opacity = '0';
-      iconConfig.element.classList.add('battle-hidden');
-    } else {
-      // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
-      iconConfig.element.style.opacity = '0.5';
-      iconConfig.element.style.pointerEvents = 'none';
-      iconConfig.element.style.filter = 'grayscale(70%)';
-      iconConfig.element.classList.add('ui-disabled');
+      console.log(`✅ [UIManager] Module ${moduleId} restauré uniformément`);
     }
+    
+    // Afficher l'interface du module si demandé
+    if (options.openInterface && config.instance && typeof config.instance.show === 'function') {
+      try {
+        config.instance.show();
+      } catch (error) {
+        console.warn(`⚠️ Erreur affichage module ${moduleId}:`, error);
+      }
+    }
+    
+    // Mettre à jour l'état
+    state.visible = true;
+    this.moduleStates.set(moduleId, state);
+    
+    return true;
   }
   
-  // Cacher l'interface du module
-  if (config.instance && typeof config.instance.hide === 'function') {
-    try {
-      config.instance.hide();
-    } catch (error) {
-      console.warn(`⚠️ Erreur masquage module ${moduleId}:`, error);
+  hideModule(moduleId, options = {}) {
+    const config = this.modules.get(moduleId);
+    const state = this.moduleStates.get(moduleId);
+    const iconConfig = this.registeredIcons.get(moduleId);
+    
+    if (!config || !state) {
+      return false;
     }
+    
+    const isBattleMode = this.globalState.currentGameState === 'battle';
+    
+    if (iconConfig && iconConfig.element) {
+      if (isBattleMode) {
+        // 🎯 FIX PRINCIPAL : EN BATAILLE, TOUS LES MODULES SONT CACHÉS DE LA MÊME FAÇON
+        // ✅ MASQUAGE COMPLET UNIFORME pour TOUS les modules en battle
+        iconConfig.element.style.display = 'none';
+        iconConfig.element.style.visibility = 'hidden';
+        iconConfig.element.style.opacity = '0';
+        iconConfig.element.style.pointerEvents = 'none';
+        iconConfig.element.classList.add('battle-hidden');
+        
+        console.log(`🥊 [UIManager] Module ${moduleId} masqué complètement (battle uniforme)`);
+      } else {
+        // ✅ HORS BATAILLE : MASQUAGE NORMAL UNIFORME
+        iconConfig.element.style.opacity = '0.5';
+        iconConfig.element.style.pointerEvents = 'none';
+        iconConfig.element.style.filter = 'grayscale(70%)';
+        iconConfig.element.classList.add('ui-disabled');
+        
+        console.log(`🔄 [UIManager] Module ${moduleId} désactivé (hors battle)`);
+      }
+    }
+    
+    // Cacher l'interface du module
+    if (config.instance && typeof config.instance.hide === 'function') {
+      try {
+        config.instance.hide();
+      } catch (error) {
+        console.warn(`⚠️ Erreur masquage module ${moduleId}:`, error);
+      }
+    }
+    
+    // Mettre à jour l'état
+    state.visible = false;
+    this.moduleStates.set(moduleId, state);
+    
+    return true;
   }
-  
-  // Mettre à jour l'état
-  state.visible = false;
-  this.moduleStates.set(moduleId, state);
-  
-  return true;
-}
   
   enableModule(moduleId) {
     const success = this.setModuleState(moduleId, { enabled: true });
@@ -980,49 +983,50 @@ hideModule(moduleId, options = {}) {
     return true;
   }
 
-applyGameState(stateConfig, animated = true) {
-  const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
-  
-  // Reset tous les modules à l'état visible et activé
-  const allModuleIds = Array.from(this.modules.keys());
-  
-  allModuleIds.forEach(moduleId => {
-    const iconConfig = this.registeredIcons.get(moduleId);
-    if (iconConfig && iconConfig.element) {
-      iconConfig.element.style.display = 'block';
-      iconConfig.element.style.visibility = 'visible';
-      iconConfig.element.style.opacity = '1';
-      iconConfig.element.style.pointerEvents = 'auto';
-      iconConfig.element.style.filter = '';
-      iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
-    }
-  });
-  
-  // ✅ ORDRE IMPORTANT : D'abord désactiver, PUIS masquer
-  
-  // 1. D'abord désactiver les modules (mais ils restent visibles)
-  disabledModules.forEach(moduleId => {
-    this.disableModule(moduleId);
-  });
-  
-  // 2. ENSUITE masquer les modules (override la désactivation visuelle)
-  hiddenModules.forEach(moduleId => {
-    this.hideModule(moduleId, { animated });
-  });
-  
-  // 3. Appliquer les permissions avec délai
-  setTimeout(() => {
-    visibleModules.forEach(moduleId => {
-      this.showModule(moduleId, { animated });
+  applyGameState(stateConfig, animated = true) {
+    const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
+    
+    // 🎯 Reset uniforme de tous les modules
+    const allModuleIds = Array.from(this.modules.keys());
+    
+    allModuleIds.forEach(moduleId => {
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        // ✅ RESET UNIFORME : Tous les modules commencent dans le même état
+        iconConfig.element.style.display = 'block';
+        iconConfig.element.style.visibility = 'visible';
+        iconConfig.element.style.opacity = '1';
+        iconConfig.element.style.pointerEvents = 'auto';
+        iconConfig.element.style.filter = '';
+        iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden', 'battle-hidden');
+      }
     });
     
-    enabledModules.forEach(moduleId => {
-      this.enableModule(moduleId);
+    // ✅ ORDRE IMPORTANT : D'abord désactiver, PUIS masquer UNIFORMÉMENT
+    
+    // 1. D'abord désactiver les modules (mais ils restent visibles)
+    disabledModules.forEach(moduleId => {
+      this.disableModule(moduleId);
     });
     
-    this.repositionAllIcons();
-  }, animated ? 150 : 0);
-}
+    // 2. ENSUITE masquer les modules UNIFORMÉMENT (même logique pour tous)
+    hiddenModules.forEach(moduleId => {
+      this.hideModule(moduleId, { animated });
+    });
+    
+    // 3. Appliquer les permissions avec délai
+    setTimeout(() => {
+      visibleModules.forEach(moduleId => {
+        this.showModule(moduleId, { animated });
+      });
+      
+      enabledModules.forEach(moduleId => {
+        this.enableModule(moduleId);
+      });
+      
+      this.repositionAllIcons();
+    }, animated ? 150 : 0);
+  }
   
   toggleModule(moduleId, options = {}) {
     const state = this.moduleStates.get(moduleId);
@@ -1236,7 +1240,7 @@ applyGameState(stateConfig, animated = true) {
     const iconConfig = this.getIconConfiguration();
     
     const info = {
-      mode: 'uimanager-complete-with-battle-states',
+      mode: 'uimanager-battle-cohérent-unifié',
       currentGameState: this.globalState.currentGameState,
       totalModules: this.modules.size,
       totalIcons: this.registeredIcons.size,
@@ -1249,6 +1253,13 @@ applyGameState(stateConfig, animated = true) {
       gameStates: Object.keys(this.gameStates),
       currentGameState: this.globalState.currentGameState,
       battleStateConfig: this.gameStates.battle,
+      
+      battleBehaviorFix: {
+        description: 'Tous les modules sont maintenant cachés uniformément en battle',
+        previousIssue: 'Inventaire caché mais quest seulement désactivé',
+        currentBehavior: 'Tous modules: display:none + visibility:hidden en battle',
+        restoration: 'Tous modules: restauration uniforme après battle'
+      },
       
       moduleStates: Object.fromEntries(
         Array.from(this.moduleStates.entries()).map(([id, state]) => [
@@ -1268,7 +1279,8 @@ applyGameState(stateConfig, animated = true) {
             hasElement: !!config.element,
             visible: config.element ? config.element.style.display !== 'none' : false,
             positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false,
-            positionedBy: config.element ? config.element.getAttribute('data-positioned-by') : null
+            positionedBy: config.element ? config.element.getAttribute('data-positioned-by') : null,
+            battleHidden: config.element ? config.element.classList.contains('battle-hidden') : false
           }
         ])
       ),
