@@ -423,46 +423,33 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
   }
 
-  // === 🎮 INTERFACE D'ACTIONS GAME BOY ===
+  // === 🎮 INTERFACE D'ACTIONS GAME BOY ADAPTIVE ===
 
   createGameBoyActionInterface() {
     const { width, height } = this.cameras.main;
     
-    // Conteneur principal en bas
+    // Conteneur principal en bas (position dynamique)
     this.actionInterface = this.add.container(0, height - 160);
     this.actionInterface.setDepth(190);
     
-    // Panel principal style Game Boy
-    const mainPanel = this.add.graphics();
-    mainPanel.fillStyle(0xf0f8f0, 0.98);
-    mainPanel.fillRoundedRect(20, 0, width - 40, 140, 12);
+    // Panel principal style Game Boy (taille dynamique)
+    this.mainPanel = this.add.graphics();
+    this.drawMainPanel(width, 140, 'buttons'); // Mode par défaut
+    this.actionInterface.add(this.mainPanel);
     
-    // Bordure épaisse
-    mainPanel.lineStyle(5, 0x1a1a1a, 1);
-    mainPanel.strokeRoundedRect(20, 0, width - 40, 140, 12);
+    // Zone de texte adaptative (masquée par défaut)
+    this.textPanel = this.add.graphics();
+    this.textPanel.setVisible(false);
+    this.actionInterface.add(this.textPanel);
     
-    // Bordure intérieure
-    mainPanel.lineStyle(2, 0x8fad8f, 1);
-    mainPanel.strokeRoundedRect(26, 6, width - 52, 128, 8);
-    
-    this.actionInterface.add(mainPanel);
-    
-    // Zone de texte avec style Game Boy
-    const textPanel = this.add.graphics();
-    textPanel.fillStyle(0xe8f4e8, 1);
-    textPanel.fillRoundedRect(35, 15, width - 70, 50, 6);
-    textPanel.lineStyle(2, 0x6b8e6b, 1);
-    textPanel.strokeRoundedRect(35, 15, width - 70, 50, 6);
-    this.actionInterface.add(textPanel);
-    
-    // Texte d'action
+    // Texte d'action/narratif adaptatif
     this.actionMessageText = this.add.text(width/2, 40, '', {
       fontSize: '18px',
       fontFamily: 'monospace',
       color: '#1a1a1a',
       fontWeight: 'bold',
       align: 'center',
-      wordWrap: { width: width - 100 }
+      wordWrap: { width: width - 80 }
     });
     this.actionMessageText.setOrigin(0.5, 0.5);
     this.actionMessageText.setVisible(false);
@@ -471,7 +458,69 @@ export class BattleScene extends Phaser.Scene {
     // Créer boutons Game Boy
     this.createGameBoyActionButtons(width);
     
+    // Indicateur de continuation pour texte narratif
+    this.continueArrow = this.add.text(width - 50, 100, '▼', {
+      fontSize: '16px',
+      fontFamily: 'monospace',
+      color: '#1a1a1a'
+    });
+    this.continueArrow.setOrigin(0.5);
+    this.continueArrow.setVisible(false);
+    this.actionInterface.add(this.continueArrow);
+    
+    // Animation clignotante pour l'indicateur
+    this.tweens.add({
+      targets: this.continueArrow,
+      alpha: 0.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Power2.easeInOut'
+    });
+    
     this.actionInterface.setVisible(false);
+  }
+
+  drawMainPanel(width, height, mode) {
+    if (!this.mainPanel) return;
+    
+    this.mainPanel.clear();
+    
+    // Adapter la hauteur selon le mode
+    const panelHeight = mode === 'narrative' ? 120 : height;
+    const panelY = mode === 'narrative' ? 20 : 0;
+    
+    // Panel principal
+    this.mainPanel.fillStyle(0xf0f8f0, 0.98);
+    this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 12);
+    
+    // Bordure épaisse
+    this.mainPanel.lineStyle(5, 0x1a1a1a, 1);
+    this.mainPanel.strokeRoundedRect(20, panelY, width - 40, panelHeight, 12);
+    
+    // Bordure intérieure
+    this.mainPanel.lineStyle(2, 0x8fad8f, 1);
+    this.mainPanel.strokeRoundedRect(26, panelY + 6, width - 52, panelHeight - 12, 8);
+  }
+
+  drawTextPanel(width, mode) {
+    if (!this.textPanel) return;
+    
+    this.textPanel.clear();
+    
+    if (mode === 'narrative') {
+      // Panel pleine largeur pour le texte narratif
+      this.textPanel.fillStyle(0xe8f4e8, 1);
+      this.textPanel.fillRoundedRect(35, 30, width - 70, 80, 6);
+      this.textPanel.lineStyle(2, 0x6b8e6b, 1);
+      this.textPanel.strokeRoundedRect(35, 30, width - 70, 80, 6);
+    } else if (mode === 'message') {
+      // Panel plus petit pour les messages d'action
+      this.textPanel.fillStyle(0xe8f4e8, 1);
+      this.textPanel.fillRoundedRect(35, 15, width - 70, 50, 6);
+      this.textPanel.lineStyle(2, 0x6b8e6b, 1);
+      this.textPanel.strokeRoundedRect(35, 15, width - 70, 50, 6);
+    }
   }
 
   createGameBoyActionButtons(width) {
@@ -482,10 +531,11 @@ export class BattleScene extends Phaser.Scene {
       { key: 'run', text: 'FUITE', color: 0x607d8b, icon: '🏃' }
     ];
     
+    // Positions remontées pour laisser place au texte
     const buttonWidth = (width - 120) / 2;
     const buttonHeight = 35;
     const startX = 40;
-    const startY = 80;
+    const startY = 95; // Remonté de 95 au lieu de 80
     const gapX = 20;
     const gapY = 10;
     
@@ -494,6 +544,7 @@ export class BattleScene extends Phaser.Scene {
       const y = startY + Math.floor(index / 2) * (buttonHeight + gapY);
       
       const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, action);
+      button.isActionButton = true; // Marquer comme bouton d'action
       this.actionInterface.add(button);
     });
   }
@@ -1164,7 +1215,22 @@ export class BattleScene extends Phaser.Scene {
     return colors[type.toLowerCase()] || 0xc4c4a4;
   }
 
-  // === MISE À JOUR DES BARRES DE VIE (version Game Boy) ===
+  // === MESSAGES AVEC STYLE GAME BOY ADAPTATIF ===
+
+  showBattleMessage(message, duration = 0) {
+    // Utiliser le nouveau système adaptatif
+    this.showNarrativeMessage(message, duration === 0);
+    
+    if (duration > 0) {
+      setTimeout(() => {
+        this.hideNarrativeMode();
+      }, duration);
+    }
+  }
+
+  hideBattleMessage() {
+    this.hideNarrativeMode();
+  }
 
   updateModernHealthBar(type, pokemonData) {
     const healthBar = this.modernHealthBars[type];
@@ -1236,53 +1302,115 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(1, 1, Math.max(0, width - 2), 3, 1);
   }
 
-  // === MESSAGES AVEC STYLE GAME BOY ===
+  // === 📱 GESTION ADAPTATIVE DES MODES D'AFFICHAGE ===
 
-  showBattleMessage(message, duration = 0) {
-    if (!this.battleDialog || !this.dialogText) return;
+  // Mode boutons d'action
+  showActionButtons() {
+    console.log('🎮 [BattleScene] Mode BOUTONS activé');
+    const { width } = this.cameras.main;
     
-    this.dialogText.setText(message.toUpperCase()); // Style Game Boy en majuscules
-    this.battleDialog.setVisible(true);
-    this.battleDialog.setAlpha(0);
+    this.hideActionMessage();
+    this.hideNarrativeMode();
     
-    this.tweens.add({
-      targets: this.battleDialog,
-      alpha: 1,
-      duration: 400,
-      ease: 'Power2.easeOut'
-    });
+    // Redessiner le panel pour les boutons
+    this.drawMainPanel(width, 140, 'buttons');
     
-    if (duration > 0) {
-      setTimeout(() => {
-        this.hideBattleMessage();
-      }, duration);
+    // Cacher le panel de texte
+    if (this.textPanel) {
+      this.textPanel.setVisible(false);
     }
-  }
-
-  hideBattleMessage() {
-    if (!this.battleDialog) return;
     
-    this.tweens.add({
-      targets: this.battleDialog,
-      alpha: 0,
-      duration: 400,
-      ease: 'Power2.easeIn',
-      onComplete: () => {
-        this.battleDialog.setVisible(false);
-      }
-    });
+    // Montrer les boutons
+    if (this.actionInterface) {
+      this.actionInterface.list.forEach(child => {
+        if (child.isActionButton) {
+          child.setVisible(true);
+        }
+      });
+      
+      this.actionInterface.setVisible(true);
+      this.actionInterface.setAlpha(1);
+    }
+    
+    // Cacher l'indicateur de continuation
+    if (this.continueArrow) {
+      this.continueArrow.setVisible(false);
+    }
+    
+    this.interfaceMode = 'buttons';
   }
 
+  // Mode message court (attaques, erreurs)
   showActionMessage(message) {
-    console.log('🔍 [BATTLE ACTION] showActionMessage:', message);
-    
-    if (!this.actionInterface || !this.actionMessageText) {
-      return;
-    }
+    console.log('💬 [BattleScene] Mode MESSAGE:', message);
+    const { width } = this.cameras.main;
     
     this.hideActionButtons();
-    this.actionMessageText.setText(message.toUpperCase()); // Style Game Boy
+    this.hideNarrativeMode();
+    
+    // Redessiner le panel pour message court
+    this.drawMainPanel(width, 140, 'message');
+    this.drawTextPanel(width, 'message');
+    
+    if (!this.actionMessageText) return;
+    
+    // Repositionner le texte pour le mode message
+    this.actionMessageText.setPosition(width/2, 40);
+    this.actionMessageText.setText(message.toUpperCase());
     this.actionMessageText.setVisible(true);
+    
+    // Montrer le panel de texte
+    if (this.textPanel) {
+      this.textPanel.setVisible(true);
+    }
+    
+    // Cacher l'indicateur de continuation
+    if (this.continueArrow) {
+      this.continueArrow.setVisible(false);
+    }
+    
+    if (!this.actionInterface.visible) {
+      this.actionInterface.setVisible(true);
+      this.actionInterface.setAlpha(0);
+      this.tweens.add({
+        targets: this.actionInterface,
+        alpha: 1,
+        duration: 400,
+        ease: 'Power2.easeOut'
+      });
+    }
+    
+    this.interfaceMode = 'message';
+  }
+
+  // Mode texte narratif (apparitions, événements)
+  showNarrativeMessage(message, showContinue = true) {
+    console.log('📖 [BattleScene] Mode NARRATIF:', message);
+    const { width } = this.cameras.main;
+    
+    this.hideActionButtons();
+    this.hideActionMessage();
+    
+    // Redessiner le panel pour narratif (plus compact)
+    this.drawMainPanel(width, 120, 'narrative');
+    this.drawTextPanel(width, 'narrative');
+    
+    if (!this.actionMessageText) return;
+    
+    // Repositionner le texte pour le mode narratif (plus centré)
+    this.actionMessageText.setPosition(width/2, 70);
+    this.actionMessageText.setText(message.toUpperCase());
+    this.actionMessageText.setVisible(true);
+    
+    // Montrer le panel de texte
+    if (this.textPanel) {
+      this.textPanel.setVisible(true);
+    }
+    
+    // Montrer/cacher l'indicateur de continuation
+    if (this.continueArrow && showContinue) {
+      this.continueArrow.setVisible(true);
+    }
     
     if (!this.actionInterface.visible) {
       this.actionInterface.setVisible(true);
@@ -1295,37 +1423,34 @@ export class BattleScene extends Phaser.Scene {
       });
     }
     
-    this.interfaceMode = 'message';
+    this.interfaceMode = 'narrative';
   }
 
+  // Masquer mode message
   hideActionMessage() {
     if (!this.actionMessageText) return;
     this.actionMessageText.setVisible(false);
-    this.interfaceMode = 'hidden';
-  }
-
-  showActionButtons() {
-    this.hideActionMessage();
     
-    if (this.actionInterface) {
-      this.actionInterface.list.forEach(child => {
-        if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
-          child.setVisible(true);
-        }
-      });
-      
-      this.actionInterface.setVisible(true);
-      this.actionInterface.setAlpha(1);
+    if (this.textPanel) {
+      this.textPanel.setVisible(false);
     }
-    
-    this.interfaceMode = 'buttons';
   }
 
+  // Masquer mode narratif
+  hideNarrativeMode() {
+    this.hideActionMessage(); // Même logique de base
+    
+    if (this.continueArrow) {
+      this.continueArrow.setVisible(false);
+    }
+  }
+
+  // Masquer boutons d'action
   hideActionButtons() {
     if (!this.actionInterface) return;
     
     this.actionInterface.list.forEach(child => {
-      if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
+      if (child.isActionButton) {
         child.setVisible(false);
       }
     });
@@ -1813,19 +1938,22 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === SYSTÈME DE TRADUCTION (inchangé) ===
+  // === SYSTÈME DE TRADUCTION ADAPTATIF (inchangé mais utilise les nouveaux modes) ===
 
   handleBattleEvent(eventType, data = {}) {
     console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
     if (eventType === 'moveUsed') return;
     
+    // Actions d'interface
     if (eventType === 'yourTurn') {
-      this.showActionButtons();
+      this.showActionButtons(); // Mode boutons
       return;
     }
     
     if (eventType === 'opponentTurn') {
       this.hideActionButtons();
+      this.showNarrativeMessage('L\'ADVERSAIRE RÉFLÉCHIT...', false);
+      return;
     }
 
     if (eventType === 'battleEnd') {
@@ -1834,12 +1962,28 @@ export class BattleScene extends Phaser.Scene {
       setTimeout(() => {
         this.endBattle({ result: 'ended' });
       }, 3000);
+      return;
     }
     
+    // Traduction du message avec mode narratif
     if (this.battleTranslator) {
       const message = this.battleTranslator.translate(eventType, data);
       if (message) {
-        this.showActionMessage(message);
+        // Événements narratifs spéciaux
+        const narrativeEvents = [
+          'wildPokemonAppears', 
+          'battleStart', 
+          'pokemonFainted',
+          'victory',
+          'defeat'
+        ];
+        
+        if (narrativeEvents.includes(eventType)) {
+          this.showNarrativeMessage(message, true); // Mode narratif avec continuation
+        } else {
+          this.showNarrativeMessage(message, false); // Mode narratif sans continuation
+        }
+        
         console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
       }
     } else {
@@ -2366,7 +2510,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === TEST MODERNE ===
+  // === TEST MODERNE ADAPTATIF ===
 
   testModernBattleDisplay() {
     this.activateBattleUI();
@@ -2396,8 +2540,9 @@ export class BattleScene extends Phaser.Scene {
     
     setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
     setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
-    setTimeout(() => this.showBattleMessage('UN PIKACHU CHROMATIQUE APPARAÎT !'), 2000);
-    setTimeout(() => this.showActionButtons(), 4000);
+    setTimeout(() => this.showNarrativeMessage('UN PIKACHU CHROMATIQUE APPARAÎT !'), 2000);
+    setTimeout(() => this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?'), 4000);
+    setTimeout(() => this.showActionButtons(), 6000);
   }
 
   // === DIAGNOSTIC (inchangé) ===
@@ -2497,7 +2642,7 @@ export class BattleScene extends Phaser.Scene {
   }
 }
 
-// === FONCTIONS GLOBALES DE TEST (améliorées) ===
+// === FONCTIONS GLOBALES DE TEST ADAPTATIVES ===
 
 window.testGameBoyBattle = function() {
   const battleScene = window.game?.scene?.getScene('BattleScene');
@@ -2512,7 +2657,32 @@ window.testGameBoyBattle = function() {
   }
   
   battleScene.testModernBattleDisplay();
-  console.log('🎮 [Test] Interface Game Boy moderne activée !');
+  console.log('🎮 [Test] Interface Game Boy adaptative activée !');
+};
+
+// Tests des différents modes d'affichage
+window.testNarrativeMode = function(message = 'UN POKÉMON SAUVAGE APPARAÎT !') {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    battleScene.showNarrativeMessage(message, true);
+    console.log('📖 [Test] Mode narratif activé');
+  }
+};
+
+window.testActionMode = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    battleScene.showActionButtons();
+    console.log('🎮 [Test] Mode boutons activé');
+  }
+};
+
+window.testMessageMode = function(message = 'PIKACHU UTILISE ÉCLAIR !') {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    battleScene.showActionMessage(message);
+    console.log('💬 [Test] Mode message activé');
+  }
 };
 
 window.debugGameBoyHealthBars = function() {
@@ -2540,12 +2710,15 @@ window.gameBoyDamageOpponent = function(damage = 8) {
   }
 };
 
-console.log('✅ [BattleScene] VERSION POKÉMON ROUGE/BLEU MODERNE CHARGÉE !');
-console.log('🎨 Style: Interface Game Boy avec bordures pixelisées');
-console.log('🎮 Couleurs: Palette authentique Game Boy (verts/gris)');
-console.log('📱 Polices: Monospace pour l\'authenticité');
+console.log('✅ [BattleScene] VERSION POKÉMON ROUGE/BLEU ADAPTATIVE CHARGÉE !');
+console.log('🎨 Style: Interface Game Boy avec modes adaptatifs');
+console.log('📱 Modes: Narratif (texte plein) / Actions (boutons) / Messages (courts)');
+console.log('🎮 Optimisé: Panel dynamique selon le contexte');
 console.log('🧪 Tests disponibles:');
-console.log('   - window.testGameBoyBattle() - Test interface Game Boy');
+console.log('   - window.testGameBoyBattle() - Test interface complète');
+console.log('   - window.testNarrativeMode(message) - Test mode narratif');
+console.log('   - window.testActionMode() - Test mode boutons');  
+console.log('   - window.testMessageMode(message) - Test mode message');
 console.log('   - window.debugGameBoyHealthBars() - Debug barres Game Boy');
 console.log('   - window.gameBoyDamagePlayer(damage) - Test dégâts joueur');
 console.log('   - window.gameBoyDamageOpponent(damage) - Test dégâts adversaire');
