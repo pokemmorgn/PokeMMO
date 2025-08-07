@@ -535,16 +535,20 @@ export class BattleScene extends Phaser.Scene {
       { key: 'run', text: t('battle.ui.actions.run'), color: 0x607d8b, icon: '🏃' }
     ];
     
-    // Centrage parfait - même logique que l'inventaire
+    // Centrage parfait horizontal et vertical
     const totalPadding = 70;
     const availableWidth = width - totalPadding;
     const buttonWidth = (availableWidth - 20) / 2;
     const buttonHeight = 32;
-    
-    const startX = totalPadding / 2;
-    const startY = 30;
     const gapX = 20;
     const gapY = 8;
+    
+    // Centrage vertical parfait dans le panel de 110px
+    const totalButtonsHeight = (buttonHeight * 2) + gapY; // 2 rangées + gap
+    const verticalPadding = (110 - totalButtonsHeight) / 2; // Panel height - buttons height, divisé par 2
+    
+    const startX = totalPadding / 2;
+    const startY = verticalPadding; // Centrage vertical parfait
     
     actions.forEach((action, index) => {
       const x = startX + (index % 2) * (buttonWidth + gapX);
@@ -740,16 +744,20 @@ export class BattleScene extends Phaser.Scene {
     }
     this.moveButtons = [];
     
-    // Même centrage que les boutons d'action
+    // Même centrage que les boutons d'action (horizontal et vertical)
     const totalPadding = 70;
     const availableWidth = width - totalPadding;
     const buttonWidth = (availableWidth - 20) / 2;
     const buttonHeight = 32;
-    
-    const startX = totalPadding / 2;
-    const startY = 30;
     const gapX = 20;
     const gapY = 8;
+    
+    // Centrage vertical parfait dans le panel de 110px
+    const totalButtonsHeight = (buttonHeight * 2) + gapY;
+    const verticalPadding = (110 - totalButtonsHeight) / 2;
+    
+    const startX = totalPadding / 2;
+    const startY = verticalPadding; // Centrage vertical parfait
     
     const moveTypeColors = {
       'normal': 0xa8a8a8, 'fire': 0xff4444, 'water': 0x4488ff,
