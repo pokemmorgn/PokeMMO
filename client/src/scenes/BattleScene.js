@@ -521,7 +521,16 @@ export class BattleScene extends Phaser.Scene {
     
     this.mainPanel.clear();
     
-    const panelHeight = mode === 'narrative' ? 90 : height;
+    // Adapter la hauteur selon le mode - PLUS HAUT POUR LES ATTAQUES
+    let panelHeight;
+    if (mode === 'narrative') {
+      panelHeight = 90;
+    } else if (mode === 'moves') {
+      panelHeight = 110; // Plus haut pour 4 attaques + bouton retour
+    } else {
+      panelHeight = height; // Mode boutons standard
+    }
+    
     const panelY = mode === 'narrative' ? 10 : 0;
     
     this.mainPanel.fillStyle(0xf0f8f0, 0.98);
@@ -738,7 +747,8 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMessage();
     this.hideNarrativeMode();
     
-    this.drawMainPanel(width, 100, 'moves');
+    // Panel plus haut pour accommoder 4 attaques + retour
+    this.drawMainPanel(width, 110, 'moves');
     
     if (this.textPanel) {
       this.textPanel.setVisible(false);
@@ -762,7 +772,7 @@ export class BattleScene extends Phaser.Scene {
     const buttonWidth = (width - 100) / 2;
     const buttonHeight = 26;
     const startX = 30;
-    const startY = 25;
+    const startY = 20; // Plus haut pour faire place au bouton retour
     const gapX = 15;
     const gapY = 5;
     
@@ -775,36 +785,62 @@ export class BattleScene extends Phaser.Scene {
       'dark': 0x775544, 'steel': 0xaaaaaa, 'fairy': 0xffaaee
     };
     
-    for (let i = 0; i < Math.min(4, moves.length); i++) {
-      const move = moves[i];
+    // Créer exactement 4 boutons d'attaques (2x2)
+    for (let i = 0; i < 4; i++) {
       const x = startX + (i % 2) * (buttonWidth + gapX);
       const y = startY + Math.floor(i / 2) * (buttonHeight + gapY);
       
-      const moveColor = moveTypeColors[move.type?.toLowerCase()] || 0x64b5f6;
+      let moveAction;
       
-      const moveAction = {
-        key: `move_${move.id}`,
-        text: move.name.toUpperCase().substring(0, 10),
-        color: moveColor,
-        icon: this.getMoveIcon(move.type),
-        moveData: move
-      };
-      
-      const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
-      button.isMoveButton = true;
-      
-      button.removeAllListeners('pointerdown');
-      button.on('pointerdown', () => {
-        this.handleMoveButton(move);
-      });
-      
-      this.actionInterface.add(button);
-      this.moveButtons.push(button);
+      if (i < moves.length) {
+        // Attaque réelle
+        const move = moves[i];
+        const moveColor = moveTypeColors[move.type?.toLowerCase()] || 0x64b5f6;
+        
+        moveAction = {
+          key: `move_${move.id}`,
+          text: move.name.toUpperCase().substring(0, 10),
+          color: moveColor,
+          icon: this.getMoveIcon(move.type),
+          moveData: move
+        };
+        
+        const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
+        button.isMoveButton = true;
+        
+        button.removeAllListeners('pointerdown');
+        button.on('pointerdown', () => {
+          this.handleMoveButton(move);
+        });
+        
+        this.actionInterface.add(button);
+        this.moveButtons.push(button);
+      } else {
+        // Emplacement vide si moins de 4 attaques
+        moveAction = {
+          key: 'empty',
+          text: '---',
+          color: 0x666666,
+          icon: '-'
+        };
+        
+        const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
+        button.isMoveButton = true;
+        button.alpha = 0.3; // Semi-transparent pour montrer que c'est vide
+        
+        // Pas d'interaction pour les emplacements vides
+        button.removeInteractive();
+        
+        this.actionInterface.add(button);
+        this.moveButtons.push(button);
+      }
     }
     
-    // Bouton retour
-    const backX = startX + (3 % 2) * (buttonWidth + gapX);
-    const backY = startY + Math.floor(3 / 2) * (buttonHeight + gapY);
+    // 🎮 BOUTON RETOUR SÉPARÉ EN BAS (sur toute la largeur)
+    const backButtonWidth = width - 60; // Plus large
+    const backButtonHeight = 22;
+    const backX = 30;
+    const backY = startY + 2 * (buttonHeight + gapY) + 8; // En dessous des attaques
     
     const backAction = {
       key: 'back',
@@ -813,7 +849,7 @@ export class BattleScene extends Phaser.Scene {
       icon: '◀'
     };
     
-    const backButton = this.createGameBoyButton(backX, backY, buttonWidth, buttonHeight, backAction);
+    const backButton = this.createGameBoyButton(backX, backY, backButtonWidth, backButtonHeight, backAction);
     backButton.isMoveButton = true;
     
     backButton.removeAllListeners('pointerdown');
@@ -1037,7 +1073,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // Méthode pour obtenir des attaques de test
+  // Méthode pour obtenir des attaques de test (4 attaques complètes)
   getTestMoves() {
     return [
       { id: 1, name: 'Charge', type: 'normal', power: 40, pp: 35 },
