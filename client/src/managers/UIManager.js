@@ -880,26 +880,21 @@ hideModule(moduleId, options = {}) {
   const isBattleMode = this.globalState.currentGameState === 'battle';
   
   // Masquer complètement l'icône
-  if (iconConfig && iconConfig.element) {
-    if (isBattleMode) {
-      // ✅ EN BATTLE : MASQUAGE COMPLET
-      iconConfig.element.style.display = 'none';
-      iconConfig.element.style.visibility = 'hidden';
-      iconConfig.element.style.opacity = '0';
-      iconConfig.element.style.pointerEvents = 'none';
-      iconConfig.element.classList.add('battle-hidden');
-      
-      console.log(`🥊 [UIManager] Module ${moduleId} MASQUÉ COMPLÈTEMENT (battle)`);
-    } else {
-      // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
-      iconConfig.element.style.opacity = '0.5';
-      iconConfig.element.style.pointerEvents = 'none';
-      iconConfig.element.style.filter = 'grayscale(70%)';
-      iconConfig.element.classList.add('ui-disabled');
-      
-      console.log(`🔒 [UIManager] Module ${moduleId} désactivé (normal)`);
-    }
+if (iconConfig && iconConfig.element) {
+  if (this.globalState.currentGameState === 'battle') {
+    // ✅ EN BATTLE : MASQUAGE COMPLET
+    iconConfig.element.style.display = 'none';
+    iconConfig.element.style.visibility = 'hidden';
+    iconConfig.element.style.opacity = '0';
+    iconConfig.element.classList.add('battle-hidden');
+  } else {
+    // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
+    iconConfig.element.style.opacity = '0.5';
+    iconConfig.element.style.pointerEvents = 'none';
+    iconConfig.element.style.filter = 'grayscale(70%)';
+    iconConfig.element.classList.add('ui-disabled');
   }
+}
   
   // Cacher l'interface du module
   if (config.instance && typeof config.instance.hide === 'function') {
