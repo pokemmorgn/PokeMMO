@@ -44,6 +44,9 @@ export class BattleScene extends Phaser.Scene {
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
+    // ✅ NOUVEAU : Stockage des moves actuelles du joueur
+    this.currentPlayerMoves = [];
+    
     // Positions optimisées
     this.pokemonPositions = {
       player: { x: 0.15, y: 0.78 },
@@ -952,6 +955,13 @@ export class BattleScene extends Phaser.Scene {
     
     if (this.battleNetworkHandler && this.battleNetworkHandler.selectMove) {
       try {
+        // ✅ NOUVEAU : Envoi amélioré avec plus d'infos
+        console.log('📤 [BattleScene] Envoi de l\'attaque au serveur:', {
+          moveId: move.id,
+          moveName: move.name,
+          moveData: move
+        });
+        
         this.battleNetworkHandler.selectMove(move.id, move);
       } catch (error) {
         console.error('[BattleScene] Erreur envoi attaque:', error);
@@ -1077,8 +1087,10 @@ export class BattleScene extends Phaser.Scene {
     
     switch (actionKey) {
       case 'attack':
-        const testMoves = this.getTestMoves();
-        this.showMoveButtons(testMoves);
+        // ✅ NOUVEAU : Utiliser les moves du serveur si disponibles
+        const moves = this.currentPlayerMoves.length > 0 ? this.currentPlayerMoves : this.getTestMoves();
+        console.log('⚔️ [BattleScene] Affichage des attaques:', moves);
+        this.showMoveButtons(moves);
         break;
         
       case 'bag':
@@ -1125,12 +1137,50 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // ✅ AMÉLIORÉ : Méthode fallback avec les moves de test
   getTestMoves() {
+    console.log('🧪 [BattleScene] Utilisation des moves de test (fallback)');
     return [
-      { id: 1, name: 'Charge', type: 'normal', power: 40, pp: 35 },
-      { id: 2, name: 'Fouet Lianes', type: 'grass', power: 45, pp: 25 },
-      { id: 3, name: 'Poudre Toxik', type: 'poison', power: 0, pp: 35 },
-      { id: 4, name: 'Vampigraine', type: 'grass', power: 0, pp: 10 }
+      { 
+        id: 'tackle', 
+        name: 'Charge', 
+        type: 'normal', 
+        power: 40, 
+        pp: 35,
+        maxPp: 35,
+        accuracy: 100,
+        description: 'Une attaque normale qui inflige des dégâts physiques.'
+      },
+      { 
+        id: 'growl', 
+        name: 'Grondement', 
+        type: 'normal', 
+        power: 0, 
+        pp: 40,
+        maxPp: 40,
+        accuracy: 100,
+        description: 'Intimide l\'adversaire et baisse son Attaque.'
+      },
+      { 
+        id: 'vine_whip', 
+        name: 'Fouet Lianes', 
+        type: 'grass', 
+        power: 45, 
+        pp: 25,
+        maxPp: 25,
+        accuracy: 100,
+        description: 'Fouette l\'ennemi avec de fines lianes.'
+      },
+      { 
+        id: 'leech_seed', 
+        name: 'Vampigraine', 
+        type: 'grass', 
+        power: 0, 
+        pp: 10,
+        maxPp: 10,
+        accuracy: 90,
+        description: 'Plante une graine qui aspire les HP à chaque tour.'
+      }
     ];
   }
 
@@ -1673,6 +1723,12 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
+    // ✅ NOUVEAU : Gestion de actionSelectionStart pour récupérer les moves
+    if (eventType === 'actionSelectionStart') {
+      this.handleActionSelectionStart(data);
+      return;
+    }
+
     if (eventType === 'battleEnd') {
       this.hideActionButtons();
       
@@ -1704,6 +1760,35 @@ export class BattleScene extends Phaser.Scene {
         this.showNarrativeMessage(t('battle.ui.messages.what_will_you_do'), true);
       }
     }
+  }
+
+  // ✅ NOUVEAU : Gestion spécifique de actionSelectionStart
+  handleActionSelectionStart(data) {
+    console.log('🎯 [BattleScene] actionSelectionStart reçu:', data);
+    
+    // Extraire les moves du gameState
+    if (data.gameState && data.gameState.player1 && data.gameState.player1.activePokemon) {
+      const playerPokemon = data.gameState.player1.activePokemon;
+      
+      if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
+        console.log('⚔️ [BattleScene] Moves reçues du serveur:', playerPokemon.moves);
+        this.currentPlayerMoves = playerPokemon.moves;
+        
+        // Mettre à jour les données du Pokémon actuel
+        if (this.currentPlayerPokemon) {
+          this.currentPlayerPokemon.moves = playerPokemon.moves;
+        }
+      } else {
+        console.warn('⚠️ [BattleScene] Pas de moves dans gameState, utilisation fallback');
+        this.currentPlayerMoves = this.getTestMoves();
+      }
+    } else {
+      console.warn('⚠️ [BattleScene] Structure gameState invalide, utilisation fallback');
+      this.currentPlayerMoves = this.getTestMoves();
+    }
+    
+    // Afficher les boutons d'action maintenant qu'on a les moves
+    this.showActionButtons();
   }
 
   // === GESTION UI ===
@@ -1828,6 +1913,12 @@ export class BattleScene extends Phaser.Scene {
     
     this.battleNetworkHandler.on('battleStart', (data) => {
       this.handleNetworkBattleStart(data);
+    });
+
+    // ✅ NOUVEAU : Écouter actionSelectionStart pour récupérer les moves
+    this.battleNetworkHandler.on('actionSelectionStart', (data) => {
+      console.log('🎯 [BattleScene] actionSelectionStart reçu via network:', data);
+      this.handleBattleEvent('actionSelectionStart', data);
     });
 
     this.battleNetworkHandler.on('koMessage', (data) => {
