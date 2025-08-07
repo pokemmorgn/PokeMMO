@@ -567,11 +567,16 @@ export class BattleScene extends Phaser.Scene {
       { key: 'run', text: 'FUITE', color: 0x607d8b, icon: '🏃' }
     ];
     
-    const buttonWidth = (width - 100) / 2;
+    // CENTRAGE PARFAIT - Calcul précis pour équilibrer gauche/droite
+    const totalPadding = 60; // 30px de chaque côté pour les bordures du panel
+    const availableWidth = width - totalPadding;
+    const buttonWidth = (availableWidth - 15) / 2; // 15px de gap entre les boutons
     const buttonHeight = 26;
-    const startX = 30;
+    
+    // Position de départ parfaitement centrée
+    const startX = totalPadding / 2; // 30px du bord gauche
     const startY = 25;
-    const gapX = 15;
+    const gapX = 15; // Espacement entre boutons
     const gapY = 5;
     
     actions.forEach((action, index) => {
@@ -767,10 +772,14 @@ export class BattleScene extends Phaser.Scene {
     }
     this.moveButtons = [];
     
-    const buttonWidth = (width - 100) / 2;
+    // CENTRAGE PARFAIT pour les attaques aussi
+    const totalPadding = 60; // Même logique que les boutons d'action
+    const availableWidth = width - totalPadding;
+    const buttonWidth = (availableWidth - 15) / 2;
     const buttonHeight = 26;
-    const startX = 30;
-    const startY = 25; // Position normale
+    
+    const startX = totalPadding / 2; // 30px du bord gauche
+    const startY = 25;
     const gapX = 15;
     const gapY = 5;
     
