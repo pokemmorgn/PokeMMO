@@ -1795,7 +1795,7 @@ async handleQuestDelivery(
     // ✅ Appel de la méthode avec les callbacks
     const result = await deliveryHandler.handleQuestDelivery(
       player.name,
-      npcId,
+      npcId.toString(), // ✅ CORRECTION : Convertir npcId en string
       questId,
       objectiveId,
       itemId,
