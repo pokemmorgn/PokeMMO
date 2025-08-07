@@ -45,15 +45,13 @@ export class BattleScene extends Phaser.Scene {
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
-  // === ⚡ POSITIONS POKÉMON OPTIMISÉES ===
-
-  // Positions optimisées pour éviter les superpositions
-  pokemonPositions = {
-    player: { x: 0.15, y: 0.78 },        // Plus à gauche et bas
-    opponent: { x: 0.70, y: 0.25 },      // Plus au centre-haut pour éviter la barre
-    playerPlatform: { x: 0.18, y: 0.88 },
-    opponentPlatform: { x: 0.73, y: 0.35 }
-  };
+    // Positions optimisées pour éviter les superpositions
+    this.pokemonPositions = {
+      player: { x: 0.15, y: 0.78 },        // Plus à gauche et bas
+      opponent: { x: 0.70, y: 0.25 },      // Plus au centre-haut pour éviter la barre
+      playerPlatform: { x: 0.18, y: 0.88 },
+      opponentPlatform: { x: 0.73, y: 0.35 }
+    };
     
     // Interface state (inchangé pour compatibilité)
     this.interfaceMode = 'hidden';
@@ -684,10 +682,62 @@ export class BattleScene extends Phaser.Scene {
     this.battleDialog.setVisible(false);
   }
 
-  // === 🔧 FONCTIONS INCHANGÉES POUR COMPATIBILITÉ ===
+  // === 💬 DIALOGUE PIXELISÉ (MAINTENU POUR COMPATIBILITÉ) ===
 
-  // Toutes les méthodes suivantes sont préservées intégralement pour 
-  // maintenir la compatibilité avec le système réseau existant :
+  createPixelBattleDialog() {
+    const { width, height } = this.cameras.main;
+    this.battleDialog = this.add.container(0, height - 120);
+    this.battleDialog.setDepth(185);
+    
+    // Panel de dialogue Game Boy
+    const dialogPanel = this.add.graphics();
+    dialogPanel.fillStyle(0xf0f8f0, 0.98);
+    dialogPanel.fillRoundedRect(15, 0, width - 30, 100, 10);
+    
+    // Bordure épaisse
+    dialogPanel.lineStyle(4, 0x1a1a1a, 1);
+    dialogPanel.strokeRoundedRect(15, 0, width - 30, 100, 10);
+    
+    // Fond intérieur
+    dialogPanel.fillStyle(0xe8f4e8, 1);
+    dialogPanel.fillRoundedRect(25, 10, width - 50, 80, 6);
+    
+    // Bordure intérieure
+    dialogPanel.lineStyle(2, 0x6b8e6b, 1);
+    dialogPanel.strokeRoundedRect(25, 10, width - 50, 80, 6);
+    
+    // Texte avec police monospace
+    this.dialogText = this.add.text(40, 50, '', {
+      fontSize: '18px',
+      fontFamily: 'monospace',
+      color: '#1a1a1a',
+      fontWeight: 'bold',
+      wordWrap: { width: width - 80 },
+      lineSpacing: 5
+    });
+    this.dialogText.setOrigin(0, 0.5);
+    
+    // Indicateur de continuation style Game Boy
+    const continueArrow = this.add.text(width - 50, 75, '▼', {
+      fontSize: '16px',
+      fontFamily: 'monospace',
+      color: '#1a1a1a'
+    });
+    continueArrow.setOrigin(0.5);
+    
+    // Animation clignotante
+    this.tweens.add({
+      targets: continueArrow,
+      alpha: 0.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Power2.easeInOut'
+    });
+    
+    this.battleDialog.add([dialogPanel, this.dialogText, continueArrow]);
+    this.battleDialog.setVisible(false);
+  }
 
   detectBattleSpriteStructure(width, height, view) {
     console.log(`🔍 [BattleScene] Détection structure pour ${width}×${height} (${view})`);
