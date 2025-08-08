@@ -56,6 +56,7 @@ export interface BattleContext {
   isSpeciesAlreadyCaught: boolean;
   capturePowerLevel: number;  // 🆕 0-3 pour Entralink Powers
   location: string;
+  grassModifier?: number;     // 🆕 Grass modifier calculé (pour réutilisation)
 }
 
 /**
