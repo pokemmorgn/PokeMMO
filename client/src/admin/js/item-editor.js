@@ -68,6 +68,7 @@ export class ItemEditorModule {
 
             // Charger les stats
             await this.loadStats();
+this.updateStatsHeader();   // <-- NEW
 
             // Events
             this.setupEventListeners();
@@ -675,6 +676,8 @@ export class ItemEditorModule {
 
                 await this.loadItems();
                 await this.loadStats();
+                this.updateStatsHeader();   // <-- NEW
+
                 this.initializeDropdowns();
 
                 if (this.selectedItemId === 'new') {
@@ -775,6 +778,8 @@ export class ItemEditorModule {
 
                 await this.loadItems();
                 await this.loadStats();
+                this.updateStatsHeader();   // <-- NEW
+
                 this.initializeDropdowns();
                 this.updateUI();
             } else {
@@ -799,6 +804,8 @@ export class ItemEditorModule {
                 this.adminPanel.showNotification('Item dupliqué', 'success');
                 await this.loadItems();
                 await this.loadStats();
+                this.updateStatsHeader();   // <-- NEW
+
                 this.initializeDropdowns();
 
                 if (response.newItemId) {
@@ -813,6 +820,38 @@ export class ItemEditorModule {
         }
     }
 
+
+    // --- NEW: met à jour les compteurs en haut
+updateStatsHeader() {
+  const s = this.stats || { total:0, active:0, byCategory:{} };
+
+  // cibles explicites (recommandé dans ton HTML)
+  const elTotal  = document.querySelector('[data-stat="total"], .stat-total');
+  const elActive = document.querySelector('[data-stat="active"], .stat-active');
+  const elCats   = document.querySelector('[data-stat="categories"], .stat-categories');
+
+  const catsCount = Object.keys(s.byCategory || {}).length;
+
+  if (elTotal)  elTotal.textContent  = String(s.total ?? 0);
+  if (elActive) elActive.textContent = String(s.active ?? 0);
+  if (elCats)   elCats.textContent   = String(catsCount);
+
+  // fallback si pas de cibles explicites : cherche le nombre sous le libellé
+  const setBelowLabel = (label, value) => {
+    const labelEl = Array.from(document.querySelectorAll('div,span,p,h4,h5'))
+      .find(n => (n.textContent || '').trim().toLowerCase() === label);
+    if (!labelEl) return;
+    const numEl =
+      labelEl.parentElement?.querySelector('.stat-value, .value, .count, strong, b, span:not(:empty)') ||
+      labelEl.nextElementSibling;
+    if (numEl) numEl.textContent = String(value);
+  };
+  if (!elTotal)  setBelowLabel('total items', s.total ?? 0);
+  if (!elActive) setBelowLabel('actifs', s.active ?? 0);
+  if (!elCats)   setBelowLabel('catégories', catsCount);
+}
+
+    
     // ===== PAGINATION =====
 
     previousPage() {
@@ -835,6 +874,9 @@ export class ItemEditorModule {
         try {
             await this.loadItems();
             await this.loadStats();
+            
+            this.updateStatsHeader();   // <-- NEW
+
             this.initializeDropdowns();
             this.adminPanel.showNotification('Liste actualisée', 'info');
         } catch (error) {
