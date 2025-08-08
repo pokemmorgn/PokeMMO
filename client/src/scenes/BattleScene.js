@@ -739,10 +739,10 @@ animateModernHealthBarToZero(hpBarContainer) {
 
   createModernActionButtons(width) {
     const actions = [
-      { key: 'attack', text: t('battle.ui.actions.attack'), color: 0x4a90e2, icon: '⚔' },
-      { key: 'bag', text: t('battle.ui.actions.bag'), color: 0x4a90e2, icon: '🎒' },
-      { key: 'pokemon', text: t('battle.ui.actions.pokemon'), color: 0x4a90e2, icon: '🔄' },
-      { key: 'run', text: t('battle.ui.actions.run'), color: 0x607d8b, icon: '🏃' }
+      { key: 'attack', text: battleT('actions.attack'), color: 0x4a90e2, icon: '⚔' },
+      { key: 'bag', text: battleT('actions.bag'), color: 0x4a90e2, icon: '🎒' },
+      { key: 'pokemon', text: battleT('actions.pokemon'), color: 0x4a90e2, icon: '🔄' },
+      { key: 'run', text: battleT('actions.run'), color: 0x607d8b, icon: '🏃' }
     ];
     
     const totalPadding = 70;
