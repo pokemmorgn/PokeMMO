@@ -16,6 +16,7 @@ import {
   loadBattleTranslations 
 } from '../managers/LocalizationManager.js';
 import { createPokemonTeamSwitchUI, setupTeamSwitchEvents } from '../Battle/PokemonTeamSwitchUI.js';
+import { createCaptureManager } from '../managers/Battle/CaptureManager.js';
 
 let pokemonSpriteConfig = null;
 
@@ -50,7 +51,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleLocalizationReady = false;
     this.battleTranslator = null;
     this.languageCleanupFunction = null; // Pour nettoyer l'événement
-    
+    this.captureManager = null;
     // Sprites Pokémon
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
@@ -2708,7 +2709,7 @@ export class BattleScene extends Phaser.Scene {
       battleScene: this,
       networkHandler: this.battleNetworkHandler,
       battleRoomId: this.battleNetworkHandler?.battleRoomId || null,
-      captureManager: this.captureManager
+      captureManager: this.captureManager 
     };
     
     if (!gameRoom || !this.battleNetworkHandler) {
@@ -2718,19 +2719,18 @@ export class BattleScene extends Phaser.Scene {
     this.battleInventoryUI = new BattleInventoryUI(gameRoom, battleContext);
   }
 
-  initializeCaptureManager() {
-    if (!this.battleNetworkHandler) {
-      return;
+    initializeCaptureManager() {
+      if (!this.battleNetworkHandler) {
+        console.warn('⚠️ [BattleScene] NetworkHandler manquant pour CaptureManager');
+        return;
+      }
+      
+      const playerRole = this.playerRole || 'player1';
+      
+      this.captureManager = createCaptureManager(this, this.battleNetworkHandler, playerRole);
+      
+      console.log('🎯 [BattleScene] CaptureManager initialisé');
     }
-    
-    const playerRole = this.playerRole || 'player1';
-    
-    this.captureManager = new BattleCaptureManager(
-      this,
-      this.battleNetworkHandler,
-      playerRole
-    );
-  }
 
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
@@ -3012,7 +3012,10 @@ export class BattleScene extends Phaser.Scene {
       this.battleDialog.destroy();
       this.battleDialog = null;
     }
-    
+   if (this.captureManager) {
+        this.captureManager.destroy();
+        this.captureManager = null;
+    }
     Object.values(this.modernHealthBars).forEach(healthBar => {
       if (healthBar?.container) {
         healthBar.container.destroy();
