@@ -309,60 +309,56 @@ handleCanvasClick(event) {
     const canvas = document.getElementById('mapCanvas')
     const rect = canvas.getBoundingClientRect()
     
-    // ✅ CORRECTION COMPLÈTE : Tenir compte de la différence entre taille CSS et taille interne
     const baseTileWidth = this.currentMapData.tilewidth
     const baseTileHeight = this.currentMapData.tileheight
     
-    // Calculer la position relative dans le canvas CSS
     const relativeX = event.clientX - rect.left
     const relativeY = event.clientY - rect.top
     
-    // ✅ NOUVEAU : Calculer les ratios entre taille CSS et taille interne du canvas
     const canvasInternalWidth = this.currentMapData.width * baseTileWidth * this.zoom
     const canvasInternalHeight = this.currentMapData.height * baseTileHeight * this.zoom
     
     const scaleX = canvasInternalWidth / rect.width
     const scaleY = canvasInternalHeight / rect.height
     
-    // Convertir les coordonnées CSS en coordonnées internes du canvas
     const canvasX = relativeX * scaleX
     const canvasY = relativeY * scaleY
     
-    // Maintenant calculer les coordonnées tiles
     const tileX = Math.floor(canvasX / (baseTileWidth * this.zoom))
     const tileY = Math.floor(canvasY / (baseTileHeight * this.zoom))
     
-    console.log(`🗺️ [MapEditor] Click: CSS(${relativeX.toFixed(1)}, ${relativeY.toFixed(1)}) -> Canvas(${canvasX.toFixed(1)}, ${canvasY.toFixed(1)}) -> Tile(${tileX}, ${tileY}) [zoom: ${this.zoom}, scale: ${scaleX.toFixed(2)}x${scaleY.toFixed(2)}]`)
+    console.log(`🗺️ [MapEditor] Click at tile (${tileX}, ${tileY})`)
     
-    // Vérifier que les coordonnées sont dans les limites de la carte
     if (tileX < 0 || tileY < 0 || tileX >= this.currentMapData.width || tileY >= this.currentMapData.height) {
-        console.warn(`🗺️ [MapEditor] Click outside map bounds: (${tileX}, ${tileY})`)
+        console.warn(`🗺️ [MapEditor] Click outside map bounds`)
         return
     }
     
-    // Vérifier si on clique sur un objet existant
-// Vérifier si on clique sur un objet existant
-const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
+    // ✅ VÉRIFIER SEULEMENT DANS placedObjects (pas TMJ)
+    const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
 
-if (existingIndex !== -1) {
-    const existingObj = this.placedObjects[existingIndex]
-    
-    if (existingObj.isFromMap) {
-        this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
-        return
-    }
-    
-    // ✅ NOUVEAU: Si c'est un NPC, ouvrir le menu d'édition
-    if (existingObj.type === 'npc') {
-        this.openNPCEditMenu(existingObj, event.clientX, event.clientY)
-        return
-    }
-    
-    // Pour les autres objets, supprimer directement
-    this.placedObjects.splice(existingIndex, 1)
-    this.adminPanel.showNotification('Objet supprimé', 'info')
-} else {
-        // Ajouter un nouvel objet selon le mode
+    if (existingIndex !== -1) {
+        const existingObj = this.placedObjects[existingIndex]
+        
+        // ✅ NPC INTERACTION avec ID stable
+        if (existingObj.type === 'npc') {
+            this.openNPCEditMenu(existingObj, event.clientX, event.clientY)
+            return
+        }
+        
+        // Supprimer autres objets
+        this.placedObjects.splice(existingIndex, 1)
+        this.adminPanel.showNotification('Objet supprimé', 'info')
+    } else {
+        // ✅ VÉRIFIER QU'ON N'EST PAS SUR UN OBJET TMJ (lecture seule)
+        const tmjObjectAtPosition = this.tmjObjects?.find(obj => obj.x === tileX && obj.y === tileY)
+        
+        if (tmjObjectAtPosition) {
+            this.adminPanel.showNotification(`Objet TMJ en lecture seule: ${tmjObjectAtPosition.name}`, 'warning')
+            return
+        }
+        
+        // Ajouter nouvel objet
         if (this.selectedTool === 'object' && this.selectedItem) {
             this.placeItemObject(tileX, tileY)
         } else {
@@ -372,7 +368,6 @@ if (existingIndex !== -1) {
     
     this.renderMap()
 }
-
     // ✅ NOUVELLE MÉTHODE: Ouvrir le menu d'édition NPC
 openNPCEditMenu(npc, x, y) {
     this.selectedNPC = npc
@@ -455,20 +450,27 @@ handleClickOutside(event) {
 async editNPC() {
     if (!this.selectedNPC) return
     
-    console.log('✏️ [MapEditor] Editing NPC via API:', this.selectedNPC)
+    console.log('✏️ [MapEditor] Editing NPC via API with stable ID:', this.selectedNPC.globalId || this.selectedNPC.id)
     
     try {
-        // Récupérer les données complètes du NPC depuis la base
         const currentZone = this.getCurrentZone()
         if (!currentZone) {
             this.adminPanel.showNotification('Zone non définie', 'error')
             return
         }
         
-        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${this.selectedNPC.id}/edit`)
+        // ✅ UTILISER L'ID GLOBAL STABLE
+        const globalId = this.selectedNPC.globalId || this.selectedNPC.id
+        
+        if (!globalId) {
+            this.adminPanel.showNotification('NPC sans ID global', 'error')
+            return
+        }
+        
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${globalId}/edit`)
         
         if (response.success) {
-            // Naviguer vers l'éditeur NPC avec les données complètes
+            // Naviguer vers l'éditeur NPC
             this.adminPanel.switchTab('npcs')
             
             setTimeout(() => {
@@ -477,7 +479,7 @@ async editNPC() {
                 }
             }, 500)
             
-            this.adminPanel.showNotification(`Édition du NPC "${this.selectedNPC.name}"`, 'info')
+            this.adminPanel.showNotification(`Édition du NPC "${this.selectedNPC.name}" (ID: ${globalId})`, 'info')
         } else {
             throw new Error(response.error)
         }
@@ -488,21 +490,20 @@ async editNPC() {
     }
 }
 
-// ✅ MÉTHODE CORRIGÉE: Supprimer le NPC (gérer les cas non sauvegardés)
+// 7. ✅ CORRECTION de deleteNPC - Utiliser ID stable
 async deleteNPC() {
     if (!this.selectedNPC) return
     
     if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" ?`)) return
     
     try {
-        // ✅ NOUVEAU: Vérifier si le NPC vient de MongoDB ou est juste local
-        const isLocalNPC = this.selectedNPC.isFromMap === false || 
-                          typeof this.selectedNPC.id === 'string' && this.selectedNPC.id.startsWith('npc_')
+        // ✅ UTILISER L'ID GLOBAL STABLE
+        const globalId = this.selectedNPC.globalId || this.selectedNPC.id
         
-        if (isLocalNPC) {
-            // NPC créé localement, pas encore en base - suppression locale uniquement
-            console.log(`🔄 [MapEditor] Deleting local NPC: ${this.selectedNPC.name}`)
+        if (!globalId) {
+            console.error(`❌ [MapEditor] Pas d'ID global pour NPC: ${this.selectedNPC.name}`)
             
+            // Fallback: suppression locale seulement
             const index = this.placedObjects.findIndex(obj => 
                 obj.id === this.selectedNPC.id && obj.type === 'npc'
             )
@@ -510,53 +511,30 @@ async deleteNPC() {
             if (index !== -1) {
                 this.placedObjects.splice(index, 1)
                 this.renderMap()
-                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local)`, 'success')
+                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local seulement)`, 'info')
             }
             
             this.selectedNPC = null
             return
         }
         
-        // NPC en base de données - suppression via API
         const currentZone = this.getCurrentZone()
         if (!currentZone) {
             this.adminPanel.showNotification('Zone non définie', 'error')
             return
         }
         
-        let npcId = this.selectedNPC.id || this.selectedNPC.npcId
+        console.log(`🗑️ [MapEditor] Deleting NPC with stable global ID: ${globalId}`)
         
-        // Nettoyer l'ID
-        if (typeof npcId === 'string' && npcId.startsWith('npc_')) {
-            npcId = npcId.replace('npc_', '')
-        }
-        
-        // Vérifier que l'ID est valide pour MongoDB
-        if (!npcId || (typeof npcId === 'string' && isNaN(parseInt(npcId)))) {
-            console.error(`❌ [MapEditor] Invalid NPC ID for MongoDB: ${npcId}`)
-            // Fallback: suppression locale
-            const index = this.placedObjects.findIndex(obj => 
-                obj.id === this.selectedNPC.id && obj.type === 'npc'
-            )
-            if (index !== -1) {
-                this.placedObjects.splice(index, 1)
-                this.renderMap()
-                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local)`, 'success')
-            }
-            this.selectedNPC = null
-            return
-        }
-        
-        console.log(`🗑️ [MapEditor] Deleting MongoDB NPC with ID: ${npcId} in zone: ${currentZone}`)
-        
-        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${npcId}/delete-from-map`, {
+        // ✅ UTILISER LA ROUTE AVEC ID GLOBAL STABLE
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${globalId}/delete-from-map`, {
             method: 'DELETE'
         })
         
         if (response.success) {
             // Supprimer de la carte
             const index = this.placedObjects.findIndex(obj => 
-                obj.id === this.selectedNPC.id && obj.type === 'npc'
+                (obj.globalId === globalId || obj.id === globalId) && obj.type === 'npc'
             )
             
             if (index !== -1) {
@@ -564,18 +542,18 @@ async deleteNPC() {
                 this.renderMap()
             }
             
-            this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (MongoDB)`, 'success')
+            this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (ID: ${globalId})`, 'success')
         } else {
             throw new Error(response.error)
         }
         
     } catch (error) {
-        console.error('❌ [MapEditor] Error deleting NPC:', error)
+        console.error('❌ [MapEditor] Error deleting NPC with stable ID:', error)
         
-        // ✅ FALLBACK: En cas d'erreur API, proposer une suppression locale
+        // Fallback: suppression locale
         if (confirm(`Erreur API: ${error.message}\n\nSupprimer le NPC localement ?`)) {
             const index = this.placedObjects.findIndex(obj => 
-                obj.id === this.selectedNPC.id && obj.type === 'npc'
+                (obj.globalId === this.selectedNPC.globalId || obj.id === this.selectedNPC.id) && obj.type === 'npc'
             )
             
             if (index !== -1) {
@@ -788,20 +766,89 @@ placeGenericObject(tileX, tileY) {
 }
 
 // ✅ Créer le NPC du type choisi
-createNPCOfType(npcType, tileX, tileY) {
-    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY})`)
+async createNPCOfType(npcType, tileX, tileY) {
+    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY}) with immediate ID assignment`)
     
-    const newNPC = this.createCompleteNPC(tileX, tileY, npcType)
-    
-    this.placedObjects.push(newNPC)
-    this.adminPanel.showNotification(
-        `NPC ${npcType} créé en (${tileX}, ${tileY}) avec tous les champs requis`, 
-        'success'
-    )
+    try {
+        const currentZone = this.getCurrentZone()
+        if (!currentZone) {
+            this.adminPanel.showNotification('Zone non définie', 'error')
+            return
+        }
+        
+        // ✅ CRÉER IMMÉDIATEMENT EN BASE POUR OBTENIR L'ID STABLE
+        const npcData = {
+            name: `${npcType}_${tileX}_${tileY}`,
+            type: npcType,
+            position: {
+                x: tileX * this.currentMapData.tilewidth,
+                y: tileY * this.currentMapData.tileheight
+            },
+            sprite: 'npc_default',
+            direction: 'south',
+            interactionRadius: 32,
+            canWalkAway: true,
+            autoFacePlayer: true,
+            repeatable: true,
+            cooldownSeconds: 0
+        }
+        
+        console.log(`💾 [MapEditor] Creating NPC in database to get stable ID...`)
+        
+        // ✅ APPEL API IMMÉDIAT - ID attribué maintenant
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/add-single`, {
+            method: 'POST',
+            body: JSON.stringify(npcData)
+        })
+        
+        if (response.success && response.globalId) {
+            // ✅ CRÉER NPC AVEC ID STABLE DÉFINITIF
+            const newNPC = {
+                id: response.globalId,              // ✅ ID STABLE dès le début
+                globalId: response.globalId,        // ✅ Backup
+                type: 'npc',
+                x: tileX,
+                y: tileY,
+                name: npcData.name,
+                sprite: npcData.sprite,
+                direction: npcData.direction,
+                npcType: npcType,
+                isFromMap: false,
+                
+                // Propriétés complètes
+                interactionRadius: npcData.interactionRadius,
+                canWalkAway: npcData.canWalkAway,
+                autoFacePlayer: npcData.autoFacePlayer,
+                repeatable: npcData.repeatable,
+                cooldownSeconds: npcData.cooldownSeconds,
+                questsToGive: [],
+                questsToEnd: [],
+                customProperties: {}
+            }
+            
+            this.placedObjects.push(newNPC)
+            
+            this.adminPanel.showNotification(
+                `NPC ${npcType} créé avec ID global ${response.globalId}`, 
+                'success'
+            )
+            
+            console.log(`✅ [MapEditor] NPC created with stable global ID: ${response.globalId}`)
+            
+        } else {
+            throw new Error(response.error || 'Pas de globalId retourné')
+        }
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error creating NPC with stable ID:', error)
+        this.adminPanel.showNotification(`Erreur création NPC: ${error.message}`, 'error')
+        return
+    }
     
     this.closeNPCTypeSelector()
     this.renderMap()
 }
+
 
 // ✅ Fermer la modal
 closeNPCTypeSelector() {
@@ -1063,29 +1110,104 @@ async saveMapObjects() {
 
     console.log(`💾 [MapEditor] Saving objects for zone: ${mapId}`)
     
-    // Filtrer seulement les objets ajoutés manuellement (pas ceux de la carte TMJ)
-    const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
+    // ✅ SEULEMENT LES OBJETS DE placedObjects (pas TMJ)
+    const objectsToSave = [...this.placedObjects]
     
-    // ✅ NOUVEAU : Séparer gameobjects et NPCs
-    const gameObjects = addedObjects.filter(obj => obj.type !== 'npc')
-    const npcs = addedObjects.filter(obj => obj.type === 'npc')
+    const gameObjects = objectsToSave.filter(obj => obj.type !== 'npc')
+    const npcs = objectsToSave.filter(obj => obj.type === 'npc')
     
     console.log(`💾 [MapEditor] Saving ${gameObjects.length} gameobjects and ${npcs.length} NPCs`)
     
-    // ✅ CORRECTION CRITIQUE: Sauvegarder séparément pour éviter la suppression
-    
-    // 1. Sauvegarder les GameObjects (système existant, mode replace)
+    // 1. Sauvegarder GameObjects
     if (gameObjects.length > 0) {
         await this.saveGameObjects(mapId, gameObjects)
     }
     
-    // 2. Sauvegarder les NPCs en mode ADD (ne supprime pas les existants)
+    // 2. Sauvegarder NPCs avec IDs stables (UPDATE seulement)
     if (npcs.length > 0) {
-        await this.saveNPCs(mapId, npcs)
+        await this.saveNPCsWithStableIds(mapId, npcs)
     }
     
     if (gameObjects.length === 0 && npcs.length === 0) {
         this.adminPanel.showNotification('Aucun objet à sauvegarder', 'warning')
+    }
+}
+
+// 10. ✅ NOUVELLE MÉTHODE - Sauvegarder NPCs avec IDs stables (UPDATE ONLY)
+async saveNPCsWithStableIds(mapId, npcs) {
+    try {
+        console.log(`👤 [MapEditor] Saving ${npcs.length} NPCs with stable IDs (UPDATE ONLY)`)
+        
+        let savedCount = 0
+        let errorCount = 0
+        
+        for (const npc of npcs) {
+            try {
+                const globalId = npc.globalId || npc.id
+                
+                if (!globalId) {
+                    console.error(`❌ [MapEditor] NPC "${npc.name}" has no stable global ID - skipping`)
+                    errorCount++
+                    continue
+                }
+                
+                console.log(`🔄 [MapEditor] Updating existing NPC: ${globalId} ("${npc.name}")`)
+                
+                // ✅ MISE À JOUR SEULEMENT - ID ne change jamais
+                const npcUpdateData = {
+                    name: npc.name,
+                    type: npc.npcType || 'dialogue',
+                    position: {
+                        x: npc.x * this.currentMapData.tilewidth,
+                        y: npc.y * this.currentMapData.tileheight
+                    },
+                    sprite: npc.sprite || 'npc_default',
+                    direction: npc.direction || 'south',
+                    interactionRadius: npc.interactionRadius || 32,
+                    canWalkAway: npc.canWalkAway !== false,
+                    autoFacePlayer: npc.autoFacePlayer !== false,
+                    repeatable: npc.repeatable !== false,
+                    cooldownSeconds: npc.cooldownSeconds || 0,
+                    questsToGive: npc.questsToGive || [],
+                    questsToEnd: npc.questsToEnd || [],
+                    questRequirements: npc.questRequirements,
+                    questDialogueIds: npc.questDialogueIds,
+                    spawnConditions: npc.spawnConditions,
+                    shopId: npc.shopId,
+                    battleConfig: npc.battleConfig,
+                    visionConfig: npc.visionConfig,
+                    // Copier toutes les propriétés supplémentaires
+                    ...npc.customProperties
+                }
+                
+                const response = await this.adminPanel.apiCall(`/zones/${mapId}/npcs/${globalId}/update-single`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ npcData: npcUpdateData })
+                })
+                
+                if (response.success) {
+                    savedCount++
+                    console.log(`✅ [MapEditor] NPC updated (ID unchanged): ${globalId}`)
+                } else {
+                    throw new Error(response.error || 'Erreur mise à jour NPC')
+                }
+                
+            } catch (error) {
+                errorCount++
+                console.error(`❌ [MapEditor] Error saving NPC "${npc.name}":`, error)
+            }
+        }
+        
+        const message = `${savedCount} NPCs sauvegardés dans ${mapId}` + 
+                       (errorCount > 0 ? ` (${errorCount} erreurs)` : '')
+        
+        this.adminPanel.showNotification(message, savedCount > 0 ? 'success' : 'warning')
+        
+        console.log(`✅ [MapEditor] NPCs save completed: ${savedCount} updated with stable IDs`)
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error saving NPCs with stable IDs:', error)
+        this.adminPanel.showNotification('Erreur sauvegarde NPCs: ' + error.message, 'error')
     }
 }
 
@@ -1319,59 +1441,64 @@ async saveNPCs(mapId, npcs) {
     // AFFICHAGE AMÉLIORÉ
     // ==============================
 
-    updateObjectsList() {
-        const objectsList = document.getElementById('objectsList')
-        const objectsCount = document.getElementById('objectsCount')
-        const noObjectsMessage = document.getElementById('noObjectsMessage')
-        
-        if (!objectsList || !objectsCount || !noObjectsMessage) return
-        
-        objectsCount.textContent = this.placedObjects.length
-        
-        if (this.placedObjects.length === 0) {
-            objectsList.innerHTML = ''
-            noObjectsMessage.style.display = 'block'
-            return
-        }
-        
-        noObjectsMessage.style.display = 'none'
-        
-        objectsList.innerHTML = this.placedObjects.map((obj, index) => `
-            <div class="object-item ${obj.isFromMap ? 'from-map' : 'added'}" style="
-                background: ${obj.isFromMap ? '#fff3cd' : '#f8f9fa'}; 
-                border: 1px solid ${obj.isFromMap ? '#ffeaa7' : '#dee2e6'}; 
-                border-radius: 8px; padding: 12px; margin-bottom: 8px;
-            ">
-                <div class="object-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="object-name" style="font-weight: 600; color: #2c3e50;">
-                        ${this.getObjectIcon(obj)} ${obj.name || obj.itemId}
-                        ${obj.isFromMap ? '<span class="badge" style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-left: 8px;">MAP</span>' : ''}
-                    </span>
-                    ${!obj.isFromMap ? `
-                        <button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" 
-                                style="padding: 2px 6px; font-size: 0.7rem;">
-                            🗑️
-                        </button>
-                    ` : '<span style="color: #6c757d; font-size: 0.8rem;">Lecture seule</span>'}
-                </div>
-                <div class="object-details" style="font-size: 0.85rem; color: #6c757d;">
-                    Position: (${obj.x}, ${obj.y})<br>
-                    ${obj.itemId ? `Item: ${this.getItemDisplayName(obj.itemId)}<br>` : ''}
-                    ${obj.quantity ? `Quantité: ${obj.quantity}<br>` : ''}
-                    ${obj.type ? `Type: ${obj.type}` : ''}${obj.rarity ? ` | Rareté: ${obj.rarity}` : ''}
-                    ${obj.isFromMap ? ' (depuis la carte)' : ' (ajouté)'}
-                </div>
-            </div>
-        `).join('')
+   updateObjectsList() {
+    const objectsList = document.getElementById('objectsList')
+    const objectsCount = document.getElementById('objectsCount')
+    const noObjectsMessage = document.getElementById('noObjectsMessage')
+    
+    if (!objectsList || !objectsCount || !noObjectsMessage) return
+    
+    // ✅ COMPTER SEULEMENT LES OBJETS ÉDITABLES (pas TMJ)
+    objectsCount.textContent = this.placedObjects.length
+    
+    if (this.placedObjects.length === 0) {
+        objectsList.innerHTML = ''
+        noObjectsMessage.style.display = 'block'
+        return
     }
+    
+    noObjectsMessage.style.display = 'none'
+    
+    objectsList.innerHTML = this.placedObjects.map((obj, index) => `
+        <div class="object-item editable" style="
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 8px; 
+            padding: 12px; 
+            margin-bottom: 8px;
+        ">
+            <div class="object-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="object-name" style="font-weight: 600; color: #2c3e50;">
+                    ${this.getObjectIcon(obj)} ${obj.name || obj.itemId}
+                    ${obj.type === 'npc' && obj.globalId ? 
+                        `<span class="badge" style="background: #28a745; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-left: 8px;">ID:${obj.globalId}</span>` : 
+                        ''
+                    }
+                </span>
+                <button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" 
+                        style="padding: 2px 6px; font-size: 0.7rem;">
+                    🗑️
+                </button>
+            </div>
+            <div class="object-details" style="font-size: 0.85rem; color: #6c757d;">
+                Position: (${obj.x}, ${obj.y})<br>
+                ${obj.itemId ? `Item: ${this.getItemDisplayName(obj.itemId)}<br>` : ''}
+                ${obj.quantity ? `Quantité: ${obj.quantity}<br>` : ''}
+                ${obj.type ? `Type: ${obj.type}` : ''}${obj.rarity ? ` | Rareté: ${obj.rarity}` : ''}
+                ${obj.type === 'npc' && obj.globalId ? ` | ID Global: ${obj.globalId}` : ''}
+            </div>
+        </div>
+    `).join('')
+}
 
-   getObjectIcon(obj) {
+    
+  getObjectIcon(obj) {
     if (obj.itemId && this.availableItems[obj.itemId]) {
         return this.getItemIcon(this.availableItems[obj.itemId])
     }
     
     const icons = {
-        npc: '👤',        // ✅ Icône pour NPCs
+        npc: '👤',
         object: '📦',
         ground: '📦',
         hidden: '🔍',
@@ -1382,58 +1509,78 @@ async saveNPCs(mapId, npcs) {
     return icons[obj.type] || '❓'
 }
 
-    drawPlacedObjects(ctx, tileWidth, tileHeight) {
-        this.placedObjects.forEach(obj => {
+    
+   drawPlacedObjects(ctx, tileWidth, tileHeight) {
+    // ✅ DESSINER LES OBJETS TMJ (lecture seule) EN PREMIER
+    if (this.tmjObjects && this.tmjObjects.length > 0) {
+        this.tmjObjects.forEach(obj => {
             const x = obj.x * tileWidth
             const y = obj.y * tileHeight
             
-            // Couleurs selon le type et origine
-            const colors = {
-                ground: obj.isFromMap ? 'rgba(78, 205, 196, 0.6)' : 'rgba(78, 205, 196, 0.9)',
-                hidden: obj.isFromMap ? 'rgba(255, 193, 7, 0.6)' : 'rgba(255, 193, 7, 0.9)',
-                npc: obj.isFromMap ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 107, 107, 0.9)',
-                spawn: obj.isFromMap ? 'rgba(69, 183, 209, 0.6)' : 'rgba(69, 183, 209, 0.9)',
-                teleport: obj.isFromMap ? 'rgba(155, 89, 182, 0.6)' : 'rgba(155, 89, 182, 0.9)'
-            }
-            
-            // Fond avec ombre pour objets existants
-            if (obj.isFromMap) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-                ctx.fillRect(x + 4, y + 4, tileWidth - 4, tileHeight - 4)
-            }
-            
-            // Fond coloré
-            ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
+            // Style TMJ (lecture seule) - Plus discret
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.2)'
             ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
-            // Bordure différente pour les objets existants vs nouveaux
-            ctx.strokeStyle = obj.isFromMap ? '#ffff00' : '#fff'
-            ctx.lineWidth = obj.isFromMap ? 3 / this.dpi : 2 / this.dpi
+            // Bordure TMJ
+            ctx.strokeStyle = '#666'
+            ctx.lineWidth = 1 / this.dpi
             ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
-            // Icône
-            ctx.fillStyle = 'white'
-            ctx.font = `bold ${Math.max(10, tileWidth * 0.4)}px Arial`
+            // Icône TMJ
+            ctx.fillStyle = '#666'
+            ctx.font = `bold ${Math.max(8, tileWidth * 0.25)}px Arial`
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
-            
-            const icon = this.getObjectIcon(obj)
-            
-            // Ombre du texte
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-            ctx.fillText(icon, x + tileWidth / 2 + 1, y + tileHeight / 2 + 1)
-            
-            // Texte principal
-            ctx.fillStyle = 'white'
-            ctx.fillText(icon, x + tileWidth / 2, y + tileHeight / 2)
-            
-            // Petit indicateur pour objets existants
-            if (obj.isFromMap) {
-                ctx.fillStyle = '#ffff00'
-                ctx.fillRect(x + tileWidth - 6, y + 2, 4, 4)
-            }
+            ctx.fillText('TMJ', x + tileWidth / 2, y + tileHeight / 2)
         })
     }
+    
+    // ✅ DESSINER LES OBJETS ÉDITABLES PAR-DESSUS
+    this.placedObjects.forEach(obj => {
+        const x = obj.x * tileWidth
+        const y = obj.y * tileHeight
+        
+        // Couleurs selon le type
+        const colors = {
+            ground: 'rgba(78, 205, 196, 0.9)',
+            hidden: 'rgba(255, 193, 7, 0.9)',
+            npc: 'rgba(255, 107, 107, 0.9)',
+            spawn: 'rgba(69, 183, 209, 0.9)',
+            teleport: 'rgba(155, 89, 182, 0.9)'
+        }
+        
+        // Fond coloré
+        ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
+        ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
+        
+        // Bordure
+        ctx.strokeStyle = '#fff'
+        ctx.lineWidth = 2 / this.dpi
+        ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
+        
+        // Icône
+        ctx.fillStyle = 'white'
+        ctx.font = `bold ${Math.max(10, tileWidth * 0.4)}px Arial`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        
+        const icon = this.getObjectIcon(obj)
+        
+        // Ombre du texte
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+        ctx.fillText(icon, x + tileWidth / 2 + 1, y + tileHeight / 2 + 1)
+        
+        // Texte principal
+        ctx.fillStyle = 'white'
+        ctx.fillText(icon, x + tileWidth / 2, y + tileHeight / 2)
+        
+        // ✅ INDICATEUR ID GLOBAL pour NPCs
+        if (obj.type === 'npc' && obj.globalId) {
+            ctx.fillStyle = '#4CAF50'
+            ctx.fillRect(x + tileWidth - 8, y + 2, 6, 4)
+        }
+    })
+}
 
     // ==============================
     // MÉTHODES HÉRITÉES INCHANGÉES
@@ -1580,57 +1727,202 @@ async loadAvailableMaps() {
     }
 
     async loadMap(mapId) {
-        if (!mapId) return
+    if (!mapId) return
 
-        console.log('🗺️ [MapEditor] Clearing caches...')
-        this.tilesets.clear()
-        this.tilesetImages.clear()
-        this.currentMapData = null
-        this.placedObjects = []
+    console.log(`🗺️ [MapEditor] Loading map: ${mapId}`)
+    
+    // ✅ NETTOYAGE COMPLET AU DÉBUT
+    console.log('🧹 [MapEditor] Cleaning all caches and objects...')
+    this.tilesets.clear()
+    this.tilesetImages.clear()
+    this.currentMapData = null
+    this.placedObjects = [] // ✅ VIDER COMPLÈTEMENT
+    this.tmjObjects = []    // ✅ Objets TMJ séparés
+    this.selectedNPC = null
+    this.closeNPCContextMenu()
 
-        console.log(`🗺️ [MapEditor] Loading map: ${mapId}`)
+    try {
+        const mapFile = this.availableMaps.find(m => m.id === mapId)?.file || `${mapId}.tmj`
         
+        let mapData
         try {
-            const mapFile = this.availableMaps.find(m => m.id === mapId)?.file || `${mapId}.tmj`
-            
-            let mapData
-            try {
-                const fileContent = await window.fs.readFile(`client/public/assets/maps/${mapFile}`, { encoding: 'utf8' })
-                mapData = JSON.parse(fileContent)
-            } catch (fsError) {
-                const response = await fetch(`/assets/maps/${mapFile}`)
-                if (!response.ok) throw new Error('Carte non trouvée')
-                mapData = await response.json()
-            }
-
-           this.currentMapData = mapData
-
-await this.loadTilesets(mapData)
-this.loadExistingMapObjects()
-console.log('🔍 [DEBUG] Objects after TMJ:', this.placedObjects.length)
-
-await this.loadExistingObjects(mapId)
-console.log('🔍 [DEBUG] Objects after DB:', this.placedObjects.length)
-            
-            this.renderMap()
-            
-            const mapTools = document.getElementById('mapTools')
-            const mapActions = document.getElementById('mapActions')
-            const objectsPanel = document.getElementById('objectsPanel')
-            const mapLoadingMessage = document.getElementById('mapLoadingMessage')
-            
-            if (mapTools) mapTools.style.display = 'flex'
-            if (mapActions) mapActions.style.display = 'flex'
-            if (objectsPanel) objectsPanel.style.display = 'block'
-            if (mapLoadingMessage) mapLoadingMessage.style.display = 'none'
-            
-            this.adminPanel.showNotification(`Carte "${mapFile}" chargée avec succès`, 'success')
-            
-        } catch (error) {
-            console.error('❌ [MapEditor] Error loading map:', error)
-            this.adminPanel.showNotification('Erreur chargement carte: ' + error.message, 'error')
+            const fileContent = await window.fs.readFile(`client/public/assets/maps/${mapFile}`, { encoding: 'utf8' })
+            mapData = JSON.parse(fileContent)
+        } catch (fsError) {
+            const response = await fetch(`/assets/maps/${mapFile}`)
+            if (!response.ok) throw new Error('Carte non trouvée')
+            mapData = await response.json()
         }
+
+        this.currentMapData = mapData
+        await this.loadTilesets(mapData)
+        
+        // ✅ CHARGER SEULEMENT DEPUIS MONGODB (pas de TMJ pour objets)
+        await this.loadObjectsFromDatabaseOnly(mapId)
+        
+        // ✅ AFFICHER LES OBJETS TMJ (lecture seule, pas dans placedObjects)
+        this.loadTMJObjectsForDisplay()
+        
+        this.renderMap()
+        
+        const mapTools = document.getElementById('mapTools')
+        const mapActions = document.getElementById('mapActions')
+        const objectsPanel = document.getElementById('objectsPanel')
+        const mapLoadingMessage = document.getElementById('mapLoadingMessage')
+        
+        if (mapTools) mapTools.style.display = 'flex'
+        if (mapActions) mapActions.style.display = 'flex'
+        if (objectsPanel) objectsPanel.style.display = 'block'
+        if (mapLoadingMessage) mapLoadingMessage.style.display = 'none'
+        
+        this.adminPanel.showNotification(`Carte "${mapFile}" chargée avec succès`, 'success')
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error loading map:', error)
+        this.adminPanel.showNotification('Erreur chargement carte: ' + error.message, 'error')
     }
+}
+
+// 2. ✅ NOUVELLE MÉTHODE - Charger UNIQUEMENT depuis MongoDB
+async loadObjectsFromDatabaseOnly(mapId) {
+    try {
+        console.log(`📦 [MapEditor] Loading objects from MongoDB ONLY for zone: ${mapId}`)
+        
+        const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
+        
+        if (response.success && response.data && response.data.objects) {
+            const allObjects = response.data.objects
+            console.log(`📦 [MapEditor] Found ${allObjects.length} objects in MongoDB`)
+            
+            // Séparer gameobjects et NPCs
+            const gameObjects = allObjects.filter(obj => obj.type !== 'npc')
+            const npcs = allObjects.filter(obj => obj.type === 'npc')
+            
+            console.log(`📊 [MapEditor] GameObjects: ${gameObjects.length}, NPCs: ${npcs.length}`)
+            
+            // ✅ TRAITER LES GAMEOBJECTS
+            gameObjects.forEach(obj => {
+                if (obj.position || (obj.x !== undefined && obj.y !== undefined)) {
+                    const editorObject = {
+                        id: `gameobject_${obj.id}`,
+                        type: obj.type || 'ground',
+                        x: Math.floor((obj.position?.x || obj.x || 0) / this.currentMapData.tilewidth),
+                        y: Math.floor((obj.position?.y || obj.y || 0) / this.currentMapData.tileheight),
+                        name: obj.itemId || obj.name || `object_${obj.id}`,
+                        itemId: obj.itemId,
+                        quantity: obj.quantity || 1,
+                        cooldown: obj.cooldown || 24,
+                        rarity: obj.rarity || 'common',
+                        sprite: obj.sprite,
+                        isFromMap: false // ✅ Tous les objets DB sont éditables
+                    }
+                    this.placedObjects.push(editorObject)
+                }
+            })
+            
+            // ✅ TRAITER LES NPCs AVEC ID GLOBAL STABLE
+            npcs.forEach(npc => {
+                if (npc.x !== undefined && npc.y !== undefined) {
+                    const editorNPC = {
+                        id: npc.id || npc.globalId,           // ✅ ID GLOBAL STABLE
+                        globalId: npc.id || npc.globalId,     // ✅ Backup globalId
+                        type: 'npc',
+                        x: Math.floor(npc.x / this.currentMapData.tilewidth),
+                        y: Math.floor(npc.y / this.currentMapData.tileheight),
+                        name: npc.name || `NPC_${npc.id}`,
+                        sprite: npc.sprite || 'npc_default',
+                        direction: npc.direction || 'south',
+                        npcType: npc.npcType || 'dialogue',
+                        isFromMap: false, // ✅ Tous les NPCs DB sont éditables
+                        
+                        // ✅ STOCKER TOUTES LES PROPRIÉTÉS POUR ÉDITION
+                        interactionRadius: npc.interactionRadius || 32,
+                        canWalkAway: npc.canWalkAway !== false,
+                        autoFacePlayer: npc.autoFacePlayer !== false,
+                        repeatable: npc.repeatable !== false,
+                        cooldownSeconds: npc.cooldownSeconds || 0,
+                        questsToGive: npc.questsToGive || [],
+                        questsToEnd: npc.questsToEnd || [],
+                        questRequirements: npc.questRequirements,
+                        questDialogueIds: npc.questDialogueIds,
+                        spawnConditions: npc.spawnConditions,
+                        shopId: npc.shopId,
+                        battleConfig: npc.battleConfig,
+                        visionConfig: npc.visionConfig,
+                        customProperties: npc.customProperties || {}
+                    }
+                    
+                    console.log(`👤 [MapEditor] Added NPC: ${editorNPC.name} (GlobalID: ${editorNPC.globalId}) at tile (${editorNPC.x}, ${editorNPC.y})`)
+                    this.placedObjects.push(editorNPC)
+                }
+            })
+            
+            console.log(`✅ [MapEditor] Loaded ${this.placedObjects.length} objects from MongoDB`)
+            
+        } else {
+            console.log(`📝 [MapEditor] No objects found in MongoDB for ${mapId}`)
+        }
+        
+    } catch (error) {
+        console.error(`❌ [MapEditor] Error loading objects from MongoDB:`, error)
+        this.adminPanel.showNotification(`Erreur chargement objets: ${error.message}`, 'error')
+    }
+}
+
+// 3. ✅ NOUVELLE MÉTHODE - Charger objets TMJ pour affichage uniquement
+loadTMJObjectsForDisplay() {
+    if (!this.currentMapData || !this.currentMapData.layers) {
+        this.tmjObjects = []
+        return
+    }
+    
+    console.log('🎨 [MapEditor] Loading TMJ objects for display only (read-only)...')
+    
+    // Chercher les object layers dans la carte TMJ
+    const objectLayers = this.currentMapData.layers.filter(layer => 
+        layer.type === 'objectgroup' && layer.objects && layer.objects.length > 0
+    )
+    
+    // ✅ STOCKER SÉPARÉMENT pour l'affichage (pas dans placedObjects)
+    this.tmjObjects = []
+    
+    objectLayers.forEach(layer => {
+        console.log(`📋 [MapEditor] Found TMJ object layer: "${layer.name}" with ${layer.objects.length} objects`)
+        
+        layer.objects.forEach(obj => {
+            const tileX = Math.floor(obj.x / this.currentMapData.tilewidth)
+            const tileY = Math.floor(obj.y / this.currentMapData.tileheight)
+            
+            let objectType = 'object'
+            if (obj.name) {
+                const name = obj.name.toLowerCase()
+                if (name.includes('spawn') || name.includes('player')) {
+                    objectType = 'spawn'
+                } else if (name.includes('npc') || name.includes('character')) {
+                    objectType = 'npc'
+                } else if (name.includes('teleport') || name.includes('portal') || name.includes('door')) {
+                    objectType = 'teleport'
+                }
+            }
+            
+            // ✅ AJOUTER DANS LISTE SÉPARÉE (lecture seule)
+            const tmjObject = {
+                id: `tmj_${obj.id || Date.now()}`,
+                type: objectType,
+                x: tileX,
+                y: tileY,
+                name: obj.name || `${objectType}_${tileX}_${tileY}`,
+                isFromTMJ: true, // ✅ Marquer comme TMJ (lecture seule)
+                originalData: obj,
+                properties: this.extractProperties(obj.properties)
+            }
+            
+            this.tmjObjects.push(tmjObject)
+        })
+    })
+    
+    console.log(`✅ [MapEditor] Loaded ${this.tmjObjects.length} TMJ objects for display`)
+}
 
     selectTool(tool) {
         this.selectedTool = tool
@@ -1676,39 +1968,46 @@ console.log('🔍 [DEBUG] Objects after DB:', this.placedObjects.length)
     }
 
     removeObject(index) {
-        if (index >= 0 && index < this.placedObjects.length) {
-            const obj = this.placedObjects[index]
-            
-            if (obj.isFromMap) {
-                this.adminPanel.showNotification('Impossible de supprimer un objet de la carte', 'warning')
-                return
+    if (index >= 0 && index < this.placedObjects.length) {
+        const obj = this.placedObjects[index]
+        
+        // ✅ ATTENTION: Si c'est un NPC, on supprime juste localement
+        // La suppression en base se fait via le menu contextuel
+        if (obj.type === 'npc') {
+            if (confirm(`Supprimer le NPC "${obj.name}" de la carte ?\n(Ceci supprimera aussi le NPC de la base de données)`)) {
+                // Supprimer localement ET en base
+                this.selectedNPC = obj
+                this.deleteNPC()
             }
-            
-            this.placedObjects.splice(index, 1)
-            this.renderMap()
-            this.adminPanel.showNotification('Objet supprimé', 'info')
+            return
         }
+        
+        // Pour les autres objets, suppression locale simple
+        this.placedObjects.splice(index, 1)
+        this.renderMap()
+        this.adminPanel.showNotification('Objet supprimé', 'info')
     }
+}
 
-    onTabActivated() {
-        console.log('🗺️ [MapEditor] Tab activated')
-        
-        if (this.availableMaps.length === 0) {
-            this.loadAvailableMaps()
-        }
-        
-        // Recharger les items si nécessaire
-        if (Object.keys(this.availableItems).length === 0) {
-            this.loadAvailableItems()
-        }
-        
-        // Configurer les event listeners pour le canvas
-        const canvas = document.getElementById('mapCanvas')
-        if (canvas && !canvas.hasClickListener) {
-            canvas.addEventListener('click', (e) => this.handleCanvasClick(e))
-            canvas.hasClickListener = true
-        }
+   onTabActivated() {
+    console.log('🗺️ [MapEditor] Tab activated')
+    
+    if (this.availableMaps.length === 0) {
+        this.loadAvailableMaps()
     }
+    
+    // Recharger les items si nécessaire
+    if (Object.keys(this.availableItems).length === 0) {
+        this.loadAvailableItems()
+    }
+    
+    // Configurer les event listeners pour le canvas
+    const canvas = document.getElementById('mapCanvas')
+    if (canvas && !canvas.hasClickListener) {
+        canvas.addEventListener('click', (e) => this.handleCanvasClick(e))
+        canvas.hasClickListener = true
+    }
+}
 
     // ==============================
     // MÉTHODES HÉRITÉES (SUITE)
@@ -2174,6 +2473,72 @@ renderMap() {
         }
     }
 
+    // 18. ✅ NOUVELLE MÉTHODE - Statistiques des objets chargés
+getObjectsStats() {
+    const stats = {
+        total: this.placedObjects.length,
+        tmj: this.tmjObjects ? this.tmjObjects.length : 0,
+        byType: {},
+        npcsWithGlobalIds: 0
+    }
+    
+    this.placedObjects.forEach(obj => {
+        stats.byType[obj.type] = (stats.byType[obj.type] || 0) + 1
+        
+        if (obj.type === 'npc' && obj.globalId) {
+            stats.npcsWithGlobalIds++
+        }
+    })
+    
+    return stats
+}
+
+
+    
+// 19. ✅ MÉTHODE DEBUG - Vérifier l'état du MapEditor
+debugMapEditorState() {
+    console.log('🔍 [MapEditor Debug] Current State:')
+    console.log('  📍 Current Map:', this.currentMapData?.properties?.name || 'None')
+    console.log('  📦 Placed Objects:', this.placedObjects.length)
+    console.log('  🎨 TMJ Objects:', this.tmjObjects ? this.tmjObjects.length : 0)
+    console.log('  📊 Objects by type:', this.getObjectsStats().byType)
+    console.log('  👤 NPCs with stable IDs:', this.getObjectsStats().npcsWithGlobalIds)
+    console.log('  ✅ TMJ/DB separation:', this.placedObjects.length > 0 && this.tmjObjects?.length > 0 ? 'Working' : 'Single source')
+    
+    // Vérifier les doublons potentiels
+    const positions = new Map()
+    let duplicates = 0
+    
+    this.placedObjects.forEach(obj => {
+        const key = `${obj.x},${obj.y}`
+        if (positions.has(key)) {
+            duplicates++
+            console.warn(`  ⚠️ Duplicate at (${obj.x}, ${obj.y}):`, positions.get(key).name, 'vs', obj.name)
+        } else {
+            positions.set(key, obj)
+        }
+    })
+    
+    console.log('  🔍 Duplicates found:', duplicates)
+    
+    return this.getObjectsStats()
+}
+
+   async forceReloadMap() {
+    const currentMapId = this.getCurrentZone()
+    if (!currentMapId) {
+        this.adminPanel.showNotification('Aucune carte chargée', 'warning')
+        return
+    }
+    
+    console.log(`🔄 [MapEditor] Force reloading map: ${currentMapId}`)
+    
+    // Nettoyage complet et rechargement
+    await this.loadMap(currentMapId)
+    
+    this.adminPanel.showNotification(`Carte ${currentMapId} rechargée complètement`, 'success')
+}
+    
     // ==============================
     // CLEANUP
     // ==============================
@@ -2182,6 +2547,7 @@ renderMap() {
         this.currentMapData = null
         this.availableMaps = []
         this.placedObjects = []
+            this.tmjObjects = []      // ✅ Nettoyer aussi TMJ=
         this.availableItems = {}
         this.selectedItem = null
         this.tilesets.clear()
@@ -2189,7 +2555,7 @@ renderMap() {
             this.selectedNPC = null
     this.closeNPCContextMenu() // Fermer le menu s'il est ouvert
     this.contextMenuVisible = false
-        console.log('🧹 [MapEditor] Module cleanup completed')
+    console.log('🧹 [MapEditor] Complete cleanup with stable IDs completed')
     }
 }
 
