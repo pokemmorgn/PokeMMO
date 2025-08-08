@@ -1404,25 +1404,34 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
         
-      case 'bag':
-        try {
-          if (!this.battleInventoryUI) {
-            this.showActionMessage(t('battle.ui.messages.initializing_inventory'));
-            this.createBattleInventoryUI();
-          }
-          
-          if (this.battleInventoryUI) {
-            this.battleInventoryUI.openToBalls();
-          } else {
-            this.showActionMessage(t('battle.ui.messages.inventory_unavailable'));
-            setTimeout(() => this.showActionButtons(), 2000);
-          }
-        } catch (error) {
-          console.error('Erreur inventaire:', error);
-          this.showActionMessage(t('battle.ui.messages.inventory_error'));
-          setTimeout(() => this.showActionButtons(), 2000);
-        }
-        break;
+case 'bag':
+  try {
+    if (!this.battleInventoryUI) {
+      this.showActionMessage('Initialisation inventaire...');
+      this.createBattleInventoryUI();
+    }
+    
+    // ✅ CORRECTION 6: Vérifier CaptureManager avant ouverture inventaire
+    if (!this.captureManager && this.battleNetworkHandler) {
+      console.log('🔧 [BattleScene] CaptureManager manquant, création tardive...');
+      this.initializeCaptureManager();
+      
+      // Debug immédiat
+      this.debugCaptureManager();
+    }
+    
+    if (this.battleInventoryUI) {
+      this.battleInventoryUI.openToBalls();
+    } else {
+      this.showActionMessage('Inventaire non disponible');
+      setTimeout(() => this.showActionButtons(), 2000);
+    }
+  } catch (error) {
+    console.error('❌ Erreur inventaire:', error);
+    this.showActionMessage('Erreur inventaire');
+    setTimeout(() => this.showActionButtons(), 2000);
+  }
+  break;
         
       case 'pokemon':
         console.log(`🔄 [BattleScene] Pokémon button - État:`, {
