@@ -1873,12 +1873,14 @@ animateModernHealthBarToZero(hpBarContainer) {
       
       // Déterminer attaquant et défendeur
       let attacker, target;
-      if (data.attackerRole === 'player1') {
-        attacker = this.playerPokemonSprite;
-        target = this.opponentPokemonSprite;
-      } else {
+      if (data.targetRole === 'player1') {
+        // Si player1 reçoit les dégâts, c'est player2 qui attaque
         attacker = this.opponentPokemonSprite;
         target = this.playerPokemonSprite;
+      } else {
+        // Si player2 reçoit les dégâts, c'est player1 qui attaque
+        attacker = this.playerPokemonSprite;
+        target = this.opponentPokemonSprite;
       }
       
       // ✅ Animation complète attaque + dégâts en UNE FOIS
