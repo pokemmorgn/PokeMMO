@@ -377,6 +377,17 @@ export class BattleNetworkHandler {
         this.triggerEvent('battleRoomError', { code, message });
       });
 
+      this.battleRoom.onMessage('pokemonKO', (data) => {
+        console.log('💀 [NETWORK] pokemonKO reçu:', data);
+        this.triggerEvent('pokemonKO', data);
+      });
+      
+      // Handler pour la fin complète de la séquence KO
+      this.battleRoom.onMessage('koSequenceComplete', (data) => {
+        console.log('⚰️ [NETWORK] koSequenceComplete reçu:', data);
+        this.triggerEvent('koSequenceComplete', data);
+      });
+      
       // ✅ CATCH-ALL pour debug (si supporté par Colyseus)
       try {
         this.battleRoom.onMessage('*', (type, data) => {
