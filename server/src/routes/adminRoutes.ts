@@ -6517,10 +6517,10 @@ router.get('/dialogues/stats', requireMacAndDev, async (req: any, res) => {
         
         console.log('✅ [Dialogues API] Statistiques générées');
         
-        res.json({
-            success: true,
-            stats
-        });
+res.json({
+  success: true,
+  data: stats
+});
         
     } catch (error) {
         console.error('❌ [Dialogues API] Erreur statistiques:', error);
