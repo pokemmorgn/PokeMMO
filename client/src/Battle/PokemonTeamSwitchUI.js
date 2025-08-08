@@ -459,6 +459,17 @@ export class PokemonTeamSwitchUI {
       return;
     }
 
+    // ✅ NOUVEAU: Événements Universal Switch
+    this.networkHandler.on('battleStart', (data) => {
+      console.log('⚔️ [PokemonTeamSwitchUI] Début combat - analyse équipe:', data);
+      this.handleUniversalBattleStart(data);
+    });
+
+    this.networkHandler.on('actionSelectionStart', (data) => {
+      console.log('🎯 [PokemonTeamSwitchUI] Sélection action - switch disponible:', data);
+      this.handleActionSelectionStart(data);
+    });
+
     // Événements d'équipe du serveur
     this.networkHandler.on('teamStateUpdate', (data) => {
       console.log('👥 [PokemonTeamSwitchUI] Mise à jour équipe reçue:', data);
@@ -476,6 +487,12 @@ export class PokemonTeamSwitchUI {
         this.handleForcedSwitch(data);
       }
     });
+
+    // ✅ NOUVEAU: Changement forcé spécifique
+    this.networkHandler.on('switchRequired', (data) => {
+      console.log('🚨 [PokemonTeamSwitchUI] Switch requis après KO:', data);
+      this.handleSwitchRequired(data);
+    });
     
     this.networkHandler.on('actionQueued', (data) => {
       if (data.actionType === 'switch') {
@@ -489,10 +506,81 @@ export class PokemonTeamSwitchUI {
       this.handleSwitchError(data);
     });
 
-    console.log('📡 [PokemonTeamSwitchUI] Événements réseau configurés');
+    console.log('📡 [PokemonTeamSwitchUI] Événements Universal Switch configurés');
   }
 
-  handleTeamStateUpdate(data) {
+  // === ✅ NOUVEAUX HANDLERS UNIVERSAL SWITCH ===
+
+  handleUniversalBattleStart(data) {
+    const { gameState, isMultiPokemonBattle, switchingEnabled } = data;
+    
+    console.log('⚔️ [PokemonTeamSwitchUI] Analyse combat Universal:', {
+      isMultiPokemon: isMultiPokemonBattle,
+      switchingEnabled: switchingEnabled,
+      battleType: gameState?.battleType || 'unknown'
+    });
+
+    // Extraire équipe du gameState
+    if (gameState?.player1?.team) {
+      this.playerTeam = gameState.player1.team.pokemon || [];
+      this.activePokemonIndex = gameState.player1.team.activePokemonIndex || 0;
+      this.canSwitch = switchingEnabled && isMultiPokemonBattle;
+      
+      console.log(`✅ [PokemonTeamSwitchUI] Équipe chargée: ${this.playerTeam.length} Pokémon, switch: ${this.canSwitch}`);
+    }
+
+    // Notifier BattleScene que le switch est disponible
+    if (this.canSwitch && this.playerTeam.length > 1) {
+      this.battleScene.events.emit('switchAvailable', {
+        enabled: true,
+        teamSize: this.playerTeam.length,
+        battleType: gameState?.battleType
+      });
+    }
+  }
+
+  handleActionSelectionStart(data) {
+    const { canSwitch, availableSwitches, noTimeLimit } = data;
+    
+    console.log('🎯 [PokemonTeamSwitchUI] Sélection action:', {
+      canSwitch,
+      availableSwitches: availableSwitches?.length || 0,
+      noTimeLimit
+    });
+
+    // Mettre à jour état de switch
+    this.canSwitch = canSwitch;
+    this.availablePokemon = availableSwitches || [];
+    this.noTimeLimit = noTimeLimit;
+
+    // Informer BattleScene
+    this.battleScene.events.emit('switchStatusUpdate', {
+      canSwitch,
+      availableCount: this.availablePokemon.length,
+      noTimeLimit
+    });
+  }
+
+  handleSwitchRequired(data) {
+    // Nouveau événement pour changement forcé après KO
+    if (data.playerRole === 'player1') {
+      console.log('🚨 [PokemonTeamSwitchUI] Switch requis:', data);
+      
+      this.isForcedSwitch = true;
+      this.availablePokemon = data.availableOptions || [];
+      this.timeLimit = data.timeLimit || 30000;
+      
+      this.titleText.setText('POKÉMON K.O. !');
+      this.titleText.setTint(0xFF0000);
+      this.subtitleText.setText('Choisissez un Pokémon de remplacement :');
+      
+      this.backButton.setVisible(false);
+      this.startForcedSwitchTimer();
+      
+      this.updateTeamDisplay();
+      this.show();
+    }
+  }
     // Mettre à jour les données d'équipe depuis le serveur
     if (data.team && data.team.pokemon) {
       this.playerTeam = data.team.pokemon;
@@ -558,23 +646,18 @@ export class PokemonTeamSwitchUI {
       return;
     }
     
-    // Créer action switch selon les spécifications serveur
+    // ✅ Action switch Universal selon nouvelles spécifications
     const switchAction = {
-      actionId: `switch_${Date.now()}`,
-      playerId: this.networkHandler.playerId || 'player1',
-      type: 'switch',
-      data: {
-        fromPokemonIndex: this.activePokemonIndex,
-        toPokemonIndex: targetIndex,
-        isForced: this.isForcedSwitch,
-        reason: this.isForcedSwitch ? 'forced_after_ko' : 'player_choice'
-      },
-      timestamp: Date.now()
+      actionType: "switch",
+      fromPokemonIndex: this.activePokemonIndex,
+      toPokemonIndex: targetIndex,
+      isForced: this.isForcedSwitch,
+      battleType: this.getBattleType() // ✅ NOUVEAU: Contexte combat
     };
     
-    console.log('📤 [PokemonTeamSwitchUI] Envoi action switch:', switchAction);
+    console.log('📤 [PokemonTeamSwitchUI] Envoi Universal Switch:', switchAction);
     
-    // Envoyer via WebSocket
+    // Envoyer via WebSocket selon spécifications serveur
     try {
       if (this.networkHandler.sendToBattle) {
         this.networkHandler.sendToBattle('battleAction', switchAction);
@@ -584,9 +667,23 @@ export class PokemonTeamSwitchUI {
         throw new Error('Aucune méthode d\'envoi disponible');
       }
     } catch (error) {
-      console.error('❌ [PokemonTeamSwitchUI] Erreur envoi switch:', error);
+      console.error('❌ [PokemonTeamSwitchUI] Erreur envoi Universal Switch:', error);
       this.handleSwitchError({ error: 'Erreur réseau' });
     }
+  }
+
+  getBattleType() {
+    // Détecter le type de combat pour le contexte Universal Switch
+    if (this.battleScene?.battleState?.battleType) {
+      return this.battleScene.battleState.battleType;
+    }
+    
+    // Fallback: deviner selon les données
+    if (this.battleScene?.currentOpponentPokemon?.isWild) {
+      return 'wild';
+    }
+    
+    return 'trainer'; // Par défaut
   }
 
   startForcedSwitchTimer() {
@@ -741,9 +838,59 @@ export class PokemonTeamSwitchUI {
   updateSubtitleText() {
     if (this.isForcedSwitch) {
       this.subtitleText.setText('Votre Pokémon est K.O. ! Choisissez un remplaçant :');
+    } else if (this.canSwitch && this.playerTeam.length > 1) {
+      const battleType = this.getBattleType();
+      if (battleType === 'wild') {
+        this.subtitleText.setText('✨ Changement possible même en combat sauvage !');
+      } else {
+        this.subtitleText.setText('Choisissez le Pokémon à envoyer au combat :');
+      }
     } else {
-      this.subtitleText.setText('Choisissez le Pokémon à envoyer au combat :');
+      this.subtitleText.setText('Aucun changement disponible');
     }
+  }
+
+  // === ✅ MÉTHODES PUBLIQUES UNIVERSAL SWITCH ===
+
+  /**
+   * Affiche le menu de changement Universal (tous types de combat)
+   */
+  showUniversalSwitch(data = {}) {
+    console.log('🆕 [PokemonTeamSwitchUI] Affichage Universal Switch:', data);
+    
+    this.isForcedSwitch = false;
+    this.availablePokemon = data.availableSwitches || [];
+    this.timeLimit = null;
+    
+    // Configuration interface Universal Switch
+    const battleType = data.battleType || this.getBattleType();
+    
+    if (battleType === 'wild') {
+      this.titleText.setText('🌟 ÉQUIPE - COMBAT SAUVAGE');
+      this.titleText.setTint(0x00FF7F); // Vert pour indiquer la nouveauté
+    } else {
+      this.titleText.setText('👥 ÉQUIPE - DRESSEUR');
+      this.titleText.clearTint();
+    }
+    
+    this.updateSubtitleText();
+    this.backButton.setVisible(true);
+    this.backButtonText.setText('RETOUR');
+    this.timerContainer.setVisible(false);
+    
+    // Utiliser équipe fournie ou locale
+    if (data.playerTeam) {
+      this.playerTeam = data.playerTeam;
+    }
+    if (data.activePokemonIndex !== undefined) {
+      this.activePokemonIndex = data.activePokemonIndex;
+    }
+    if (data.canSwitch !== undefined) {
+      this.canSwitch = data.canSwitch;
+    }
+    
+    this.updateTeamDisplay();
+    this.show();
   }
 
   // === MÉTHODES PUBLIQUES ===
@@ -926,13 +1073,63 @@ export function setupTeamSwitchEvents(teamUI, battleScene) {
   });
 }
 
-console.log('✅ [PokemonTeamSwitchUI] Système complet chargé !');
-console.log('🎯 Fonctionnalités :');
+console.log('✅ [PokemonTeamSwitchUI] Système UNIVERSAL SWITCH chargé !');
+console.log('🎯 Nouvelles fonctionnalités :');
+console.log('   ✅ Combat sauvage multi-Pokémon supporté');
 console.log('   ✅ Interface authentique style Game Boy');
 console.log('   ✅ Changement normal via menu POKéMON');  
 console.log('   ✅ Changement forcé après KO avec timer');
+console.log('   ✅ Actions Universal Switch (actionType: "switch")');
+console.log('   ✅ Support battleType contexte (wild/trainer)');
 console.log('   ✅ Validation côté client (Pokémon KO, actif, etc.)');
-console.log('   ✅ Actions switch conformes serveur BattleRoom');
 console.log('   ✅ Gestion erreurs et timeouts');
 console.log('   ✅ Animations et effets visuels');
-console.log('🚀 Prêt pour intégration complète !');
+console.log('🚀 Compatible avec tous types de combat !');
+
+// === ✅ FONCTIONS D'INTÉGRATION UNIVERSAL SWITCH ===
+
+/**
+ * ✅ Intégration complète avec BattleScene pour Universal Switch
+ */
+export function integrateUniversalSwitch(teamUI, battleScene, networkHandler) {
+  if (!teamUI || !battleScene || !networkHandler) {
+    console.warn('⚠️ [integrateUniversalSwitch] Paramètres manquants');
+    return;
+  }
+  
+  console.log('🔗 [integrateUniversalSwitch] Intégration Universal Switch...');
+  
+  // ✅ Événement battleStart - analyser si Universal Switch disponible
+  networkHandler.on('battleStart', (data) => {
+    if (data.isMultiPokemonBattle && data.switchingEnabled) {
+      console.log('🆕 Combat Universal Switch détecté !', data.gameState?.battleType);
+      
+      // Notifier BattleScene que le switch est disponible
+      battleScene.events.emit('universalSwitchEnabled', {
+        battleType: data.gameState?.battleType,
+        teamSize: data.gameState?.player1?.team?.pokemon?.length || 0
+      });
+    }
+  });
+  
+  // ✅ Événement actionSelectionStart - vérifier canSwitch
+  networkHandler.on('actionSelectionStart', (data) => {
+    if (data.canSwitch && data.availableSwitches?.length > 0) {
+      console.log('🎯 Switch disponible ce tour !', {
+        available: data.availableSwitches.length,
+        noTimeLimit: data.noTimeLimit
+      });
+      
+      // Activer bouton switch dans BattleScene
+      battleScene.events.emit('enableSwitchButton', {
+        availableCount: data.availableSwitches.length,
+        noTimeLimit: data.noTimeLimit
+      });
+    } else {
+      // Désactiver bouton switch
+      battleScene.events.emit('disableSwitchButton');
+    }
+  });
+  
+  console.log('✅ [integrateUniversalSwitch] Intégration terminée');
+}
