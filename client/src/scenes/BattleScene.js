@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - Version optimisée avec gestion langue
+// client/src/scenes/BattleScene.js - Version optimisée avec gestion langue et Universal Switch
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -39,6 +39,13 @@ export class BattleScene extends Phaser.Scene {
     this.switchingAvailable = false;
     this.availableSwitchCount = 0;
     this.battleType = 'wild';
+    
+    // 🆕 ÉTAT UNIVERSAL SWITCH
+    this.isMultiPokemonBattle = false;
+    this.canSwitch = false;
+    this.availableSwitches = [];
+    this.noTimeLimit = true;
+    
     // Localisation
     this.battleLocalizationReady = false;
     this.battleTranslator = null;
@@ -1358,6 +1365,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleActionButton(actionKey) {
+    console.log(`🎮 [BattleScene] Action button: ${actionKey}`);
+    
     this.hideActionButtons();
     
     switch (actionKey) {
@@ -1389,21 +1398,42 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
         
-        case 'pokemon':
-          if (this.pokemonTeamUI && this.switchingAvailable) {
-            // Utiliser l'état réel du serveur
-            this.pokemonTeamUI.showForSwitch();
-          } else if (!this.switchingAvailable) {
-            const message = this.battleType === 'wild' ? 
-              'Changement impossible en combat sauvage classique' :
-              'Aucun changement disponible actuellement';
-            this.showActionMessage(message);
-            setTimeout(() => this.showActionButtons(), 2000);
-          } else {
-            this.showActionMessage('Interface équipe non disponible');
+      case 'pokemon':
+        console.log(`🔄 [BattleScene] Pokémon button - État:`, {
+          pokemonTeamUI: !!this.pokemonTeamUI,
+          canSwitch: this.canSwitch,
+          isMultiPokemonBattle: this.isMultiPokemonBattle,
+          availableSwitches: this.availableSwitches?.length || 0,
+          battleType: this.battleType
+        });
+        
+        if (this.pokemonTeamUI) {
+          // 🆕 UTILISER L'INTERFACE UNIVERSELLE
+          const switchData = {
+            canSwitch: this.canSwitch,
+            availableSwitches: this.availableSwitches,
+            isMultiPokemonBattle: this.isMultiPokemonBattle,
+            switchingEnabled: this.canSwitch,
+            battleType: this.battleType,
+            noTimeLimit: this.noTimeLimit,
+            playerTeam: this.currentPlayerPokemon ? [this.currentPlayerPokemon] : [],
+            activePokemonIndex: 0
+          };
+          
+          console.log(`🔄 [BattleScene] Ouverture interface switch:`, switchData);
+          
+          const success = this.pokemonTeamUI.showUniversalSwitch(switchData);
+          if (!success) {
+            const reasonMessage = this.getUnavailableReason();
+            this.showActionMessage(reasonMessage);
             setTimeout(() => this.showActionButtons(), 2000);
           }
-          break;
+        } else {
+          console.error('❌ [BattleScene] Interface équipe non disponible');
+          this.showActionMessage('Interface équipe non disponible');
+          setTimeout(() => this.showActionButtons(), 2000);
+        }
+        break;
         
       case 'run':
         if (!this.battleNetworkHandler) {
@@ -1422,6 +1452,27 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
     }
+  }
+
+  /**
+   * 🆕 Détermine pourquoi le changement n'est pas disponible
+   */
+  getUnavailableReason() {
+    if (!this.isMultiPokemonBattle) {
+      return this.battleType === 'wild' ? 
+        'Combat sauvage 1v1 - Pas de changement possible' :
+        'Combat 1v1 - Pas de changement possible';
+    }
+    
+    if (!this.canSwitch) {
+      return 'Changement actuellement indisponible';
+    }
+    
+    if (!this.availableSwitches || this.availableSwitches.length === 0) {
+      return 'Aucun Pokémon disponible pour le changement';
+    }
+    
+    return 'Changement temporairement indisponible';
   }
 
   requestMovesFromServer() {
@@ -1911,6 +1962,34 @@ export class BattleScene extends Phaser.Scene {
     
     setupKOManagerEvents(this.koManager, this.battleNetworkHandler);
     
+    // 🆕 ÉVÉNEMENTS UNIVERSAL SWITCH
+    this.battleNetworkHandler.on('battleStart', (data) => {
+      console.log('⚔️ [BattleScene] battleStart reçu:', data);
+      this.handleUniversalBattleStart(data);
+    });
+    
+    this.battleNetworkHandler.on('actionSelectionStart', (data) => {
+      console.log('🎯 [BattleScene] actionSelectionStart reçu:', data);
+      this.handleUniversalActionSelectionStart(data);
+    });
+    
+    this.battleNetworkHandler.on('phaseChanged', (data) => {
+      console.log('📋 [BattleScene] phaseChanged reçu:', data);
+      this.handleUniversalPhaseChanged(data);
+    });
+    
+    // 🆕 ÉVÉNEMENTS ÉQUIPE SPÉCIFIQUES
+    this.battleNetworkHandler.on('switchRequired', (data) => {
+      console.log('🚨 [BattleScene] switchRequired reçu:', data);
+      this.handleUniversalSwitchRequired(data);
+    });
+    
+    this.battleNetworkHandler.on('pokemonSwitched', (data) => {
+      console.log('🔄 [BattleScene] pokemonSwitched reçu:', data);
+      this.handleUniversalPokemonSwitched(data);
+    });
+    
+    // 🔥 ÉVÉNEMENTS EXISTANTS
     this.battleNetworkHandler.on('actionResult', (data) => {
       if (data.success && data.battleEvents && data.battleEvents.length > 0) {
         this.processBattleEventsServerDriven(data.battleEvents);
@@ -1997,42 +2076,37 @@ export class BattleScene extends Phaser.Scene {
       this.battleTranslator = new BattleTranslator(this.playerRole);
     });
     
-    this.battleNetworkHandler.on('battleStart', (data) => {
-      this.handleNetworkBattleStart(data);
-    });
-
-    this.battleNetworkHandler.on('actionSelectionStart', (data) => {
-      this.handleActionSelectionStart(data);
-    });
-
-    this.events.on('switchingAvailable', (data) => {
-      console.log('🔄 [BattleScene] Changements disponibles:', data);
-      this.switchingAvailable = true;
-      this.availableSwitchCount = data.availableCount;
-      this.battleType = data.battleType;
-    });
     this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
     });
   }
 
-  processBattleEventsServerDriven(battleEvents) {
-    battleEvents.forEach((event, index) => {
-      if (event.type === 'moveUsed') {
-        return;
-      }
-      
-      this.handleBattleEvent(event.type, event.data);
-    });
-  }
+  // === 🆕 HANDLERS UNIVERSAL SWITCH ===
 
-  handleNetworkBattleStart(data) {
+  /**
+   * 🆕 Traitement battleStart universel
+   */
+  handleUniversalBattleStart(data) {
+    console.log('⚔️ [BattleScene] Traitement battleStart universel:', data);
+    
+    // Extraire propriétés Universal Switch
+    this.isMultiPokemonBattle = data.isMultiPokemonBattle || false;
+    this.switchingEnabled = data.switchingEnabled || false;
+    this.battleType = data.gameState?.type || 'wild';
+    
+    console.log(`🔍 [BattleScene] État détecté:`, {
+      type: this.battleType,
+      multiPokemon: this.isMultiPokemonBattle,
+      switchingEnabled: this.switchingEnabled
+    });
+    
+    // Traitement classique
     if (data.isNarrative || data.duration) {
       return;
     }
     
-    const playerPokemon = data.playerPokemon;
-    const opponentPokemon = data.opponentPokemon;
+    const playerPokemon = data.playerPokemon || data.gameState?.player1?.pokemon;
+    const opponentPokemon = data.opponentPokemon || data.gameState?.player2?.pokemon;
     
     if (playerPokemon) {
       this.displayPlayerPokemon(playerPokemon);
@@ -2045,6 +2119,160 @@ export class BattleScene extends Phaser.Scene {
     this.activateBattleUI();
     this.isVisible = true;
     this.startBattleIntroSequence(opponentPokemon);
+  }
+
+  /**
+   * 🆕 Traitement actionSelectionStart universel
+   */
+  handleUniversalActionSelectionStart(data) {
+    console.log('🎯 [BattleScene] actionSelectionStart universel:', data);
+    
+    // 🆕 EXTRAIRE OPTIONS SWITCH UNIVERSELLES
+    this.canSwitch = data.canSwitch !== false;
+    this.availableSwitches = data.availableSwitches || [];
+    this.noTimeLimit = data.noTimeLimit !== false;
+    
+    // Extraire moves du joueur si présent
+    if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
+      const playerPokemon = data.gameState.player1.pokemon;
+      
+      if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
+        this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
+        
+        if (this.currentPlayerPokemon) {
+          this.currentPlayerPokemon.moves = this.currentPlayerMoves;
+        }
+      } else {
+        this.currentPlayerMoves = [];
+      }
+    } else {
+      this.currentPlayerMoves = [];
+    }
+    
+    // 🆕 NOTIFIER ÉQUIPE SI CHANGEMENTS DISPONIBLES
+    if (this.canSwitch && this.availableSwitches.length > 0) {
+      console.log('🔄 [BattleScene] Changements disponibles:', this.availableSwitches.length);
+      this.events.emit('switchingAvailable', {
+        availableCount: this.availableSwitches.length,
+        canSwitch: this.canSwitch,
+        battleType: this.battleType,
+        isMultiPokemonBattle: this.isMultiPokemonBattle
+      });
+    }
+    
+    this.showActionButtons();
+  }
+
+  /**
+   * 🆕 Traitement phaseChanged universel
+   */
+  handleUniversalPhaseChanged(data) {
+    console.log('📋 [BattleScene] phaseChanged universel:', data);
+    
+    // Mettre à jour l'état selon la phase
+    if (data.phase === 'action_selection') {
+      // Extraire options switch si présentes
+      if (data.canSwitch !== undefined) {
+        this.canSwitch = data.canSwitch;
+      }
+      if (data.availableSwitches) {
+        this.availableSwitches = data.availableSwitches;
+      }
+      
+      this.showActionButtons();
+    } else if (data.phase === 'switch_phase' || data.phase === 'forced_switch') {
+      // Phase de changement - sera gérée par switchRequired
+    }
+    
+    // Mettre à jour propriétés universelles si présentes
+    if (data.isMultiPokemonBattle !== undefined) {
+      this.isMultiPokemonBattle = data.isMultiPokemonBattle;
+    }
+    if (data.switchingEnabled !== undefined) {
+      this.switchingEnabled = data.switchingEnabled;
+    }
+  }
+
+  /**
+   * 🆕 Traitement switchRequired universel (changement forcé)
+   */
+  handleUniversalSwitchRequired(data) {
+    console.log('🚨 [BattleScene] switchRequired universel:', data);
+    
+    if (!this.pokemonTeamUI) {
+      console.error('❌ [BattleScene] Interface équipe non disponible pour changement forcé');
+      return;
+    }
+    
+    // Préparer données pour interface forcée
+    const forcedSwitchData = {
+      isForced: true,
+      availableOptions: data.availableOptions || data.availablePokemon || [],
+      timeLimit: data.timeLimit,
+      battleType: data.battleType || this.battleType,
+      playerRole: data.playerRole,
+      reason: data.reason || 'pokemon_fainted'
+    };
+    
+    console.log('🚨 [BattleScene] Ouverture changement forcé:', forcedSwitchData);
+    
+    // Utiliser l'interface universelle en mode forcé
+    this.pokemonTeamUI.handleUniversalForcedSwitch(forcedSwitchData);
+  }
+
+  /**
+   * 🆕 Traitement pokemonSwitched universel
+   */
+  handleUniversalPokemonSwitched(data) {
+    console.log('🔄 [BattleScene] pokemonSwitched universel:', data);
+    
+    if (data.playerRole === 'player1') {
+      // Mise à jour Pokémon joueur
+      if (data.newActivePokemon || data.toPokemon) {
+        const newPokemon = data.newActivePokemon || data.toPokemon;
+        this.currentPlayerPokemon = newPokemon;
+        this.displayPlayerPokemon(newPokemon);
+      }
+    } else if (data.playerRole === 'player2') {
+      // Mise à jour Pokémon adversaire
+      if (data.newActivePokemon || data.toPokemon) {
+        const newPokemon = data.newActivePokemon || data.toPokemon;
+        this.currentOpponentPokemon = newPokemon;
+        this.displayOpponentPokemon(newPokemon);
+      }
+    }
+    
+    // Message contextuel
+    const pokemonName = data.toPokemon?.name || data.newActivePokemon?.name || 'Pokémon';
+    const isForced = data.isForced || data.reason === 'forced_after_ko';
+    
+    const message = isForced ?
+      `${pokemonName} est envoyé au combat !` :
+      `Changement réussi ! ${pokemonName} rejoint le combat !`;
+    
+    this.showNarrativeMessage(message, false);
+    
+    // Retourner aux boutons d'action après délai
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 2000);
+  }
+
+  // === 🔥 MÉTHODES EXISTANTES CONSERVÉES ===
+
+  processBattleEventsServerDriven(battleEvents) {
+    battleEvents.forEach((event, index) => {
+      if (event.type === 'moveUsed') {
+        return;
+      }
+      
+      this.handleBattleEvent(event.type, event.data);
+    });
+  }
+
+  handleNetworkBattleStart(data) {
+    // Utilisé par la compatibilité - rediriger vers Universal
+    this.handleUniversalBattleStart(data);
   }
 
   startBattleIntroSequence(opponentPokemon) {
@@ -2074,7 +2302,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (eventType === 'actionSelectionStart') {
-      this.handleActionSelectionStart(data);
+      this.handleUniversalActionSelectionStart(data);
       return;
     }
     
@@ -2103,26 +2331,6 @@ export class BattleScene extends Phaser.Scene {
         this.showNarrativeMessage(message, false);
       }
     }
-  }
-
-  handleActionSelectionStart(data) {
-    if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
-      const playerPokemon = data.gameState.player1.pokemon;
-      
-      if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
-        this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
-        
-        if (this.currentPlayerPokemon) {
-          this.currentPlayerPokemon.moves = this.currentPlayerMoves;
-        }
-      } else {
-        this.currentPlayerMoves = [];
-      }
-    } else {
-      this.currentPlayerMoves = [];
-    }
-    
-    this.showActionButtons();
   }
 
   transformServerMoves(serverMoves, pokemonData) {
@@ -2577,7 +2785,7 @@ export class BattleScene extends Phaser.Scene {
       console.error('Erreur notification UIManager:', error);
     }
     
-    this.handleNetworkBattleStart(battleData);
+    this.handleUniversalBattleStart(battleData);
   }
 
   activateFromTransition() {
