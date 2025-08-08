@@ -1020,7 +1020,10 @@ export class PokemonTeamSwitchUI {
         this.resetState();
       }
     });
-    
+      this.scene.events.emit('teamUIClosed', {
+        reason: 'user_cancelled',
+        timestamp: Date.now()
+      });
     console.log('👁️ [PokemonTeamSwitchUI] Interface équipe masquée');
   }
 
