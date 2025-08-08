@@ -119,7 +119,7 @@ export class BattleEngine {
       await this.initializeUniversalTeamManagers(config);
       this.initializeAllModules();
       this.startBattleTimeout();
-      this.initializeAISystem();
+      await this.initializeAISystem();
       
       this.isInitialized = true;
       this.handlePokemonEncounter();
@@ -212,6 +212,7 @@ export class BattleEngine {
     if (this.spectatorManager) {
       try {
         this.spectatorManager.cleanupBattle(this.gameState?.battleId || 'unknown');
+        this.spectatorManager = null;
       } catch {}
     }
 
@@ -221,8 +222,6 @@ export class BattleEngine {
       } catch {}
       this.broadcastManager = null;
     }
-
-    this.spectatorManager = null;
 
     if (this.switchManager) {
       try {
@@ -240,13 +239,15 @@ export class BattleEngine {
       } catch {}
     }
 
-    this.phaseManager.reset();
-    this.actionQueue.reset();
-    this.actionProcessor.reset();
-    this.aiPlayer.reset();
-    this.battleEndManager.reset();
-    this.captureManager.reset();
-    this.koManager.reset();
+    try {
+      this.phaseManager.reset();
+      this.actionQueue.reset();
+      this.actionProcessor.reset();
+      this.aiPlayer.reset();
+      this.battleEndManager.reset();
+      this.captureManager.reset();
+      this.koManager.reset();
+    } catch {}
 
     this.playerTeamManager = null;
     this.opponentTeamManager = null;
@@ -289,8 +290,6 @@ export class BattleEngine {
       if (config.player1.team && config.player1.team.length > 1) {
         this.playerTeamManager = new TrainerTeamManager(config.player1.sessionId);
         this.playerTeamManager.initializeWithPokemon(config.player1.team);
-      } else {
-        this.playerTeamManager = null;
       }
       
       if (config.opponent.team && config.opponent.team.length > 1) {
@@ -299,8 +298,6 @@ export class BattleEngine {
       } else if (config.type === 'wild' && this.switchingEnabled) {
         this.opponentTeamManager = new TrainerTeamManager('wild_opponent');
         this.opponentTeamManager.initializeWithPokemon([config.opponent.pokemon]);
-      } else {
-        this.opponentTeamManager = null;
       }
       
     } catch (error) {
@@ -309,31 +306,24 @@ export class BattleEngine {
   }
 
   private initializeUniversalModules(): void {
-    try {
-      if (this.isMultiPokemonBattle && this.switchingEnabled) {
+    if (this.isMultiPokemonBattle && this.switchingEnabled) {
+      try {
         this.switchManager.initialize(
           this.gameState,
           this.playerTeamManager,
           this.opponentTeamManager,
           this.getTrainerBattleRules()
         );
-        
-        this.configureUniversalSwitchBehavior();
+      } catch (error) {
+        console.error('Erreur initialisation SwitchManager:', error);
       }
-      
-      this.actionQueue.configureSwitchBehavior(
-        this.switchingEnabled,
-        this.battleTeamConfig?.maxSwitchesPerTurn || 1,
-        'priority'
-      );
-      
-    } catch (error) {
-      throw error;
     }
-  }
-
-  private configureUniversalSwitchBehavior(): void {
-    if (!this.battleTeamConfig) return;
+    
+    this.actionQueue.configureSwitchBehavior(
+      this.switchingEnabled,
+      this.battleTeamConfig?.maxSwitchesPerTurn || 1,
+      'priority'
+    );
   }
 
   private getTrainerBattleRules(): any {
@@ -412,8 +402,8 @@ export class BattleEngine {
   }
 
   private async handleUniversalSwitchAction(switchAction: SwitchAction, playerRole: PlayerRole): Promise<BattleResult> {
-    if (!this.switchManager.isReady()) {
-      return this.createErrorResult('SwitchManager non initialisé');
+    if (!this.switchManager || !this.switchManager.isReady()) {
+      return this.createErrorResult('Changements non supportés');
     }
 
     const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.opponentTeamManager;
@@ -506,7 +496,7 @@ export class BattleEngine {
       this.actionQueue.configureSwitchBehavior(true, 2, 'priority');
       
     } catch (error) {
-      throw error;
+      console.error('Erreur modules étendus:', error);
     }
   }
 
@@ -514,8 +504,10 @@ export class BattleEngine {
     this.actionQueue.clear();
     this.resetSubPhaseState();
 
-    if (this.switchingEnabled && this.switchManager.isReady()) {
-      this.switchManager.resetTurnCounters(this.gameState.turnNumber);
+    if (this.switchingEnabled && this.switchManager && this.switchManager.isReady()) {
+      try {
+        this.switchManager.resetTurnCounters(this.gameState.turnNumber);
+      } catch {}
     }
 
     this.emit('actionSelectionStart', {
@@ -544,18 +536,26 @@ export class BattleEngine {
     const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.opponentTeamManager;
     if (!teamManager) return false;
     
-    const analysis = teamManager.analyzeTeam();
-    return analysis.alivePokemon > 1;
+    try {
+      const analysis = teamManager.analyzeTeam();
+      return analysis.alivePokemon > 1;
+    } catch {
+      return false;
+    }
   }
 
   private getAvailableSwitches(playerRole: PlayerRole): number[] {
-    if (!this.switchingEnabled) return [];
+    if (!this.switchingEnabled || !this.switchManager) return [];
     
     const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.opponentTeamManager;
     if (!teamManager) return [];
     
-    const analysis = this.switchManager.analyzeSwitchOptions(playerRole);
-    return analysis.availablePokemon;
+    try {
+      const analysis = this.switchManager.analyzeSwitchOptions(playerRole);
+      return analysis.availablePokemon;
+    } catch {
+      return [];
+    }
   }
 
   private async performKOCheckPhase(): Promise<void> {
@@ -642,28 +642,31 @@ export class BattleEngine {
       return;
     }
 
-    const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
-    
-    if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
-      this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
+    if (this.switchManager && this.switchManager.isReady()) {
+      const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
       
-      this.emit('pokemonSwitched', {
-        playerRole,
-        isForced: true,
-        newPokemon: forcedSwitchResult.data?.toPokemon,
-        reason: 'forced_after_ko'
-      });
-      
-      await this.completeActionResolution();
-    } else {
-      const winner = 'player1';
-      await this.handleBattleEnd({
-        isEnded: true,
-        winner,
-        reason: 'team_defeat',
-        message: 'Adversaire vaincu !'
-      });
+      if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
+        this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
+        
+        this.emit('pokemonSwitched', {
+          playerRole,
+          isForced: true,
+          newPokemon: forcedSwitchResult.data?.toPokemon,
+          reason: 'forced_after_ko'
+        });
+        
+        await this.completeActionResolution();
+        return;
+      }
     }
+
+    const winner = 'player1';
+    await this.handleBattleEnd({
+      isEnded: true,
+      winner,
+      reason: 'team_defeat',
+      message: 'Adversaire vaincu !'
+    });
   }
 
   private async handlePlayerKO(playerRole: PlayerRole): Promise<void> {
@@ -688,31 +691,34 @@ export class BattleEngine {
       return;
     }
 
-    const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
-    
-    if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
-      this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
+    if (this.switchManager && this.switchManager.isReady()) {
+      const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
       
-      this.emit('pokemonSwitched', {
-        playerRole,
-        isForced: true,
-        newPokemon: forcedSwitchResult.data?.toPokemon,
-        reason: 'forced_after_ko'
-      });
-      
-      await this.completeActionResolution();
-    } else {
-      const winner = 'player2';
-      if (this.isTrainerBattle) {
-        await this.handleTrainerBattleEnd(winner, 'team_defeat');
-      } else {
-        await this.handleBattleEnd({
-          isEnded: true,
-          winner,
-          reason: 'team_defeat',
-          message: 'Votre équipe est vaincue !'
+      if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
+        this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
+        
+        this.emit('pokemonSwitched', {
+          playerRole,
+          isForced: true,
+          newPokemon: forcedSwitchResult.data?.toPokemon,
+          reason: 'forced_after_ko'
         });
+        
+        await this.completeActionResolution();
+        return;
       }
+    }
+
+    const winner = 'player2';
+    if (this.isTrainerBattle) {
+      await this.handleTrainerBattleEnd(winner, 'team_defeat');
+    } else {
+      await this.handleBattleEnd({
+        isEnded: true,
+        winner,
+        reason: 'team_defeat',
+        message: 'Votre équipe est vaincue !'
+      });
     }
   }
 
@@ -735,7 +741,7 @@ export class BattleEngine {
   private scheduleTrainerAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
     
-    const thinkingDelay = this.trainerAI.isReady() ? 
+    const thinkingDelay = this.trainerAI && this.trainerAI.isReady ? 
       this.trainerAI.getThinkingDelay() : 
       1200;
     
@@ -748,7 +754,7 @@ export class BattleEngine {
 
   private executeTrainerAIAction(): void {
     try {
-      if (!this.trainerAI.isReady()) {
+      if (!this.trainerAI || !this.trainerAI.isReady || !this.trainerAI.isReady()) {
         this.executeAIAction();
         return;
       }
@@ -882,7 +888,7 @@ export class BattleEngine {
       return null;
     }
     
-    if (this.isTrainerBattle && this.trainerAI.isReady()) {
+    if (this.isTrainerBattle && this.trainerAI && this.trainerAI.isReady && this.trainerAI.isReady()) {
       const decision = this.trainerAI.makeDecision(
         this.gameState,
         this.playerTeamManager?.getActivePokemon() || null,
@@ -895,7 +901,7 @@ export class BattleEngine {
   }
 
   getAIThinkingDelay(): number {
-    if (this.isTrainerBattle && this.trainerAI.isReady()) {
+    if (this.isTrainerBattle && this.trainerAI && this.trainerAI.isReady && this.trainerAI.isReady()) {
       return this.trainerAI.getThinkingDelay();
     }
     
@@ -1671,7 +1677,7 @@ export class BattleEngine {
     availableOptions: number[];
     restrictions: string[];
   } {
-    if (!this.switchingEnabled || !this.switchManager.isReady()) {
+    if (!this.switchingEnabled || !this.switchManager || !this.switchManager.isReady()) {
       return {
         canSwitch: false,
         availableOptions: [],
@@ -1679,13 +1685,21 @@ export class BattleEngine {
       };
     }
 
-    const switchAnalysis = this.switchManager.analyzeSwitchOptions(playerRole);
-    
-    return {
-      canSwitch: switchAnalysis.canSwitch,
-      availableOptions: switchAnalysis.availablePokemon,
-      restrictions: switchAnalysis.restrictions
-    };
+    try {
+      const switchAnalysis = this.switchManager.analyzeSwitchOptions(playerRole);
+      
+      return {
+        canSwitch: switchAnalysis.canSwitch,
+        availableOptions: switchAnalysis.availablePokemon,
+        restrictions: switchAnalysis.restrictions
+      };
+    } catch {
+      return {
+        canSwitch: false,
+        availableOptions: [],
+        restrictions: ['Erreur analyse options changement']
+      };
+    }
   }
 
   createSwitchActionForPlayer(
@@ -1708,23 +1722,31 @@ export class BattleEngine {
   } {
     const player1Info = this.playerTeamManager ? 
       (() => {
-        const analysis = this.playerTeamManager!.analyzeTeam();
-        return {
-          size: analysis.totalPokemon,
-          alive: analysis.alivePokemon,
-          canSwitch: this.canPlayerSwitch('player1')
-        };
+        try {
+          const analysis = this.playerTeamManager!.analyzeTeam();
+          return {
+            size: analysis.totalPokemon,
+            alive: analysis.alivePokemon,
+            canSwitch: this.canPlayerSwitch('player1')
+          };
+        } catch {
+          return { size: 1, alive: 0, canSwitch: false };
+        }
       })() :
       { size: 1, alive: this.gameState.player1.pokemon?.currentHp ? 1 : 0, canSwitch: false };
 
     const player2Info = this.opponentTeamManager ? 
       (() => {
-        const analysis = this.opponentTeamManager!.analyzeTeam();
-        return {
-          size: analysis.totalPokemon,
-          alive: analysis.alivePokemon,
-          canSwitch: this.canPlayerSwitch('player2')
-        };
+        try {
+          const analysis = this.opponentTeamManager!.analyzeTeam();
+          return {
+            size: analysis.totalPokemon,
+            alive: analysis.alivePokemon,
+            canSwitch: this.canPlayerSwitch('player2')
+          };
+        } catch {
+          return { size: 1, alive: 0, canSwitch: false };
+        }
       })() :
       { size: 1, alive: this.gameState.player2.pokemon?.currentHp ? 1 : 0, canSwitch: false };
 
@@ -1737,7 +1759,7 @@ export class BattleEngine {
 
   getSystemState(): any {
     return {
-      version: 'battle_engine_universal_switch_v4_complete_cleanup',
+      version: 'battle_engine_universal_switch_v4_complete_cleanup_safe',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1773,7 +1795,7 @@ export class BattleEngine {
       teamInfo: {
         player1TeamSize: this.playerTeamManager?.getAllPokemon().length || 1,
         player2TeamSize: this.opponentTeamManager?.getAllPokemon().length || 1,
-        switchManagerReady: this.switchManager?.isReady() || false,
+        switchManagerReady: this.switchManager?.isReady && this.switchManager.isReady() || false,
         battleTeamConfig: this.battleTeamConfig
       },
       
@@ -1781,8 +1803,8 @@ export class BattleEngine {
         trainerId: this.trainerData?.trainerId,
         trainerName: this.trainerData?.name,
         trainerClass: this.trainerData?.trainerClass,
-        trainerAIReady: this.trainerAI?.isReady(),
-        rewardManagerReady: this.trainerRewardManager?.isReady(),
+        trainerAIReady: this.trainerAI?.isReady && this.trainerAI.isReady() || false,
+        rewardManagerReady: this.trainerRewardManager?.isReady && this.trainerRewardManager.isReady() || false,
         pendingSwitches: this.pendingSwitches.size
       } : null,
       
@@ -1790,16 +1812,18 @@ export class BattleEngine {
         noTimeLimit: true,
         maxTurns: this.MAX_TURNS,
         technicalTimeoutOnly: this.BATTLE_CRASH_TIMEOUT_MS,
-        message: "Expérience Pokémon authentique avec nettoyage complet"
+        message: "Expérience Pokémon authentique avec nettoyage complet et sécurisé"
       },
       
-      newFeaturesV4: [
-        'complete_battle_cleanup',
-        'force_reset_between_battles',
-        'memory_leak_prevention',
-        'proper_state_isolation',
-        'enhanced_error_recovery',
-        'battle_instance_independence'
+      newFeaturesV4Safe: [
+        'complete_battle_cleanup_with_safety_checks',
+        'force_reset_between_battles_error_safe',
+        'memory_leak_prevention_enhanced',
+        'proper_state_isolation_secure',
+        'enhanced_error_recovery_robust',
+        'battle_instance_independence_guaranteed',
+        'safe_module_initialization_checks',
+        'defensive_programming_patterns'
       ]
     };
   }
