@@ -305,21 +305,20 @@ export class DialogueUI {
         right: 0;
         bottom: 0;
         z-index: 100;
-        pointer-events: none; /* ✅ FIX CRITIQUE: none par défaut */
+        pointer-events: none; /* ✅ TOUJOURS none par défaut */
         transition: opacity 0.3s ease;
-        /* ✅ FIX: Ne pas forcer opacity ici, laisser les classes gérer */
       }
 
       .dialogue-container.hidden {
         opacity: 0;
-        pointer-events: none; /* ✅ FIX: s'assurer qu'il reste none */
-        visibility: hidden; /* ✅ FIX: cache complètement */
+        pointer-events: none; 
+        visibility: hidden;
       }
 
       .dialogue-container:not(.hidden) {
         opacity: 1;
-        pointer-events: auto; /* ✅ FIX: auto seulement quand visible */
-        visibility: visible; /* ✅ FIX: visible seulement quand affiché */
+        visibility: visible;
+        /* ✅ PAS de pointer-events auto ici, géré par JS */
       }
 
       .dialogue-box-unified {
@@ -650,8 +649,10 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ FIX CRITIQUE: Gérer pointer-events avec les classes
+    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
     this.container.classList.remove('hidden');
+    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand dialogue ouvert
+    
     dialogueBox.style.display = 'flex';
     this.isVisible = true;
   }
@@ -704,8 +705,10 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ FIX CRITIQUE: Gérer pointer-events avec les classes
+    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
     this.container.classList.remove('hidden');
+    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand dialogue ouvert
+    
     dialogueBox.style.display = 'flex';
     this.isVisible = true;
   }
@@ -768,8 +771,10 @@ export class DialogueUI {
       this.switchToTab(this.tabs[0].id);
     }
     
-    // ✅ FIX: Gérer pointer-events avec les classes
+    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
     this.container.classList.remove('hidden');
+    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand interface ouverte
+    
     unifiedInterface.style.display = 'flex';
     this.isVisible = true;
     this.isUnifiedInterface = true;
@@ -883,8 +888,9 @@ export class DialogueUI {
   hide() {
     console.log('🎭 [DialogueUI] Fermeture dialogue...');
     
-    // ✅ FIX CRITIQUE: Utiliser les classes pour gérer la visibilité
+    // ✅ SOLUTION: Ajouter hidden + forcer pointer-events none
     this.container.classList.add('hidden');
+    this.container.style.pointerEvents = 'none'; // ✅ Force none immédiatement
     
     if (this.isUnifiedInterface) {
       const unifiedInterface = this.container.querySelector('#unified-interface');
