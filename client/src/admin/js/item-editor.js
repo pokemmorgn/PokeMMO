@@ -954,6 +954,20 @@ updateStatsHeader() {
         this.unsavedChanges = true;
     }
 
+
+    updatePaginationInfo() {
+    const start = this.currentPage * this.itemsPerPage + 1;
+    const end = Math.min((this.currentPage + 1) * this.itemsPerPage, this.items.length);
+    const total = this.items.length;
+
+    document.getElementById("itemsPaginationInfo").textContent = 
+        total > 0 ? `${start}-${end} sur ${total} items` : `0-0 sur 0 items`;
+
+    document.getElementById("itemsPageInfo").textContent = 
+        `${this.currentPage + 1} / ${Math.max(1, Math.ceil(total / this.itemsPerPage))}`;
+}
+
+    
     // ===== UTILITAIRES =====
 
     findElement(selector) {
