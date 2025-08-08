@@ -753,44 +753,74 @@ export class BattleInventoryUI extends InventoryUI {
   }
 
   // === NOUVEAU: ACTIONS SPÉCIALISÉES ===
-  
-// REMPLACER cette méthode dans BattleInventoryUI.js
-handleCapture(ballItem) {
-  console.log(`🎯 Tentative capture avec: ${ballItem.itemId}`);
-  
-  // ✅ NOUVEAU: Utiliser le CaptureManager au lieu du NetworkHandler direct
-  if (this.battleContext.captureManager) {
-    // Récupérer le sprite du Pokémon adversaire
-    const targetPokemon = this.battleContext.battleScene?.opponentPokemonSprite;
+  handleCapture(ballItem) {
+    console.log(`🎯 [BattleInventory] Tentative capture avec: ${ballItem.itemId}`);
     
-    if (!targetPokemon) {
-      console.error('❌ Sprite Pokémon adversaire non trouvé');
-      return;
-    }
-    
-    // ✅ Lancer l'animation de capture immédiatement
-    this.battleContext.captureManager.attemptCapture(ballItem.itemId, targetPokemon);
-    
-    // ✅ Message immédiat pendant l'animation
-    if (this.battleContext.battleScene) {
-      // Le CaptureManager gère déjà le message de lancer
-      console.log('🎬 Animation de capture démarrée');
-    }
-    
-  } else if (this.battleContext.networkHandler) {
+    // ✅ PRIORITÉ 1: Utiliser le CaptureManager (nouveau système)
+    if (this.battleContext.captureManager) {
+      // Récupérer le sprite du Pokémon adversaire
+      const targetPokemon = this.battleContext.battleScene?.opponentPokemonSprite;
+      
+      if (!targetPokemon) {
+        console.error('❌ [BattleInventory] Sprite Pokémon adversaire non trouvé');
+        this.showCaptureError('Pokémon cible non disponible');
+        return;
+      }
+      
+      // ✅ UNE SEULE LIGNE - Le CaptureManager fait TOUT !
+      const success = this.battleContext.captureManager.attemptCapture(ballItem.itemId, targetPokemon);
+      
+      if (success) {
+        console.log('🎬 [BattleInventory] Animation de capture démarrée par CaptureManager');
+        // Le CaptureManager gère automatiquement :
+        // - Messages utilisateur
+        // - Animations authentiques  
+        // - Synchronisation serveur
+        // - Retour aux boutons d'action
+      } else {
+        console.error('❌ [BattleInventory] Échec démarrage capture');
+        this.showCaptureError('Impossible de démarrer la capture');
+      }
+      
+    } 
     // ✅ FALLBACK: Ancienne méthode si CaptureManager pas disponible
-    console.warn('⚠️ CaptureManager non disponible, utilisation méthode legacy');
-    this.battleContext.networkHandler.attemptCapture(ballItem.itemId);
-    
-    if (this.battleContext.battleScene) {
-      this.battleContext.battleScene.showActionMessage(
-        `Lancement d'une ${this.getItemName(ballItem.itemId)}...`
-      );
+    else if (this.battleContext.networkHandler) {
+      console.warn('⚠️ [BattleInventory] CaptureManager non disponible, utilisation méthode legacy');
+      
+      try {
+        this.battleContext.networkHandler.attemptCapture(ballItem.itemId);
+        
+        if (this.battleContext.battleScene) {
+          this.battleContext.battleScene.showActionMessage(
+            `Lancement d'une ${this.getItemName(ballItem.itemId)}...`
+          );
+        }
+      } catch (error) {
+        console.error('❌ [BattleInventory] Erreur méthode legacy:', error);
+        this.showCaptureError('Erreur réseau');
+      }
+    } 
+    // ❌ ERREUR: Aucun système disponible
+    else {
+      console.error('❌ [BattleInventory] Ni CaptureManager ni NetworkHandler disponible');
+      this.showCaptureError('Système de capture non disponible');
     }
-  } else {
-    console.error('❌ Ni CaptureManager ni NetworkHandler disponible');
   }
-}
+    showCaptureError(errorMessage) {
+    console.error(`❌ [BattleInventory] Erreur capture: ${errorMessage}`);
+    
+    // Afficher l'erreur à l'utilisateur
+    if (this.battleContext.battleScene?.showActionMessage) {
+      this.battleContext.battleScene.showActionMessage(`Erreur: ${errorMessage}`);
+    }
+    
+    // Retourner aux boutons après délai
+    setTimeout(() => {
+      if (this.battleContext.battleScene?.showActionButtons) {
+        this.battleContext.battleScene.showActionButtons();
+      }
+    }, 2000);
+  }
 
   handleHeal(medicineItem) {
     console.log(`💊 Utilisation soin: ${medicineItem.itemId}`);
