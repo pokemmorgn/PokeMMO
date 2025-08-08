@@ -170,22 +170,16 @@ this.updateStatsHeader();   // <-- NEW
     }
 
     // ===== CHARGEMENT DES DONNÉES =====
-
-    async loadStats() {
-        console.log('📊 [ItemEditor] Chargement statistiques...');
-        try {
-            const response = await this.api('/items/stats');
-            if (response.success) {
-                this.stats = response.stats;
-                console.log(`✅ [ItemEditor] Stats OK`);
-            } else {
-                throw new Error(response.error || 'Erreur stats');
-            }
-        } catch (error) {
-            console.error('❌ [ItemEditor] Erreur stats:', error);
-            this.stats = { total: 0, active: 0, byCategory: {}, byGeneration: {}, byRarity: {} };
-        }
+async loadStats() {
+    console.log("📊 [ItemEditor] Chargement statistiques...");
+    const response = await this.api('/items/stats');
+    if (response && response.success) {
+        this.stats = response.data;
+        console.log("✅ [ItemEditor] Stats OK", this.stats);
+        this.updateStatsHeader(); // <-- MAJ ici, après avoir affecté this.stats
     }
+}
+
 
     async loadItems() {
         console.log('📦 [ItemEditor] Chargement items...');
