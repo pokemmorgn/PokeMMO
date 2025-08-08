@@ -607,6 +607,8 @@ export class DialogueUI {
   }
 
   showClassicDialogue(data) {
+    console.log('🎭 [DialogueUI] Affichage dialogue classique');
+    
     this.currentNpcId = this.extractNpcId(data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
@@ -649,15 +651,24 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
+    // ✅ FIX CRITIQUE: Forcer l'affichage complet
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand dialogue ouvert
+    this.container.style.pointerEvents = 'auto';
+    this.container.style.opacity = '1';        // ✅ Force opacity
+    this.container.style.visibility = 'visible'; // ✅ Force visibility
     
-    dialogueBox.style.display = 'flex';
+    dialogueBox.style.display = 'flex';        // ✅ Force display de la box
+    dialogueBox.style.opacity = '1';           // ✅ Force opacity de la box
+    dialogueBox.style.visibility = 'visible';  // ✅ Force visibility de la box
+    
     this.isVisible = true;
+    
+    console.log('✅ [DialogueUI] Dialogue classique affiché');
   }
 
   showDialogueWithActions(data) {
+    console.log('🎭 [DialogueUI] Affichage dialogue avec actions');
+    
     this.currentNpcId = this.extractNpcId(data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
@@ -705,12 +716,19 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
+    // ✅ FIX CRITIQUE: Forcer l'affichage complet
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand dialogue ouvert
+    this.container.style.pointerEvents = 'auto';
+    this.container.style.opacity = '1';        // ✅ Force opacity
+    this.container.style.visibility = 'visible'; // ✅ Force visibility
     
-    dialogueBox.style.display = 'flex';
+    dialogueBox.style.display = 'flex';        // ✅ Force display de la box
+    dialogueBox.style.opacity = '1';           // ✅ Force opacity de la box
+    dialogueBox.style.visibility = 'visible';  // ✅ Force visibility de la box
+    
     this.isVisible = true;
+    
+    console.log('✅ [DialogueUI] Dialogue avec actions affiché');
   }
 
   createActionButton(action) {
@@ -756,6 +774,8 @@ export class DialogueUI {
 
   // Interface unifiée (inchangée)
   showUnifiedInterface(data) {
+    console.log('🎭 [DialogueUI] Affichage interface unifiée');
+    
     this.currentNpcId = this.extractNpcId(data);
 
     const unifiedInterface = this.container.querySelector('#unified-interface');
@@ -771,13 +791,20 @@ export class DialogueUI {
       this.switchToTab(this.tabs[0].id);
     }
     
-    // ✅ SOLUTION: Retirer hidden + activer pointer-events manuellement
+    // ✅ FIX CRITIQUE: Forcer l'affichage complet
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto'; // ✅ Force auto quand interface ouverte
+    this.container.style.pointerEvents = 'auto';
+    this.container.style.opacity = '1';           // ✅ Force opacity
+    this.container.style.visibility = 'visible';    // ✅ Force visibility
     
-    unifiedInterface.style.display = 'flex';
+    unifiedInterface.style.display = 'flex';       // ✅ Force display interface
+    unifiedInterface.style.opacity = '1';          // ✅ Force opacity interface
+    unifiedInterface.style.visibility = 'visible'; // ✅ Force visibility interface
+    
     this.isVisible = true;
     this.isUnifiedInterface = true;
+    
+    console.log('✅ [DialogueUI] Interface unifiée affichée');
   }
 
   setupUnifiedHeader(data) {
