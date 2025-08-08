@@ -173,12 +173,29 @@ this.updateStatsHeader();   // <-- NEW
 async loadStats() {
     console.log("📊 [ItemEditor] Chargement statistiques...");
     const response = await this.api('/items/stats');
-    if (response && response.success) {
-        this.stats = response.data;
-        console.log("✅ [ItemEditor] Stats OK", this.stats);
-        this.updateStatsHeader(); // <-- MAJ ici, après avoir affecté this.stats
+    console.log("DEBUG API /items/stats:", response);
+
+    let statsData = null;
+
+    // Cas 1 : API brut { success, data }
+    if (response && typeof response === 'object' && 'data' in response) {
+        statsData = response.data;
     }
+    // Cas 2 : API brut { success, stats }
+    else if (response && typeof response === 'object' && 'stats' in response) {
+        statsData = response.stats;
+    }
+    // Cas 3 : helper renvoie déjà l'objet stats
+    else if (response && typeof response === 'object') {
+        statsData = response;
+    }
+
+    this.stats = statsData || { total: 0, active: 0, byCategory: {} };
+    console.log("✅ [ItemEditor] Stats OK", this.stats);
+
+    this.updateStatsHeader();
 }
+
 
 
     async loadItems() {
