@@ -523,12 +523,18 @@ checkUIElements() {
     }
 
     updateUI() {
-        if (this.selectedItemId) {
-            this.showItemEditor();
-        } else {
-            this.showEmptyState();
-        }
+    console.log('🔧 [ItemEditor] updateUI() appelée');
+    console.log('🔧 [ItemEditor] selectedItemId:', this.selectedItemId);
+    console.log('🔧 [ItemEditor] currentItem:', this.currentItem);
+    
+    if (this.selectedItemId) {
+        console.log('🔧 [ItemEditor] Affichage du formulaire d\'édition');
+        this.showItemEditor();
+    } else {
+        console.log('🔧 [ItemEditor] Affichage de l\'état vide');
+        this.showEmptyState();
     }
+}
 
     showEmptyState() {
         const emptyElement = this.findElement('[id*="editorEmpty"], .editor-empty');
@@ -542,50 +548,105 @@ checkUIElements() {
         if (titleElement) titleElement.innerHTML = '<i class="fas fa-cube"></i> Sélectionnez un item';
     }
 
-    showItemEditor() {
-        const emptyElement = this.findElement('[id*="editorEmpty"], .editor-empty');
-        const formElement = this.findElement('[id*="editorForm"], .editor-form, form');
-        const actionsElement = this.findElement('[id*="editorActions"], .editor-actions');
-        const titleElement = this.findElement('[id*="editorTitle"], .editor-title, h1, h2, h3');
+   showItemEditor() {
+    console.log('📝 [ItemEditor] showItemEditor() - Début');
+    
+    // Chercher tous les éléments possibles avec debug
+    const emptyElement = this.findElement('[id*="editorEmpty"], .editor-empty');
+    const formElement = this.findElement('[id*="editorForm"], .editor-form, form');
+    const actionsElement = this.findElement('[id*="editorActions"], .editor-actions');
+    const titleElement = this.findElement('[id*="editorTitle"], .editor-title, h1, h2, h3');
 
-        if (emptyElement) emptyElement.style.display = 'none';
-        if (formElement) formElement.style.display = 'block';
-        if (actionsElement) actionsElement.style.display = 'flex';
-        if (titleElement && this.currentItem) {
-            titleElement.innerHTML = `<i class="fas fa-cube"></i> ${this.escapeHtml(this.currentItem.name)}
-                <span style="color: #666; font-size: 0.8em;">(${this.currentItem.itemId})</span>`;
-        }
+    console.log('📝 [ItemEditor] Éléments trouvés:');
+    console.log('  - emptyElement:', emptyElement);
+    console.log('  - formElement:', formElement);
+    console.log('  - actionsElement:', actionsElement);
+    console.log('  - titleElement:', titleElement);
+
+    // Masquer l'état vide
+    if (emptyElement) {
+        console.log('📝 [ItemEditor] Masquage état vide');
+        emptyElement.style.display = 'none';
+    } else {
+        console.warn('⚠️ [ItemEditor] Element état vide non trouvé');
     }
 
+    // Afficher le formulaire
+    if (formElement) {
+        console.log('📝 [ItemEditor] Affichage formulaire');
+        formElement.style.display = 'block';
+    } else {
+        console.error('❌ [ItemEditor] FORMULAIRE NON TROUVÉ ! Sélecteurs testés:');
+        console.error('  - [id*="editorForm"]');
+        console.error('  - .editor-form');
+        console.error('  - form');
+        
+        // Test des sélecteurs alternatifs
+        const allForms = document.querySelectorAll('form');
+        const allDivsWithForm = document.querySelectorAll('div[class*="form"]');
+        const allDivsWithEditor = document.querySelectorAll('div[class*="editor"]');
+        
+        console.log('🔍 [ItemEditor] Éléments alternatifs trouvés:');
+        console.log('  - Tous les <form>:', allForms.length, allForms);
+        console.log('  - Divs avec "form":', allDivsWithForm.length, allDivsWithForm);
+        console.log('  - Divs avec "editor":', allDivsWithEditor.length, allDivsWithEditor);
+    }
+
+    // Afficher les actions
+    if (actionsElement) {
+        console.log('📝 [ItemEditor] Affichage actions');
+        actionsElement.style.display = 'flex';
+    } else {
+        console.warn('⚠️ [ItemEditor] Element actions non trouvé');
+    }
+
+    // Mettre à jour le titre
+    if (titleElement && this.currentItem) {
+        console.log('📝 [ItemEditor] Mise à jour titre');
+        titleElement.innerHTML = `<i class="fas fa-cube"></i> ${this.escapeHtml(this.currentItem.name)}
+            <span style="color: #666; font-size: 0.8em;">(${this.currentItem.itemId})</span>`;
+    } else {
+        console.warn('⚠️ [ItemEditor] Element titre non trouvé ou item manquant');
+    }
+
+    console.log('📝 [ItemEditor] showItemEditor() - Fin');
+}
     // ===== SÉLECTION ET ÉDITION =====
 
     async selectItem(itemId) {
-        console.log(`📦 [ItemEditor] Sélection item: ${itemId}`);
+    console.log(`📦 [ItemEditor] Sélection item: ${itemId}`);
 
-        if (this.unsavedChanges && !confirm('Modifications non sauvegardées. Continuer ?')) {
-            return;
-        }
-
-        try {
-            const response = await this.api(`/items/details/${itemId}`);
-
-            if (response.success) {
-                this.selectedItemId = itemId;
-                this.currentItem = response.item;
-                this.unsavedChanges = false;
-
-                this.populateForm(this.currentItem);
-                this.updateDisplay();
-
-                console.log(`✅ [ItemEditor] Item ${itemId} sélectionné`);
-            } else {
-                throw new Error(response.error || 'Item non trouvé');
-            }
-        } catch (error) {
-            console.error('❌ [ItemEditor] Erreur sélection:', error);
-            this.adminPanel.showNotification('Erreur: ' + error.message, 'error');
-        }
+    if (this.unsavedChanges && !confirm('Modifications non sauvegardées. Continuer ?')) {
+        return;
     }
+
+    try {
+        const response = await this.api(`/items/details/${itemId}`);
+
+        if (response.success) {
+            this.selectedItemId = itemId;
+            this.currentItem = response.item;
+            this.unsavedChanges = false;
+
+            console.log('📦 [ItemEditor] Item chargé:', this.currentItem);
+            
+            this.populateForm(this.currentItem);
+            
+            // ✅ DIAGNOSTIC AVANT UPDATEUI
+            console.log('🔧 [ItemEditor] Lancement diagnostic avant updateUI...');
+            this.diagnoseInterface();
+            
+            this.updateDisplay();
+
+            console.log(`✅ [ItemEditor] Item ${itemId} sélectionné`);
+        } else {
+            throw new Error(response.error || 'Item non trouvé');
+        }
+    } catch (error) {
+        console.error('❌ [ItemEditor] Erreur sélection:', error);
+        this.adminPanel.showNotification('Erreur: ' + error.message, 'error');
+    }
+}
 
     populateForm(item) {
         console.log('📝 [ItemEditor] Remplissage formulaire:', item.itemId);
@@ -1049,8 +1110,43 @@ updateStatsHeader() {
     // ===== UTILITAIRES =====
 
     findElement(selector) {
-        return document.querySelector(selector);
+    console.log(`🔍 [ItemEditor] Recherche élément: "${selector}"`);
+    
+    const element = document.querySelector(selector);
+    
+    if (element) {
+        console.log(`✅ [ItemEditor] Élément trouvé:`, element);
+        console.log(`   - Tag: ${element.tagName}`);
+        console.log(`   - ID: ${element.id}`);
+        console.log(`   - Classes: ${element.className}`);
+        console.log(`   - Display: ${getComputedStyle(element).display}`);
+        console.log(`   - Visibility: ${getComputedStyle(element).visibility}`);
+    } else {
+        console.warn(`❌ [ItemEditor] Élément non trouvé: "${selector}"`);
+        
+        // Essayer de trouver des éléments similaires
+        const parts = selector.split(',').map(s => s.trim());
+        parts.forEach(part => {
+            if (part.includes('*=')) {
+                // Sélecteur d'attribut partiel
+                const attrMatch = part.match(/\[([^*=]+)\*="([^"]+)"\]/);
+                if (attrMatch) {
+                    const [, attr, value] = attrMatch;
+                    const similar = document.querySelectorAll(`[${attr}*="${value}"]`);
+                    console.log(`🔍 [ItemEditor] Éléments similaires pour ${part}:`, similar.length, similar);
+                }
+            } else if (part.startsWith('.')) {
+                // Sélecteur de classe
+                const className = part.substring(1);
+                const similar = document.querySelectorAll(`[class*="${className}"]`);
+                console.log(`🔍 [ItemEditor] Éléments similaires pour ${part}:`, similar.length, similar);
+            }
+        });
     }
+    
+    return element;
+}
+
 
     setFieldValue(fieldId, value, type = 'text') {
         const field = this.findElement(`[id*="${fieldId}"], [name*="${fieldId}"]`);
@@ -1062,7 +1158,59 @@ updateStatsHeader() {
             field.value = value ?? '';
         }
     }
-
+diagnoseInterface() {
+    console.log('🏥 [ItemEditor] === DIAGNOSTIC INTERFACE ===');
+    
+    // 1. Vérifier la structure générale
+    const adminPanel = document.querySelector('.admin-panel, #admin-panel, [class*="admin"]');
+    console.log('🏥 [ItemEditor] Admin panel:', adminPanel);
+    
+    // 2. Vérifier l'onglet items
+    const itemsTab = document.querySelector('[data-tab="items"], #items-tab, .items-tab');
+    console.log('🏥 [ItemEditor] Items tab:', itemsTab);
+    
+    // 3. Chercher tous les formulaires
+    const allForms = document.querySelectorAll('form');
+    console.log('🏥 [ItemEditor] Tous les formulaires:', allForms.length);
+    allForms.forEach((form, index) => {
+        console.log(`  Form ${index}:`, {
+            id: form.id,
+            classes: form.className,
+            display: getComputedStyle(form).display,
+            visibility: getComputedStyle(form).visibility,
+            parent: form.parentElement?.tagName
+        });
+    });
+    
+    // 4. Chercher tous les éléments avec "editor" dans l'ID ou classe
+    const editorElements = document.querySelectorAll('[id*="editor"], [class*="editor"]');
+    console.log('🏥 [ItemEditor] Éléments "editor":', editorElements.length);
+    editorElements.forEach((el, index) => {
+        console.log(`  Editor ${index}:`, {
+            tag: el.tagName,
+            id: el.id,
+            classes: el.className,
+            display: getComputedStyle(el).display
+        });
+    });
+    
+    // 5. Chercher la structure attendue
+    const expectedElements = [
+        '[id*="itemsList"]',
+        '[id*="editorForm"]', 
+        '[id*="editorEmpty"]',
+        '[id*="editorActions"]',
+        '[id*="editorTitle"]'
+    ];
+    
+    console.log('🏥 [ItemEditor] Éléments attendus:');
+    expectedElements.forEach(selector => {
+        const found = document.querySelector(selector);
+        console.log(`  ${selector}:`, found ? '✅ Trouvé' : '❌ Manquant');
+    });
+    
+    console.log('🏥 [ItemEditor] === FIN DIAGNOSTIC ===');
+}
     getFieldValue(fieldId, type = 'text') {
         const field = this.findElement(`[id*="${fieldId}"], [name*="${fieldId}"]`);
         if (!field) return '';
