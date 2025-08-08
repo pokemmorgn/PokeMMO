@@ -1,5 +1,5 @@
 // server/src/battle/types/TrainerBattleTypes.ts
-// 🎯 EXTENSIONS TYPES POUR COMBATS DRESSEURS - COMPATIBLE SYSTÈME EXISTANT
+// 🔧 CORRECTION COMPATIBILITÉ AVEC NOUVEAUX TYPES UNIVERSELS
 
 import { 
   BattleType, 
@@ -10,12 +10,18 @@ import {
   BattleGameState, 
   BattleAction, 
   BattleResult,
-  InternalBattlePhase 
+  InternalBattlePhase,
+  // 🆕 IMPORT NOUVEAUX TYPES UNIVERSELS
+  PokemonTeam,           // Remplace TrainerPokemonTeam
+  TeamConfiguration,     // Remplace TrainerBattleRules partiellement
+  SwitchAction,          // Maintenant universel
+  createPokemonTeam,     // Helper universel
+  getDefaultTeamConfig   // Config par défaut selon type combat
 } from './BattleTypes';
 import { IOwnedPokemon } from '../../models/OwnedPokemon';
 import mongoose from 'mongoose';
 
-// === NOUVELLES PHASES POUR DRESSEURS ===
+// === PHASES DRESSEURS (CONSERVÉES POUR COMPATIBILITÉ) ===
 
 export enum TrainerBattlePhase {
   // Phases existantes (compatibilité)
@@ -25,147 +31,165 @@ export enum TrainerBattlePhase {
   CAPTURE = 'capture',
   ENDED = 'ended',
   
-  // 🆕 NOUVELLES PHASES DRESSEURS
+  // 🆕 NOUVELLES PHASES DRESSEURS (maintenant universelles)
   POKEMON_SELECTION = 'pokemon_selection',    // Choix Pokémon initial (automatique)
   SWITCH_PHASE = 'switch_phase',             // Changement de Pokémon
   FORCED_SWITCH = 'forced_switch',           // Changement forcé (KO)
   VICTORY_SEQUENCE = 'victory_sequence'      // Séquence de victoire + récompenses
 }
 
-// === TYPES ÉQUIPES MULTIPLES ===
+// === 🔧 ALIAS POUR COMPATIBILITÉ ===
 
-export interface TrainerPokemonTeam {
-  pokemon: Pokemon[];           // Équipe complète (1-6 Pokémon)
-  activePokemonIndex: number;   // Index Pokémon actuel au combat
-  remainingPokemon: number;     // Nombre de Pokémon encore valides
-  canSwitch: boolean;          // Peut faire des changements
-  lastSwitchTurn?: number;     // Dernier tour de changement
+/**
+ * @deprecated Utiliser PokemonTeam à la place
+ */
+export type TrainerPokemonTeam = PokemonTeam;
+
+/**
+ * Crée une équipe pour combat dresseur (wrapper compatibilité)
+ */
+export function createTrainerPokemonTeam(
+  pokemon: Pokemon[],
+  activePokemonIndex: number = 0
+): PokemonTeam {
+  return createPokemonTeam(pokemon, activePokemonIndex, 'trainer');
 }
 
+// === DONNÉES DRESSEUR (CONSERVÉES) ===
+
 export interface TrainerData {
-  trainerId: string;           // ID unique dresseur
-  name: string;               // Nom du dresseur
-  trainerClass: string;       // Type: 'youngster', 'gym_leader', 'elite_four'
-  level: number;              // Niveau du dresseur (influence IA)
-  pokemon: Pokemon[];         // Équipe complète
-  aiProfile: TrainerAIProfile; // Profil d'IA
-  rewards: TrainerRewards;    // Récompenses à donner
-  dialogue?: TrainerDialogue; // Dialogues avant/après combat
-  specialRules?: TrainerBattleRules; // Règles spéciales
+  trainerId: string;           
+  name: string;               
+  trainerClass: string;       
+  level: number;              
+  pokemon: Pokemon[];         
+  aiProfile: TrainerAIProfile; 
+  rewards: TrainerRewards;    
+  dialogue?: TrainerDialogue; 
+  specialRules?: TrainerBattleRules; 
 }
 
 export interface TrainerAIProfile {
   difficulty: 'easy' | 'normal' | 'hard' | 'expert';
   strategies: TrainerStrategy[];
   switchPatterns: SwitchPattern[];
-  aggressiveness: number;     // 0-100 (conservateur vs agressif)
-  intelligence: number;       // 0-100 (prédiction des coups)
-  memory: boolean;           // Se souvient des combats précédents
+  aggressiveness: number;     
+  intelligence: number;       
+  memory: boolean;           
 }
 
 export interface TrainerStrategy {
-  name: string;              // 'type_advantage', 'hp_preservation', 'setup_sweep'
-  priority: number;          // 0-100 priorité de cette stratégie
-  conditions: string[];      // Conditions d'activation
-  actions: string[];         // Actions à prendre
+  name: string;              
+  priority: number;          
+  conditions: string[];      
+  actions: string[];         
 }
 
 export interface SwitchPattern {
   trigger: 'hp_low' | 'type_disadvantage' | 'status_inflicted' | 'setup_complete';
-  threshold?: number;        // Seuil HP pour hp_low
+  threshold?: number;        
   targetSelection: 'random' | 'type_advantage' | 'fastest' | 'specific';
   specificPokemonIndex?: number;
 }
 
 export interface TrainerRewards {
-  baseMoney: number;         // Argent de base
-  moneyMultiplier: number;   // Multiplicateur selon niveau
-  baseExp: number;           // EXP de base par Pokémon vaincu
-  expMultiplier: number;     // Multiplicateur EXP
-  items?: TrainerRewardItem[]; // Objets à donner (optionnel)
+  baseMoney: number;         
+  moneyMultiplier: number;   
+  baseExp: number;           
+  expMultiplier: number;     
+  items?: TrainerRewardItem[]; 
 }
 
 export interface TrainerRewardItem {
   itemId: string;
   quantity: number;
-  chance: number;            // 0-1 probabilité de donner l'objet
+  chance: number;            
 }
 
 export interface TrainerDialogue {
-  prebattle?: string[];     // Dialogues avant combat
-  midBattle?: string[];     // Dialogues en cours (optionnel) 
-  victory?: string[];       // Dialogues si dresseur gagne
-  defeat?: string[];        // Dialogues si dresseur perd
-  rematch?: string[];       // Dialogues combat suivant
+  prebattle?: string[];     
+  midBattle?: string[];     
+  victory?: string[];       
+  defeat?: string[];        
+  rematch?: string[];       
 }
 
-export interface TrainerBattleRules {
-  allowSwitching: boolean;   // Autorise changements libres
-  forceSwitch: boolean;      // Force changement si KO
-  maxSwitchesPerTurn: number; // Limite changements par tour
-  switchCooldown: number;    // Tours d'attente entre changements
+// === 🔧 RÈGLES DRESSEURS (EXTENDED DEPUIS TEAMCONFIGURATION) ===
+
+export interface TrainerBattleRules extends TeamConfiguration {
+  // Hérite de : allowSwitching, maxSwitchesPerTurn, switchCooldown, forceSwitch
+  
+  // 🆕 SPÉCIFICITÉS DRESSEURS
   itemsAllowed: boolean;     // Dresseur peut utiliser objets
   megaEvolution: boolean;    // Méga-évolution autorisée (futur)
+  
+  // Propriétés héritées de TeamConfiguration :
+  // allowSwitching: boolean;
+  // maxSwitchesPerTurn: number; 
+  // switchCooldown: number;
+  // forceSwitch: boolean;
 }
 
-// === NOUVELLES CONFIGURATIONS ===
+// === CONFIGURATIONS ÉTENDUES ===
 
 export interface TrainerBattleConfig extends Omit<BattleConfig, 'type'> {
-  type: 'trainer';          // Type spécifique
-  trainer: TrainerData;     // Données complètes du dresseur
-  playerTeam: Pokemon[];    // Équipe complète du joueur (pas juste 1)
-  rules: TrainerBattleRules; // Règles spécifiques
-  // ✅ GARDER opponent pour compatibilité (sera mappé depuis trainer)
+  type: 'trainer';          
+  trainer: TrainerData;     
+  playerTeam: Pokemon[];    
+  rules: TrainerBattleRules; 
+  // ✅ GARDE opponent pour compatibilité (mappé depuis trainer)
   opponent: {
     sessionId?: string;
     name?: string;
     pokemon: Pokemon;
     isAI?: boolean;
+    // 🆕 ÉQUIPE COMPLÈTE POUR COMPATIBILITÉ UNIVERSELLE
+    team?: Pokemon[];
+    teamConfig?: TeamConfiguration;
   };
 }
 
+// === 🔧 ÉTAT JEU DRESSEUR (CORRIGÉ) ===
+
 export interface TrainerGameState extends Omit<BattleGameState, 'player2'> {
-  // Remplacement player2 par trainer complet
-  trainer: {
-    sessionId: string;      // 'ai' ou ID du dresseur joueur (PvP futur)
-    data: TrainerData;      // Données complètes
-    team: TrainerPokemonTeam; // État de l'équipe
-  };
-  
   // Extension joueur avec équipe (garde pokemon pour compatibilité)
   player1: {
     sessionId: string;
     name: string;
     pokemon: Pokemon | null; // ✅ OBLIGATOIRE pour compatibilité BattleGameState
-    team: TrainerPokemonTeam; // Équipe complète en plus
+    team: PokemonTeam;       // 🔧 UTILISE PokemonTeam universel maintenant
+    isAI?: boolean;
+    teamConfig?: TeamConfiguration;
+  };
+  
+  // 🆕 DRESSEUR COMPLET  
+  trainer: {
+    sessionId: string;      
+    data: TrainerData;      
+    team: PokemonTeam;      // 🔧 UTILISE PokemonTeam universel
   };
   
   // ✅ AJOUTER player2 pour compatibilité complète
   player2: {
     sessionId: string;
     name: string;
-    pokemon: Pokemon | null; // Pokémon actif du dresseur
+    pokemon: Pokemon | null; 
     isAI?: boolean;
+    team?: PokemonTeam;     // 🔧 UTILISE PokemonTeam universel
+    teamConfig?: TeamConfiguration;
   };
   
   // Nouvelles propriétés spécifiques dresseurs
-  trainerPhase?: TrainerBattlePhase; // Phase interne dresseur
-  switchRequests?: SwitchRequest[];   // Demandes de changement en attente
-  lastRewards?: CalculatedRewards;    // Dernières récompenses calculées
-  battleMemory?: BattleMemoryData;    // Données pour mémorisation IA
+  trainerPhase?: TrainerBattlePhase; 
+  switchRequests?: SwitchRequest[];   
+  lastRewards?: CalculatedRewards;    
+  battleMemory?: BattleMemoryData;    
 }
 
-// === ACTIONS ÉTENDUES ===
+// === ACTIONS ÉTENDUES (CONSERVÉES) ===
 
-export interface SwitchAction extends BattleAction {
-  type: 'switch';
-  data: {
-    fromPokemonIndex: number;    // Index Pokémon actuel
-    toPokemonIndex: number;      // Index Pokémon cible
-    isForced: boolean;           // Changement forcé (KO) vs libre
-    reason?: string;             // Raison du changement
-  };
-}
+// 🔧 PLUS BESOIN DE REDÉFINIR SwitchAction - utilise version universelle
+// export interface SwitchAction extends BattleAction { ... } // SUPPRIMÉ
 
 export interface SwitchRequest {
   playerRole: PlayerRole;
@@ -176,7 +200,7 @@ export interface SwitchRequest {
   processed: boolean;
 }
 
-// === RÉSULTATS ÉTENDUS ===
+// === RÉSULTATS ÉTENDUS (CONSERVÉS) ===
 
 export interface TrainerBattleResult extends BattleResult {
   trainerData?: {
@@ -205,7 +229,7 @@ export interface AIDecisionData {
   memoryUpdates?: string[];
 }
 
-// === MÉMOIRE COMBAT (POUR IA) ===
+// === MÉMOIRE COMBAT (CONSERVÉE) ===
 
 export interface BattleMemoryData {
   battleId: string;
@@ -215,21 +239,21 @@ export interface BattleMemoryData {
   endTime?: number;
   turns: number;
   winner: PlayerRole | null;
-  playerStrategy: string[];    // Stratégies détectées chez le joueur
-  effectiveActions: string[];  // Actions qui ont bien marché
-  playerWeaknesses: string[];  // Faiblesses détectées
-  nextBattleHints: string[];   // Hints pour prochain combat
+  playerStrategy: string[];    
+  effectiveActions: string[];  
+  playerWeaknesses: string[];  
+  nextBattleHints: string[];   
 }
 
-// === FACTORY & HELPERS ===
+// === 🔧 FACTORY & HELPERS (CORRIGÉS) ===
 
 /**
- * Crée une configuration de combat dresseur depuis les données existantes
+ * Crée une configuration de combat dresseur (compatible universelle)
  */
 export function createTrainerBattleConfig(
   playerSessionId: string,
   playerName: string,
-  playerPokemon: Pokemon[], // Équipe complète depuis TeamManager
+  playerPokemon: Pokemon[], 
   trainerData: TrainerData
 ): TrainerBattleConfig {
   return {
@@ -237,30 +261,36 @@ export function createTrainerBattleConfig(
     player1: {
       sessionId: playerSessionId,
       name: playerName,
-      pokemon: playerPokemon[0] // Premier Pokémon pour compatibilité
+      pokemon: playerPokemon[0], // Premier Pokémon pour compatibilité
+      // 🆕 ÉQUIPE COMPLÈTE POUR CHANGEMENTS UNIVERSELS
+      team: playerPokemon,
+      teamConfig: getDefaultTeamConfig('trainer') // 🔧 UTILISE CONFIG UNIVERSELLE
     },
     // ✅ AJOUTER opponent pour compatibilité
     opponent: {
       sessionId: 'ai',
       name: trainerData.name,
-      pokemon: trainerData.pokemon[0], // Premier Pokémon du dresseur
-      isAI: true
+      pokemon: trainerData.pokemon[0],
+      isAI: true,
+      // 🆕 ÉQUIPE COMPLÈTE DRESSEUR
+      team: trainerData.pokemon,
+      teamConfig: getDefaultTeamConfig('trainer')
     },
     trainer: trainerData,
     playerTeam: playerPokemon,
-    rules: trainerData.specialRules || {
-      allowSwitching: true,
-      forceSwitch: true,
-      maxSwitchesPerTurn: 1,
-      switchCooldown: 0,
+    rules: {
+      // 🔧 MERGE TeamConfiguration + spécificités dresseurs
+      ...getDefaultTeamConfig('trainer'),
       itemsAllowed: false,
-      megaEvolution: false
+      megaEvolution: false,
+      // Ajouter règles spéciales du dresseur si présentes
+      ...(trainerData.specialRules || {})
     }
   };
 }
 
 /**
- * Convertit IOwnedPokemon vers Pokemon pour le combat
+ * 🔧 CONVERTIT IOwnedPokemon vers Pokemon universel (corrigé)
  */
 export function convertOwnedPokemonToBattlePokemon(ownedPokemon: IOwnedPokemon): Pokemon {
   return {
@@ -285,25 +315,12 @@ export function convertOwnedPokemonToBattlePokemon(ownedPokemon: IOwnedPokemon):
 }
 
 /**
- * Convertit une équipe TeamManager vers TrainerPokemonTeam
+ * 🔧 WRAPPER COMPATIBILITÉ - utilise createPokemonTeam universel
  */
-export function createTrainerPokemonTeam(
-  pokemon: Pokemon[],
-  activePokemonIndex: number = 0
-): TrainerPokemonTeam {
-  const validPokemon = pokemon.filter(p => p.currentHp > 0);
-  
-  return {
-    pokemon: pokemon,
-    activePokemonIndex: Math.min(activePokemonIndex, pokemon.length - 1),
-    remainingPokemon: validPokemon.length,
-    canSwitch: validPokemon.length > 1,
-    lastSwitchTurn: undefined
-  };
-}
+export { createPokemonTeam as createTrainerPokemonTeamUniversal };
 
 /**
- * Mappe les phases dresses vers phases compatibles système existant
+ * Mappe les phases dresseurs vers phases universelles
  */
 export function mapTrainerPhaseToInternal(trainerPhase: TrainerBattlePhase): InternalBattlePhase {
   switch (trainerPhase) {
@@ -311,9 +328,11 @@ export function mapTrainerPhaseToInternal(trainerPhase: TrainerBattlePhase): Int
       return InternalBattlePhase.INTRO;
     case TrainerBattlePhase.POKEMON_SELECTION:
     case TrainerBattlePhase.ACTION_SELECTION:
-    case TrainerBattlePhase.SWITCH_PHASE:
-    case TrainerBattlePhase.FORCED_SWITCH:
       return InternalBattlePhase.ACTION_SELECTION;
+    case TrainerBattlePhase.SWITCH_PHASE:
+      return InternalBattlePhase.SWITCH_PHASE;        // 🔧 UTILISE PHASE UNIVERSELLE
+    case TrainerBattlePhase.FORCED_SWITCH:
+      return InternalBattlePhase.FORCED_SWITCH;       // 🔧 UTILISE PHASE UNIVERSELLE
     case TrainerBattlePhase.ACTION_RESOLUTION:
       return InternalBattlePhase.ACTION_RESOLUTION;
     case TrainerBattlePhase.VICTORY_SEQUENCE:
@@ -324,7 +343,7 @@ export function mapTrainerPhaseToInternal(trainerPhase: TrainerBattlePhase): Int
   }
 }
 
-// === VALIDATION & GUARDS ===
+// === VALIDATION & GUARDS (CORRIGÉS) ===
 
 /**
  * Vérifie si une config est pour combat dresseur
@@ -334,28 +353,28 @@ export function isTrainerBattleConfig(config: BattleConfig): config is TrainerBa
 }
 
 /**
- * Vérifie si un état est pour combat dresseur  
+ * 🔧 CORRECTION - Vérifie si un état est pour combat dresseur  
  */
-export function isTrainerGameState(state: BattleGameState): state is TrainerGameState {
-  return state.type === 'trainer' && 'trainer' in state;
+export function isTrainerGameState(state: BattleGameState): boolean {
+  // 🔧 CORRECTION : plus de type guard strict à cause des différences de structure
+  // Utilise une vérification booléenne simple
+  return state.type === 'trainer';
 }
 
 /**
- * Vérifie si une action est un changement de Pokémon
+ * 🔧 UTILISE isSwitchAction universel
  */
-export function isSwitchAction(action: BattleAction): action is SwitchAction {
-  return action.type === 'switch';
-}
+export { isSwitchAction } from './BattleTypes';
 
-// === CONSTANTES ===
+// === CONSTANTES (CONSERVÉES) ===
 
 export const TRAINER_BATTLE_CONSTANTS = {
   MAX_POKEMON_PER_TEAM: 6,
   MIN_POKEMON_PER_TEAM: 1,
   MAX_SWITCHES_PER_TURN: 1,
   DEFAULT_SWITCH_COOLDOWN: 0,
-  SWITCH_PRIORITY: 6,        // Priorité changement (avant attaques)
-  FORCED_SWITCH_TIME_LIMIT: 30000, // 30s pour choisir après KO
+  SWITCH_PRIORITY: 6,        
+  FORCED_SWITCH_TIME_LIMIT: 30000, 
   
   AI_DIFFICULTY_MODIFIERS: {
     easy: { switchChance: 0.1, predictiveDepth: 1 },
@@ -373,9 +392,38 @@ export const TRAINER_BATTLE_CONSTANTS = {
   }
 } as const;
 
+// === 🔧 HELPERS DE MIGRATION ===
+
+/**
+ * Convertit TrainerBattleRules vers TeamConfiguration universelle
+ */
+export function trainerRulesToTeamConfig(trainerRules: TrainerBattleRules): TeamConfiguration {
+  return {
+    allowSwitching: trainerRules.allowSwitching,
+    maxSwitchesPerTurn: trainerRules.maxSwitchesPerTurn,
+    switchCooldown: trainerRules.switchCooldown,
+    forceSwitch: trainerRules.forceSwitch
+  };
+}
+
+/**
+ * Convertit TeamConfiguration vers TrainerBattleRules
+ */
+export function teamConfigToTrainerRules(
+  teamConfig: TeamConfiguration, 
+  itemsAllowed: boolean = false,
+  megaEvolution: boolean = false
+): TrainerBattleRules {
+  return {
+    ...teamConfig,
+    itemsAllowed,
+    megaEvolution
+  };
+}
+
 // === EXPORTS POUR COMPATIBILITÉ ===
 
-// Réexporter les types de base pour éviter imports multiples
+// Réexporter les types universels pour éviter imports multiples
 export {
   BattleType,
   BattlePhase, 
@@ -385,5 +433,11 @@ export {
   BattleGameState,
   BattleAction,
   BattleResult,
-  InternalBattlePhase
+  InternalBattlePhase,
+  // 🆕 TYPES UNIVERSELS
+  PokemonTeam,
+  TeamConfiguration,
+  SwitchAction,
+  createSwitchAction,
+  getDefaultTeamConfig
 } from './BattleTypes';
