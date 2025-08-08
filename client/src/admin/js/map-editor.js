@@ -2039,7 +2039,8 @@ loadTMJObjectsForDisplay() {
 
    onTabActivated() {
     console.log('🗺️ [MapEditor] Tab activated')
-    
+        this.hideSaveButton()
+
     if (this.availableMaps.length === 0) {
         this.loadAvailableMaps()
     }
@@ -2591,6 +2592,16 @@ debugMapEditorState() {
     // CLEANUP
     // ==============================
 
+
+    // ✅ Ajouter cette méthode dans MapEditorModule
+hideSaveButton() {
+    const saveButton = document.getElementById('saveMapObjects')
+    if (saveButton) {
+        saveButton.style.display = 'none'
+        console.log('🗑️ [MapEditor] Save button hidden - using auto-save')
+    }
+}
+    
     cleanup() {
         this.currentMapData = null
         this.availableMaps = []
