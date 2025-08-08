@@ -1866,23 +1866,25 @@ animateModernHealthBarToZero(hpBarContainer) {
         .replace('{pokemon}', data.attackerName)
         .replace('{move}', data.moveName);
       this.showActionMessage(message);
-      
-      if (data.attackerRole === 'player1') {
-        this.createModernAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-      } else {
-        this.createModernAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
-      }
     });
 
     this.battleNetworkHandler.on('damageDealt', (data) => {
-      const pokemonData = {
-        name: data.targetName || 'Pokémon',
-        currentHp: data.newHp,
-        maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
-        level: this.getCurrentLevel(data.targetRole)
-      };
+      console.log(`💥 [SCENE] Dégâts reçus: ${data.damage} sur ${data.targetRole}`);
       
-      // ✅ Mise à jour état local (important pour KOManager)
+      // Déterminer attaquant et défendeur
+      let attacker, target;
+      if (data.attackerRole === 'player1') {
+        attacker = this.playerPokemonSprite;
+        target = this.opponentPokemonSprite;
+      } else {
+        attacker = this.opponentPokemonSprite;
+        target = this.playerPokemonSprite;
+      }
+      
+      // ✅ Animation complète attaque + dégâts en UNE FOIS
+      this.createCompleteAttackSequence(attacker, target, data.damage, data.targetRole);
+      
+      // Mise à jour des données locales
       if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
         this.currentPlayerPokemon.currentHp = data.newHp;
         this.currentPlayerPokemon.maxHp = data.maxHp || this.currentPlayerPokemon.maxHp;
@@ -1891,9 +1893,17 @@ animateModernHealthBarToZero(hpBarContainer) {
         this.currentOpponentPokemon.maxHp = data.maxHp || this.currentOpponentPokemon.maxHp;
       }
       
-      // ✅ Mise à jour barre de vie (KO automatiquement géré par KOManager)
-      this.updateModernHealthBar(data.targetRole, pokemonData);
-      this.createModernDamageEffectForRole(data.targetRole, data.damage);
+      // ✅ Mise à jour HP APRÈS l'animation (délai synchronisé)
+      const pokemonData = {
+        name: data.targetName || 'Pokémon',
+        currentHp: data.newHp,
+        maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
+        level: this.getCurrentLevel(data.targetRole)
+      };
+      
+      setTimeout(() => {
+        this.updateModernHealthBar(data.targetRole, pokemonData);
+      }, 700); // Délai pour que l'animation se termine d'abord
     });
 
     // ✅ PLUS DE GESTION pokemonFainted ICI - tout dans KOManager !
@@ -2259,6 +2269,66 @@ animateModernHealthBarToZero(hpBarContainer) {
     }
   }
 
+      // === ✅ NOUVELLE MÉTHODE : Animation complète attaque + dégâts
+    createCompleteAttackSequence(attacker, target, damage, targetRole) {
+      if (!attacker || !target) return;
+      
+      console.log(`🎬 [SCENE] Animation complète: ${damage} dégâts sur ${targetRole}`);
+      
+      const originalX = attacker.x;
+      
+      // Phase 1 : Attaquant se déplace vers la cible
+      this.tweens.add({
+        targets: attacker,
+        x: originalX + (target.x > attacker.x ? 60 : -60),
+        scaleX: attacker.scaleX * 1.1,
+        scaleY: attacker.scaleY * 1.1,
+        duration: 300,
+        ease: 'Power2.easeOut',
+        
+        onComplete: () => {
+          // Phase 2 : Impact + effets visuels + vibration cible
+          this.createModernImpactEffect(target.x, target.y);
+          this.createModernDamageEffect(target, damage);
+          
+          // Vibration du défendeur UNE SEULE FOIS
+          const targetOriginalX = target.x;
+          this.tweens.add({
+            targets: target,
+            x: targetOriginalX + 15,
+            scaleX: target.scaleX * 0.95,
+            scaleY: target.scaleY * 0.95,
+            duration: 80,
+            yoyo: true,
+            repeat: 4,
+            onComplete: () => {
+              target.setX(targetOriginalX);
+            }
+          });
+          
+          // Flash rouge sur le défendeur
+          const originalTint = target.tint;
+          target.setTint(0xff6b6b);
+          this.tweens.add({
+            targets: target,
+            tint: originalTint,
+            duration: 400,
+            ease: 'Power2.easeOut'
+          });
+          
+          // Phase 3 : Retour de l'attaquant
+          this.tweens.add({
+            targets: attacker,
+            x: originalX,
+            scaleX: attacker.scaleX / 1.1,
+            scaleY: attacker.scaleY / 1.1,
+            duration: 250,
+            ease: 'Power2.easeIn'
+          });
+        }
+      });
+    }
+  
   createModernDamageEffectForRole(targetRole, damage) {
     let targetSprite = null;
     
