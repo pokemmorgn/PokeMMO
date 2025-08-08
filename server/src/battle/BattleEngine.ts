@@ -327,7 +327,7 @@ export class BattleEngine {
           this.gameState,
           this.playerTeamManager,
           this.opponentTeamManager,
-          this.battleTeamConfig
+          this.getTrainerBattleRules() // 🔧 CORRECTION: Utiliser la méthode de conversion
         );
         
         // Configuration switch selon type combat
@@ -361,6 +361,25 @@ export class BattleEngine {
     console.log(`    Max switches/tour: ${this.battleTeamConfig.maxSwitchesPerTurn}`);
     console.log(`    Cooldown: ${this.battleTeamConfig.switchCooldown}`);
     console.log(`    Force switch: ${this.battleTeamConfig.forceSwitch}`);
+  }
+
+  /**
+   * 🔧 CORRECTION: Convertit TeamConfiguration vers TrainerBattleRules si nécessaire
+   */
+  private getTrainerBattleRules(): any {
+    if (!this.battleTeamConfig) return null;
+    
+    // Si c'est déjà TrainerBattleRules, retourner tel quel
+    if ('itemsAllowed' in this.battleTeamConfig) {
+      return this.battleTeamConfig;
+    }
+    
+    // Sinon, convertir TeamConfiguration vers TrainerBattleRules
+    return {
+      ...this.battleTeamConfig,
+      itemsAllowed: false,
+      megaEvolution: false
+    };
   }
 
   /**
@@ -1996,7 +2015,14 @@ export class BattleEngine {
       };
     }
 
-    return this.switchManager.analyzeSwitchOptions(playerRole);
+    // 🔧 CORRECTION: Mapping correct des propriétés
+    const switchAnalysis = this.switchManager.analyzeSwitchOptions(playerRole);
+    
+    return {
+      canSwitch: switchAnalysis.canSwitch,
+      availableOptions: switchAnalysis.availablePokemon, // 🔧 Mapping correct
+      restrictions: switchAnalysis.restrictions
+    };
   }
 
   /**
