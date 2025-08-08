@@ -134,10 +134,6 @@ export class BattleScene extends Phaser.Scene {
       try {
         if (this.battleNetworkHandler) {
           this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
-          
-          // 🔧 CORRECTION - Connecter événements fermeture
-          this.setupPokemonTeamUIEvents();
-          
           console.log('✅ [BattleScene] Interface équipe créée avec NetworkHandler');
         } else {
           // Créer sans NetworkHandler pour éviter erreur
@@ -764,52 +760,6 @@ export class BattleScene extends Phaser.Scene {
     });
     
     this.actionInterface.setVisible(false);
-    
-    // 🔧 CORRECTION SIMPLE - Ajouter écouteur clavier pour fermeture (avec délai)
-    let interfaceJustOpened = false;
-    
-    this.input.keyboard.on('keydown-ESC', () => {
-      if (interfaceJustOpened) return; // Ignorer si vient d'ouvrir
-      
-      console.log('🔧 [BattleScene] ESC pressé - Vérification interface équipe');
-      if (this.pokemonTeamUI && this.pokemonTeamUI.isOpen && this.pokemonTeamUI.isOpen()) {
-        console.log('🔧 [BattleScene] Fermeture interface équipe via ESC');
-        this.pokemonTeamUI.hide();
-        this.showActionButtons();
-      }
-    });
-    
-    // 🔧 CORRECTION SIMPLE - Ajouter clic sur vide pour fermer (avec délai)  
-    this.input.on('pointerdown', (pointer) => {
-      if (interfaceJustOpened) return; // Ignorer si vient d'ouvrir
-      
-      // Si clic sur zone vide et interface équipe ouverte
-      if (this.pokemonTeamUI && this.pokemonTeamUI.isOpen && this.pokemonTeamUI.isOpen()) {
-        // Vérifier si clic en dehors de l'interface (zone plus large)
-        const { width, height } = this.cameras.main;
-        const interfaceZone = { 
-          x: width * 0.2, 
-          y: height * 0.2, 
-          width: width * 0.6, 
-          height: height * 0.6 
-        };
-        
-        if (pointer.x < interfaceZone.x || pointer.x > interfaceZone.x + interfaceZone.width ||
-            pointer.y < interfaceZone.y || pointer.y > interfaceZone.y + interfaceZone.height) {
-          console.log('🔧 [BattleScene] Clic extérieur - Fermeture interface équipe');
-          this.pokemonTeamUI.hide();
-          this.showActionButtons();
-        }
-      }
-    });
-    
-    // Fonction helper pour marquer ouverture interface
-    this.markInterfaceOpened = () => {
-      interfaceJustOpened = true;
-      setTimeout(() => {
-        interfaceJustOpened = false;
-      }, 500); // Délai de protection
-    };
   }
 
   drawModernActionPanel(width, height, mode) {
@@ -1555,43 +1505,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * 🔧 CORRECTION - Connecter événements interface équipe
-   */
-  setupPokemonTeamUIEvents() {
-    if (!this.pokemonTeamUI) return;
-    
-    console.log('🔗 [BattleScene] Configuration événements interface équipe');
-    
-    // 🔧 DÉSACTIVER événements automatiques qui causent fermeture immédiate
-    /*
-    // Écouter fermeture interface équipe
-    if (this.pokemonTeamUI.on) {
-      this.pokemonTeamUI.on('interfaceClosed', () => {
-        console.log('👁️ [BattleScene] Interface équipe fermée - Retour boutons action');
-        this.showActionButtons();
-      });
-      
-      this.pokemonTeamUI.on('switchCancelled', () => {
-        console.log('❌ [BattleScene] Changement annulé - Retour boutons action');
-        this.showActionButtons();
-      });
-    } else {
-      // Méthode alternative si pas d'EventEmitter
-      const originalHide = this.pokemonTeamUI.hide;
-      if (originalHide) {
-        this.pokemonTeamUI.hide = () => {
-          console.log('👁️ [BattleScene] Interface équipe fermée (override) - Retour boutons action');
-          originalHide.call(this.pokemonTeamUI);
-          this.showActionButtons();
-        };
-      }
-    }
-    */
-    
-    console.log('⚠️ [BattleScene] Événements automatiques désactivés pour éviter fermeture immédiate');
-  }
-
-  /**
    * 🔧 CORRECTION SIMPLE - Initialisation forcée interface équipe
    */
   ensurePokemonTeamUI() {
@@ -1600,7 +1513,6 @@ export class BattleScene extends Phaser.Scene {
       try {
         if (this.battleNetworkHandler) {
           this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
-          this.setupPokemonTeamUIEvents();
           console.log('✅ [BattleScene] Interface équipe créée tardivement');
         } else {
           // Interface simulée pour éviter crash
@@ -2399,9 +2311,8 @@ export class BattleScene extends Phaser.Scene {
     
     this.showNarrativeMessage(message, false);
     
-    // 🔧 CORRECTION - Forcer retour boutons après changement
+    // Retourner aux boutons d'action après délai
     setTimeout(() => {
-      console.log('🔄 [BattleScene] Retour boutons d\'action après changement');
       this.showActionButtons();
     }, 2000);
   }
