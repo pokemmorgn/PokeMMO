@@ -2021,6 +2021,10 @@ export class BattleScene extends Phaser.Scene {
     
     setupKOManagerEvents(this.koManager, this.battleNetworkHandler);
     
+    this.events.on('teamUIClosed', (data) => {
+      console.log('👥 Interface équipe fermée:', data?.reason);
+      this.showActionButtons();
+    });
     // 🆕 ÉVÉNEMENTS UNIVERSAL SWITCH
     this.battleNetworkHandler.on('battleStart', (data) => {
       console.log('⚔️ [BattleScene] battleStart reçu:', data);
