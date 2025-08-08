@@ -766,8 +766,10 @@ placeGenericObject(tileX, tileY) {
 }
 
 // ✅ Créer le NPC du type choisi
+// ✅ OPTION 1: Auto-save complet - Modifier createNPCOfType() dans map-editor.js
+
 async createNPCOfType(npcType, tileX, tileY) {
-    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY}) with immediate ID assignment`)
+    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY}) with AUTO-SAVE`)
     
     try {
         const currentZone = this.getCurrentZone()
@@ -776,7 +778,7 @@ async createNPCOfType(npcType, tileX, tileY) {
             return
         }
         
-        // ✅ CRÉER IMMÉDIATEMENT EN BASE POUR OBTENIR L'ID STABLE
+        // Créer et sauvegarder IMMÉDIATEMENT
         const npcData = {
             name: `${npcType}_${tileX}_${tileY}`,
             type: npcType,
@@ -793,19 +795,18 @@ async createNPCOfType(npcType, tileX, tileY) {
             cooldownSeconds: 0
         }
         
-        console.log(`💾 [MapEditor] Creating NPC in database to get stable ID...`)
+        console.log(`💾 [MapEditor] Creating AND saving NPC automatically...`)
         
-        // ✅ APPEL API IMMÉDIAT - ID attribué maintenant
+        // ✅ CRÉATION + SAUVEGARDE EN UNE FOIS
         const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/add-single`, {
             method: 'POST',
             body: JSON.stringify(npcData)
         })
         
         if (response.success && response.globalId) {
-            // ✅ CRÉER NPC AVEC ID STABLE DÉFINITIF
             const newNPC = {
-                id: response.globalId,              // ✅ ID STABLE dès le début
-                globalId: response.globalId,        // ✅ Backup
+                id: response.globalId,
+                globalId: response.globalId,
                 type: 'npc',
                 x: tileX,
                 y: tileY,
@@ -815,8 +816,9 @@ async createNPCOfType(npcType, tileX, tileY) {
                 npcType: npcType,
                 isFromMap: false,
                 
-                // ✅ MARQUER COMME DÉJÀ SAUVEGARDÉ
-                isSavedInDB: true,  // ✅ NOUVEAU FLAG
+                // ✅ MARQUER COMME COMPLÈTEMENT SAUVEGARDÉ
+                isSavedInDB: true,
+                isAutoSaved: true,  // ✅ Flag pour indiquer que c'est auto-sauvé
                 
                 // Propriétés complètes
                 interactionRadius: npcData.interactionRadius,
@@ -831,20 +833,21 @@ async createNPCOfType(npcType, tileX, tileY) {
             
             this.placedObjects.push(newNPC)
             
+            // ✅ MESSAGE CLAIR : Auto-sauvegardé
             this.adminPanel.showNotification(
-                `NPC ${npcType} créé avec ID global ${response.globalId}`, 
+                `✅ NPC ${npcType} créé et sauvegardé automatiquement (ID: ${response.globalId})`, 
                 'success'
             )
             
-            console.log(`✅ [MapEditor] NPC created with stable global ID: ${response.globalId}`)
+            console.log(`✅ [MapEditor] NPC auto-created and auto-saved with global ID: ${response.globalId}`)
             
         } else {
             throw new Error(response.error || 'Pas de globalId retourné')
         }
         
     } catch (error) {
-        console.error('❌ [MapEditor] Error creating NPC with stable ID:', error)
-        this.adminPanel.showNotification(`Erreur création NPC: ${error.message}`, 'error')
+        console.error('❌ [MapEditor] Error auto-creating NPC:', error)
+        this.adminPanel.showNotification(`❌ Erreur création NPC: ${error.message}`, 'error')
         return
     }
     
@@ -1114,92 +1117,35 @@ async saveMapObjects() {
     
     const objectsToSave = [...this.placedObjects]
     const gameObjects = objectsToSave.filter(obj => obj.type !== 'npc')
-    const npcs = objectsToSave.filter(obj => obj.type === 'npc')
     
-    console.log(`💾 [MapEditor] Saving ${gameObjects.length} gameobjects and ${npcs.length} NPCs`)
+    // ✅ FILTRER : Seulement les NPCs qui ne sont PAS auto-sauvés
+    const npcsToSave = objectsToSave.filter(obj => 
+        obj.type === 'npc' && 
+        (!obj.isAutoSaved && !obj.isSavedInDB)  // ✅ Ignorer ceux déjà sauvés
+    )
+    
+    console.log(`💾 [MapEditor] Saving ${gameObjects.length} gameobjects and ${npcsToSave.length} NPCs (${objectsToSave.filter(obj => obj.type === 'npc').length - npcsToSave.length} NPCs already auto-saved)`)
     
     // 1. Sauvegarder GameObjects
     if (gameObjects.length > 0) {
         await this.saveGameObjects(mapId, gameObjects)
     }
     
-    // 2. Sauvegarder NPCs - CORRECTION ICI
-    if (npcs.length > 0) {
-        await this.saveNPCsSmartly(mapId, npcs)  // ✅ NOUVELLE MÉTHODE
+    // 2. Sauvegarder NPCs SEULEMENT si il y en a qui ne sont pas auto-sauvés
+    if (npcsToSave.length > 0) {
+        await this.saveNPCsSmartly(mapId, npcsToSave)
+    } else if (objectsToSave.filter(obj => obj.type === 'npc').length > 0) {
+        // Il y a des NPCs mais tous déjà sauvés
+        this.adminPanel.showNotification('✅ Tous les NPCs sont déjà sauvegardés automatiquement', 'info')
     }
     
-    if (gameObjects.length === 0 && npcs.length === 0) {
-        this.adminPanel.showNotification('Aucun objet à sauvegarder', 'warning')
-    }
-}
-
-    async saveNPCsSmartly(mapId, npcs) {
-    try {
-        console.log(`👤 [MapEditor] Smart saving ${npcs.length} NPCs for ${mapId}`)
-        
-        let savedCount = 0
-        let updatedCount = 0
-        let skippedCount = 0
-        let errorCount = 0
-        
-        for (const npc of npcs) {
-            try {
-                const globalId = npc.globalId || npc.id
-                
-                if (!globalId) {
-                    console.error(`❌ [MapEditor] NPC "${npc.name}" has no global ID - skipping`)
-                    errorCount++
-                    continue
-                }
-                
-                // ✅ VÉRIFIER SI LE NPC EST DÉJÀ SAUVEGARDÉ
-                if (npc.isSavedInDB === true) {
-                    console.log(`⏭️ [MapEditor] NPC ${globalId} already saved in DB during creation - skipping`)
-                    skippedCount++
-                    continue
-                }
-                
-                console.log(`🔄 [MapEditor] Updating NPC position: ${globalId} ("${npc.name}")`)
-                
-                // ✅ MISE À JOUR DE POSITION SEULEMENT
-                const npcUpdateData = {
-                    position: {
-                        x: npc.x * this.currentMapData.tilewidth,
-                        y: npc.y * this.currentMapData.tileheight
-                    }
-                    // Pas besoin de tous les autres champs, ils sont déjà en base
-                }
-                
-                const response = await this.adminPanel.apiCall(`/zones/${mapId}/npcs/${globalId}/update-single`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ npcData: npcUpdateData })
-                })
-                
-                if (response.success) {
-                    updatedCount++
-                    // ✅ MARQUER COMME SAUVEGARDÉ
-                    npc.isSavedInDB = true
-                    console.log(`✅ [MapEditor] NPC position updated: ${globalId}`)
-                } else {
-                    throw new Error(response.error || 'Erreur mise à jour NPC')
-                }
-                
-            } catch (error) {
-                errorCount++
-                console.error(`❌ [MapEditor] Error saving NPC "${npc.name}":`, error)
-            }
+    if (gameObjects.length === 0 && npcsToSave.length === 0) {
+        const autoSavedNPCs = objectsToSave.filter(obj => obj.type === 'npc' && obj.isAutoSaved).length
+        if (autoSavedNPCs > 0) {
+            this.adminPanel.showNotification(`✅ ${autoSavedNPCs} NPC(s) déjà sauvegardé(s) automatiquement`, 'success')
+        } else {
+            this.adminPanel.showNotification('Aucun objet à sauvegarder', 'warning')
         }
-        
-        const message = `NPCs: ${updatedCount} mis à jour, ${skippedCount} déjà sauvés` + 
-                       (errorCount > 0 ? ` (${errorCount} erreurs)` : '')
-        
-        this.adminPanel.showNotification(message, (updatedCount + skippedCount) > 0 ? 'success' : 'warning')
-        
-        console.log(`✅ [MapEditor] Smart NPCs save: ${updatedCount} updated, ${skippedCount} skipped, ${errorCount} errors`)
-        
-    } catch (error) {
-        console.error('❌ [MapEditor] Error in smart NPC saving:', error)
-        this.adminPanel.showNotification('Erreur sauvegarde NPCs: ' + error.message, 'error')
     }
 }
     
