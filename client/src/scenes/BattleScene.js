@@ -2726,6 +2726,11 @@ export class BattleScene extends Phaser.Scene {
       this.koManager = null;
     }
 
+    if (this.pokemonTeamUI) {
+      this.pokemonTeamUI.destroy();
+      this.pokemonTeamUI = null;
+    }
+    
     if (this.actionInterface) {
       this.actionInterface.destroy();
       this.actionInterface = null;
