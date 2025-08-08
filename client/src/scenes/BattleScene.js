@@ -4,7 +4,6 @@ import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
-import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
 import { createKOManager, setupKOManagerEvents } from '../Battle/KOManager.js';
 import { 
   t, 
