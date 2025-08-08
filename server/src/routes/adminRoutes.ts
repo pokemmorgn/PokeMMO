@@ -2434,7 +2434,7 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         interactionRadius: npc.interactionRadius || 32,
         canWalkAway: npc.canWalkAway !== false,
         autoFacePlayer: npc.autoFacePlayer !== false,
-repeatable: npcData.repeatable !== false,
+repeatable: npcJson.repeatable !== false,
         cooldownSeconds: npc.cooldownSeconds || 0,
         
         // Système de quêtes
