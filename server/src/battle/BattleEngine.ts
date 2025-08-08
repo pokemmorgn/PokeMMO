@@ -1268,26 +1268,28 @@ export class BattleEngine {
     }, this.BATTLE_CRASH_TIMEOUT_MS);
   }
 
-  private forceBattleEnd(reason: string, message: string): void {
-    if (this.battleEndHandled) return;
-    
-    console.log(`🚨 [BattleEngine] Force fin combat: ${reason}`);
-    
-    this.battleEndHandled = true;
-    this.gameState.isEnded = true;
-    this.gameState.winner = 'player1';
-    this.clearAllTimers();
+private forceBattleEnd(reason: string, message: string): void {
+  if (this.battleEndHandled) return;
 
-    this.emit('battleEnd', {
-      winner: 'player1',
-      reason,
-      message,
-      gameState: this.gameState,
-      forced: true
-    });
+  console.log(`🚨 [BattleEngine] Force fin combat: ${reason}`);
 
-    this.transitionToPhase(InternalBattlePhase.ENDED, reason);
-  }
+  // ❗️NE PAS mettre battleEndHandled ici
+  this.gameState.isEnded = true;
+  this.gameState.winner = 'player1';
+  this.clearAllTimers();
+
+  this.emit('battleEnd', {
+    winner: 'player1',
+    reason,
+    message,
+    gameState: this.gameState,
+    forced: true
+  });
+
+  // Laisse handleEndedPhase() faire le cleanup
+  this.transitionToPhase(InternalBattlePhase.ENDED, reason);
+}
+
 
   private configureBroadcastSystem(): void {
     try {
@@ -1769,17 +1771,20 @@ export class BattleEngine {
     }
   }
 
-  private handleEndedPhase(): void {
-    if (this.battleEndHandled) {
-      console.log('⚠️ [BattleEngine] Battle end déjà traité');
-      return;
-    }
-    
-    this.battleEndHandled = true;
+private handleEndedPhase(): void {
+  // Si déjà géré, assure une dernière passe de cleanup (idempotent)
+  if (this.battleEndHandled) {
     this.clearAllTimers();
-    this.savePokemonAfterBattle();
-    this.performFinalCleanup();
+    this.performFinalCleanup(); // idempotent
+    return;
   }
+
+  this.battleEndHandled = true;
+  this.clearAllTimers();
+  this.savePokemonAfterBattle();
+  this.performFinalCleanup();
+}
+
 
   private performFinalCleanup(): void {
     this.isManualCleanup = true;
