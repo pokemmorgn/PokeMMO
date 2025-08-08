@@ -1,11 +1,11 @@
-// client/src/scenes/BattleScene.js - Version complète avec corrections KO
+// client/src/scenes/BattleScene.js - Version nettoyée avec KOManager intégré
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
-import { KOManager } from '../Battle/KOManager.js';
+import { createKOManager, setupKOManagerEvents } from '../Battle/KOManager.js'; // ✅ NOUVEAU
 import { t } from '../managers/LocalizationManager.js';
 
 let pokemonSpriteConfig = null;
@@ -18,7 +18,7 @@ export class BattleScene extends Phaser.Scene {
     this.gameManager = null;
     this.battleNetworkHandler = null;
     this.healthBarManager = null;
-    this.koManager = null;
+    this.koManager = null; // ✅ NOUVEAU: Gestionnaire KO centralisé
     this.playerRole = null;
     this.battleInventoryUI = null;
     this.captureManager = null;
@@ -58,7 +58,7 @@ export class BattleScene extends Phaser.Scene {
     };
     
     // Interface state
-    this.interfaceMode = 'hidden'; // ✅ NOUVEAU: Gestion d'état améliorée
+    this.interfaceMode = 'hidden';
     this.battleTranslator = null;
     this.moveButtons = [];
   }
@@ -96,7 +96,10 @@ export class BattleScene extends Phaser.Scene {
       this.createModernBattleEnvironment();
       this.createModernPokemonPlatforms();
       this.healthBarManager = new HealthBarManager(this);
-      this.koManager = new KOManager(this);
+      
+      // ✅ NOUVEAU: Initialisation KOManager centralisé
+      this.initializeKOManager();
+      
       this.createModernHealthBars();
       this.createModernActionInterface();
       this.createModernBattleDialog();
@@ -110,7 +113,51 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === ENVIRONNEMENT ===
+  // === ✅ INITIALISATION KOMANAGER ===
+
+  initializeKOManager() {
+    console.log('💀 [BattleScene] Initialisation KOManager...');
+    
+    try {
+      // Créer le KOManager avec helper
+      this.koManager = createKOManager(this);
+      
+      // Configurer les callbacks
+      this.koManager.setOnKOComplete((koData) => {
+        console.log('⚰️ [BattleScene] KO sequence terminée:', koData.pokemonName);
+        this.handleKOSequenceComplete(koData);
+      });
+      
+      this.koManager.setOnBattleEnd((battleEndData) => {
+        console.log('🏁 [BattleScene] Fin de combat via KOManager');
+        this.endBattle(battleEndData);
+      });
+      
+      console.log('✅ [BattleScene] KOManager initialisé');
+      
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur initialisation KOManager:', error);
+    }
+  }
+
+  handleKOSequenceComplete(koData) {
+    console.log('⚰️ [BattleScene] Traitement fin séquence KO:', koData);
+    
+    // ✅ Le KOManager a déjà tout géré, on décide juste de la suite
+    setTimeout(() => {
+      if (koData.battleContinues !== false) {
+        // Combat continue - réactiver les boutons d'action
+        console.log('🎮 [BattleScene] Combat continue après KO');
+        this.showActionButtons();
+      } else {
+        // Combat fini - attendre battleEnd du serveur
+        console.log('🏁 [BattleScene] Combat terminé après KO');
+        this.showNarrativeMessage('Fin du combat...', false);
+      }
+    }, 1000);
+  }
+
+  // === ENVIRONNEMENT (INCHANGÉ) ===
 
   createModernBattleEnvironment() {
     const { width, height } = this.cameras.main;
@@ -208,7 +255,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === BARRES DE VIE ===
+  // === BARRES DE VIE (SIMPLIFIÉES) ===
 
   createModernHealthBars() {
     const { width, height } = this.cameras.main;
@@ -375,7 +422,8 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  // ✅ CORRECTION: Mise à jour barre de vie avec gestion KO
+  // === ✅ MISE À JOUR BARRE DE VIE SIMPLIFIÉE (KO GÉRÉ PAR KOMANAGER) ===
+
   updateModernHealthBar(type, pokemonData) {
     const healthBar = this.modernHealthBars[type];
     if (!healthBar) {
@@ -400,39 +448,14 @@ export class BattleScene extends Phaser.Scene {
     healthBar.nameText.setText(t(nameKey).replace('{name}', displayName));
     healthBar.levelText.setText(`LV.${pokemonData.level || 1}`);
     
-    // ✅ CORRECTION: Gestion spéciale pour les Pokémon KO
+    // ✅ SIMPLIFICATION: Plus de logique KO ici, juste mise à jour normale
     const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
     
-    if (pokemonData.currentHp <= 0) {
-      console.log(`💀 [SCENE] Pokémon ${displayName} est KO - animation spéciale`);
-      
-      // Animation spéciale KO
-      this.animateModernHealthBarKO(healthBar.hpBar, () => {
-        // Callback après animation KO
-        if (healthBar.nameText) {
-          healthBar.nameText.setTint(0x999999); // Grisé
-        }
-      });
-      
-      // Texte KO
-      if (healthBar.config.isPlayer && healthBar.hpText) {
-        healthBar.hpText.setText('KO');
-        healthBar.hpText.setTint(0xFF0000);
-      }
+    // Gestion spéciale pour KO (style visuel seulement)
+    if (pokemonData.currentHp <= 0 || pokemonData.statusCondition === 'ko') {
+      this.updateHealthBarForKO(healthBar, pokemonData);
     } else {
-      // Animation normale
-      this.animateModernHealthBar(healthBar.hpBar, hpPercentage);
-      
-      // Texte HP normal
-      if (healthBar.config.isPlayer && healthBar.hpText) {
-        healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
-        healthBar.hpText.clearTint();
-      }
-      
-      // Couleur normale pour le nom
-      if (healthBar.nameText) {
-        healthBar.nameText.clearTint();
-      }
+      this.updateHealthBarNormal(healthBar, hpPercentage, pokemonData);
     }
     
     // Gestion expérience (inchangée)
@@ -451,6 +474,42 @@ export class BattleScene extends Phaser.Scene {
         duration: 600,
         ease: 'Power2.easeOut'
       });
+    }
+  }
+
+  // ✅ NOUVEAU: Mise à jour barre KO (style visuel uniquement)
+  updateHealthBarForKO(healthBar, pokemonData) {
+    console.log('💀 [SCENE] Mise à jour barre KO (style):', pokemonData.name);
+    
+    // Animation vers 0 avec style KO
+    this.animateModernHealthBarToZero(healthBar.hpBar);
+    
+    // Texte KO
+    if (healthBar.config.isPlayer && healthBar.hpText) {
+      healthBar.hpText.setText('K.O.');
+      healthBar.hpText.setTint(0xFF0000);
+    }
+    
+    // Nom grisé
+    if (healthBar.nameText) {
+      healthBar.nameText.setTint(0x999999);
+    }
+  }
+
+  // ✅ NOUVEAU: Mise à jour barre normale
+  updateHealthBarNormal(healthBar, hpPercentage, pokemonData) {
+    // Animation normale
+    this.animateModernHealthBar(healthBar.hpBar, hpPercentage);
+    
+    // Texte HP normal
+    if (healthBar.config.isPlayer && healthBar.hpText) {
+      healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
+      healthBar.hpText.clearTint();
+    }
+    
+    // Couleur normale pour le nom
+    if (healthBar.nameText) {
+      healthBar.nameText.clearTint();
     }
   }
 
@@ -490,17 +549,16 @@ export class BattleScene extends Phaser.Scene {
     hpBarContainer.currentPercentage = percentage;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Animation spéciale KO
-  animateModernHealthBarKO(hpBarContainer, onComplete) {
+  // ✅ NOUVEAU: Animation spéciale vers 0 pour KO
+  animateModernHealthBarToZero(hpBarContainer) {
     if (!hpBarContainer || !hpBarContainer.hpBar) return;
     
     const { hpBar, maxWidth } = hpBarContainer;
     
-    // Animation rapide vers 0 avec couleur rouge
     this.tweens.add({
       targets: { value: hpBarContainer.currentPercentage || 1 },
       value: 0,
-      duration: 600,
+      duration: 800,
       ease: 'Power2.easeIn',
       onUpdate: (tween) => {
         const percentage = tween.targets[0].value;
@@ -513,17 +571,10 @@ export class BattleScene extends Phaser.Scene {
           // Couleur rouge pour le KO
           hpBar.fillGradientStyle(0xFF0000, 0xFF0000, 0xCC0000, 0xCC0000);
           hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
-          
-          // Effet de clignotement
-          if (Math.floor(Date.now() / 100) % 2) {
-            hpBar.fillStyle(0xFFFFFF, 0.5);
-            hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
-          }
         }
       },
       onComplete: () => {
         hpBarContainer.currentPercentage = 0;
-        if (onComplete) onComplete();
       }
     });
   }
@@ -564,7 +615,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === INTERFACE D'ACTIONS ===
+  // === INTERFACE D'ACTIONS (INCHANGÉE - BEAUCOUP DE CODE) ===
 
   createModernActionInterface() {
     const { width, height } = this.cameras.main;
@@ -778,7 +829,7 @@ export class BattleScene extends Phaser.Scene {
     return (r << 16) | (g << 8) | b;
   }
 
-  // === DIALOGUE ===
+  // === DIALOGUE (INCHANGÉ) ===
 
   createModernBattleDialog() {
     const { width, height } = this.cameras.main;
@@ -828,7 +879,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleDialog.setVisible(false);
   }
 
-  // === GESTION DES MODES ===
+  // === GESTION DES MODES (INCHANGÉ) ===
 
   showActionButtons() {
     const { width } = this.cameras.main;
@@ -858,7 +909,7 @@ export class BattleScene extends Phaser.Scene {
       this.continueArrow.setVisible(false);
     }
     
-    this.interfaceMode = 'buttons'; // ✅ CORRECTION: Mise à jour état
+    this.interfaceMode = 'buttons';
   }
 
   showMoveButtons(moves) {
@@ -880,7 +931,7 @@ export class BattleScene extends Phaser.Scene {
       this.continueArrow.setVisible(false);
     }
     
-    this.interfaceMode = 'moves'; // ✅ CORRECTION: Mise à jour état
+    this.interfaceMode = 'moves';
   }
 
   createMoveButtons(moves, width) {
@@ -1048,7 +1099,7 @@ export class BattleScene extends Phaser.Scene {
     this.showActionButtons();
   }
 
-  // ✅ CORRECTION: Gestion améliorée handleMoveButton avec timeout intelligent
+  // ✅ CORRECTION: handleMoveButton simplifié (plus de gestion KO)
   handleMoveButton(move) {
     const pokemonName = this.currentPlayerPokemon?.name || t('battle.ui.your_pokemon');
     this.showActionMessage(t('battle.ui.messages.pokemon_uses_move')
@@ -1056,9 +1107,7 @@ export class BattleScene extends Phaser.Scene {
       .replace('{move}', move.name));
     
     this.hideMoveButtons();
-    
-    // ✅ CORRECTION: Gestion d'état plus robuste
-    this.interfaceMode = 'waiting'; // Nouvel état
+    this.interfaceMode = 'waiting';
     
     try {
       // Émission événement local
@@ -1075,7 +1124,6 @@ export class BattleScene extends Phaser.Scene {
       if (this.battleNetworkHandler) {
         let sendSuccess = false;
         
-        // Essayer plusieurs méthodes d'envoi
         if (typeof this.battleNetworkHandler.selectMove === 'function') {
           sendSuccess = this.battleNetworkHandler.selectMove(move.id, move);
         } else if (typeof this.battleNetworkHandler.performBattleAction === 'function') {
@@ -1095,7 +1143,7 @@ export class BattleScene extends Phaser.Scene {
           throw new Error('Aucune méthode d\'envoi disponible');
         }
         
-        // ✅ CORRECTION: Timeout plus intelligent
+        // Timeout simplifié
         const timeoutId = setTimeout(() => {
           if (this.interfaceMode === 'waiting') {
             console.warn('⏰ [SCENE] Timeout - pas de réponse du serveur');
@@ -1106,22 +1154,20 @@ export class BattleScene extends Phaser.Scene {
               this.showActionButtons();
             }, 2000);
           }
-        }, 8000); // 8 secondes au lieu de 10
+        }, 8000);
         
-        // ✅ CORRECTION: Nettoyage automatique sur événements pertinents
+        // Nettoyage automatique
         const eventsToWatch = [
-          'moveUsed', 'damageDealt', 'pokemonFainted', 'battleEnd', 
-          'yourTurn', 'opponentTurn', 'actionResult'
+          'moveUsed', 'damageDealt', 'actionResult', 'yourTurn'
         ];
         
         const cleanupTimeout = () => {
           clearTimeout(timeoutId);
-          this.interfaceMode = 'narrative'; // État cohérent
+          this.interfaceMode = 'narrative';
         };
         
-        // Écouter les événements une seule fois
         eventsToWatch.forEach(eventType => {
-          this.battleNetworkHandler.off(eventType, cleanupTimeout); // Éviter doublons
+          this.battleNetworkHandler.off(eventType, cleanupTimeout);
           this.battleNetworkHandler.on(eventType, cleanupTimeout);
         });
         
@@ -1186,7 +1232,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
     
-    this.interfaceMode = 'message'; // ✅ CORRECTION: Mise à jour état
+    this.interfaceMode = 'message';
   }
 
   showNarrativeMessage(message, showContinue = true) {
@@ -1223,7 +1269,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
     
-    this.interfaceMode = 'narrative'; // ✅ CORRECTION: Mise à jour état
+    this.interfaceMode = 'narrative';
   }
 
   hideActionMessage() {
@@ -1345,7 +1391,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === AFFICHAGE POKÉMON ===
+  // === AFFICHAGE POKÉMON (INCHANGÉ) ===
 
   async displayPlayerPokemon(pokemonData) {
     if (!pokemonData) return;
@@ -1613,7 +1659,7 @@ export class BattleScene extends Phaser.Scene {
     return colors[type.toLowerCase()] || 0xa8a8a8;
   }
 
-  // === CHARGEMENT SPRITES ===
+  // === CHARGEMENT SPRITES (INCHANGÉ) ===
   
   async loadPokemonSpritesheets() {
     if (!this.cache.json.has('pokemonSpriteConfig')) {
@@ -1773,13 +1819,17 @@ export class BattleScene extends Phaser.Scene {
     return fallbackKey;
   }
 
-  // === ✅ ÉVÉNEMENTS RÉSEAU CORRIGÉS ===
+  // === ✅ ÉVÉNEMENTS RÉSEAU SIMPLIFIÉS (KO GÉRÉ PAR KOMANAGER) ===
 
   setupBattleNetworkEvents() {
     if (!this.battleNetworkHandler) return;
     
     console.log('📡 [SCENE] Configuration événements réseau...');
     
+    // ✅ NOUVEAU: Configuration automatique KOManager avec helper
+    setupKOManagerEvents(this.koManager, this.battleNetworkHandler);
+    
+    // ✅ Événements normaux (non-KO)
     this.battleNetworkHandler.on('actionResult', (data) => {
       if (data.success && data.battleEvents && data.battleEvents.length > 0) {
         this.processBattleEventsServerDriven(data.battleEvents);
@@ -1811,6 +1861,7 @@ export class BattleScene extends Phaser.Scene {
         level: this.getCurrentLevel(data.targetRole)
       };
       
+      // ✅ Mise à jour état local (important pour KOManager)
       if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
         this.currentPlayerPokemon.currentHp = data.newHp;
         this.currentPlayerPokemon.maxHp = data.maxHp || this.currentPlayerPokemon.maxHp;
@@ -1819,57 +1870,13 @@ export class BattleScene extends Phaser.Scene {
         this.currentOpponentPokemon.maxHp = data.maxHp || this.currentOpponentPokemon.maxHp;
       }
       
+      // ✅ Mise à jour barre de vie (KO automatiquement géré par KOManager)
       this.updateModernHealthBar(data.targetRole, pokemonData);
       this.createModernDamageEffectForRole(data.targetRole, data.damage);
     });
 
-    // ✅ CORRECTION: Handler pokemonFainted amélioré
-    this.battleNetworkHandler.on('pokemonFainted', (data) => {
-      console.log('💀 [SCENE] pokemonFainted:', data);
-      
-      // Passer au KOManager ET mettre à jour l'état local
-      this.koManager.handlePokemonFainted(data);
-      
-      // Mise à jour état local critique
-      if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
-        this.currentPlayerPokemon.currentHp = 0;
-        this.currentPlayerPokemon.statusCondition = 'ko';
-      } else if (data.targetRole === 'player2' && this.currentOpponentPokemon) {
-        this.currentOpponentPokemon.currentHp = 0;
-        this.currentOpponentPokemon.statusCondition = 'ko';
-      }
-      
-      // Forcer la mise à jour de la barre de vie
-      const targetRole = data.targetRole === 'player1' ? 'player1' : 'player2';
-      const pokemonData = data.targetRole === 'player1' ? this.currentPlayerPokemon : this.currentOpponentPokemon;
-      
-      if (pokemonData) {
-        this.updateModernHealthBar(targetRole, {
-          ...pokemonData,
-          currentHp: 0
-        });
-      }
-    });
+    // ✅ PLUS DE GESTION pokemonFainted ICI - tout dans KOManager !
 
-    // ✅ NOUVEAU: Handler pour fin de séquence KO
-    this.battleNetworkHandler.on('koSequenceComplete', (data) => {
-      console.log('⚰️ [SCENE] KO sequence terminée:', data);
-      
-      // Attendre un peu puis décider de l'action suivante
-      setTimeout(() => {
-        if (data.battleContinues) {
-          this.showActionButtons(); // Combat continue
-        } else {
-          // Combat fini, attendre battleEnd
-          this.showNarrativeMessage('Fin du combat...', false);
-        }
-      }, 1000);
-    });
-
-    this.battleNetworkHandler.on('battleEnd', (data) => {
-      this.koManager.handleBattleEnd(data);
-    });
-    
     this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
       setTimeout(() => {
         this.endBattle({ result: 'disconnected' });
@@ -1919,7 +1926,7 @@ export class BattleScene extends Phaser.Scene {
       this.handleBattleEvent('yourTurn', data);
     });
     
-    console.log('✅ [SCENE] Événements réseau configurés avec corrections KO');
+    console.log('✅ [SCENE] Événements réseau configurés (KO délégué au KOManager)');
   }
 
   processBattleEventsServerDriven(battleEvents) {
@@ -1961,22 +1968,14 @@ export class BattleScene extends Phaser.Scene {
     }, 2000);
   }
 
-  // === ✅ GESTION DES ÉVÉNEMENTS CORRIGÉE ===
+  // === ✅ GESTION DES ÉVÉNEMENTS SIMPLIFIÉE (SANS KO) ===
 
   handleBattleEvent(eventType, data = {}) {
     console.log(`🎬 [SCENE] handleBattleEvent: ${eventType}`, data);
     
-    // Empêcher les doublons moveUsed
-    if (eventType === 'moveUsed') return;
-    
-    // Gestion spéciale pour les événements de fin
-    if (eventType === 'pokemonFainted') {
-      // Géré par le handler réseau spécialisé
-      return;
-    }
-    
-    if (eventType === 'battleEnd') {
-      // Géré par le handler réseau spécialisé
+    // ✅ PLUS DE GESTION KO ICI - délégué au KOManager
+    if (eventType === 'pokemonFainted' || eventType === 'battleEnd') {
+      console.log(`💀 [SCENE] Événement ${eventType} délégué au KOManager`);
       return;
     }
     
@@ -2161,7 +2160,7 @@ export class BattleScene extends Phaser.Scene {
     return moveDescriptions[moveId] || 'Attaque Pokémon.';
   }
 
-  // === EFFETS VISUELS ===
+  // === EFFETS VISUELS (INCHANGÉ) ===
 
   createModernAttackEffect(attacker, target) {
     if (!attacker || !target) return;
@@ -2305,7 +2304,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === UI MANAGEMENT ===
+  // === UI MANAGEMENT (INCHANGÉ) ===
 
   createBattleInventoryUI() {
     const gameRoom = this.gameManager?.gameRoom || 
@@ -2479,6 +2478,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   endBattle(battleResult = {}) {
+    // ✅ SIMPLIFICATION: Plus de gestion complexe - juste nettoyage et fin
     try {
       if (this.battleNetworkHandler?.sendToWorld) {
         this.battleNetworkHandler.sendToWorld('battleFinished', {
@@ -2593,6 +2593,7 @@ export class BattleScene extends Phaser.Scene {
     this.deactivateBattleUI();
     this.clearAllPokemonSprites();
 
+    // ✅ NOUVEAU: Nettoyer le KOManager
     if (this.koManager) {
       this.koManager.destroy();
       this.koManager = null;
