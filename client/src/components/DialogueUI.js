@@ -307,7 +307,7 @@ export class DialogueUI {
         z-index: 100;
         pointer-events: none; /* ✅ FIX CRITIQUE: none par défaut */
         transition: opacity 0.3s ease;
-        opacity: 0; /* ✅ FIX: invisible par défaut */
+        /* ✅ FIX: Ne pas forcer opacity ici, laisser les classes gérer */
       }
 
       .dialogue-container.hidden {
@@ -650,12 +650,8 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ FIX CRITIQUE: Activer pointer-events seulement quand visible
+    // ✅ FIX CRITIQUE: Gérer pointer-events avec les classes
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto';
-    this.container.style.visibility = 'visible';
-    this.container.style.opacity = '1';
-    
     dialogueBox.style.display = 'flex';
     this.isVisible = true;
   }
@@ -708,12 +704,8 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ FIX CRITIQUE: Activer pointer-events seulement quand visible
+    // ✅ FIX CRITIQUE: Gérer pointer-events avec les classes
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto';
-    this.container.style.visibility = 'visible';
-    this.container.style.opacity = '1';
-    
     dialogueBox.style.display = 'flex';
     this.isVisible = true;
   }
@@ -776,12 +768,8 @@ export class DialogueUI {
       this.switchToTab(this.tabs[0].id);
     }
     
-    // ✅ FIX: Activer pointer-events pour interface unifiée
+    // ✅ FIX: Gérer pointer-events avec les classes
     this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto';
-    this.container.style.visibility = 'visible';
-    this.container.style.opacity = '1';
-    
     unifiedInterface.style.display = 'flex';
     this.isVisible = true;
     this.isUnifiedInterface = true;
@@ -895,10 +883,7 @@ export class DialogueUI {
   hide() {
     console.log('🎭 [DialogueUI] Fermeture dialogue...');
     
-    // ✅ FIX CRITIQUE: Désactiver complètement pointer-events
-    this.container.style.pointerEvents = 'none';
-    this.container.style.visibility = 'hidden';
-    this.container.style.opacity = '0';
+    // ✅ FIX CRITIQUE: Utiliser les classes pour gérer la visibilité
     this.container.classList.add('hidden');
     
     if (this.isUnifiedInterface) {
@@ -914,14 +899,6 @@ export class DialogueUI {
     }
     
     this.completeHide();
-    
-    // ✅ FIX: Vérification finale
-    setTimeout(() => {
-      if (this.container) {
-        this.container.style.pointerEvents = 'none';
-        this.container.style.visibility = 'hidden';
-      }
-    }, 100);
   }
 
   completeHide() {
