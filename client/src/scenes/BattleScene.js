@@ -2309,13 +2309,17 @@ animateModernHealthBarToZero(hpBarContainer) {
           });
           
           // Flash rouge sur le défendeur
-          const originalTint = target.tint;
           target.setTint(0xff6b6b);
           this.tweens.add({
             targets: target,
-            tint: originalTint,
-            duration: 400,
-            ease: 'Power2.easeOut'
+            alpha: 0.8,
+            duration: 200,
+            yoyo: true,
+            onComplete: () => {
+              // Force le reset du tint ET de l'alpha
+              target.clearTint();
+              target.setAlpha(1);
+            }
           });
           
           // Phase 3 : Retour de l'attaquant
