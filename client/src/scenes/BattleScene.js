@@ -36,7 +36,9 @@ export class BattleScene extends Phaser.Scene {
     this.isActive = false;
     this.isVisible = false;
     this.isReadyForActivation = false;
-    
+    this.switchingAvailable = false;
+    this.availableSwitchCount = 0;
+    this.battleType = 'wild';
     // Localisation
     this.battleLocalizationReady = false;
     this.battleTranslator = null;
@@ -1387,20 +1389,21 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
         
-      case 'pokemon':
-        if (this.pokemonTeamUI) {
-          // Données d'équipe simulées pour test (le serveur enverra les vraies données)
-          const teamData = {
-            pokemon: this.getTestTeamData(),
-            activePokemonIndex: 0,
-            canSwitch: true
-          };
-          this.pokemonTeamUI.showForSwitch(teamData);
-        } else {
-          this.showActionMessage(t('battle.ui.messages.pokemon_change_unavailable'));
-          setTimeout(() => this.showActionButtons(), 2000);
-        }
-        break;
+        case 'pokemon':
+          if (this.pokemonTeamUI && this.switchingAvailable) {
+            // Utiliser l'état réel du serveur
+            this.pokemonTeamUI.showForSwitch();
+          } else if (!this.switchingAvailable) {
+            const message = this.battleType === 'wild' ? 
+              'Changement impossible en combat sauvage classique' :
+              'Aucun changement disponible actuellement';
+            this.showActionMessage(message);
+            setTimeout(() => this.showActionButtons(), 2000);
+          } else {
+            this.showActionMessage('Interface équipe non disponible');
+            setTimeout(() => this.showActionButtons(), 2000);
+          }
+          break;
         
       case 'run':
         if (!this.battleNetworkHandler) {
@@ -2002,6 +2005,12 @@ export class BattleScene extends Phaser.Scene {
       this.handleActionSelectionStart(data);
     });
 
+    this.events.on('switchingAvailable', (data) => {
+      console.log('🔄 [BattleScene] Changements disponibles:', data);
+      this.switchingAvailable = true;
+      this.availableSwitchCount = data.availableCount;
+      this.battleType = data.battleType;
+    });
     this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
     });
@@ -2156,14 +2165,6 @@ export class BattleScene extends Phaser.Scene {
       'bite': 'Morsure'
     };
     return moveNames[moveId] || moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }
-
-  getTestTeamData() {
-    return [
-      { id: 'p1', pokemonId: 25, name: 'Pikachu', level: 20, currentHp: 70, maxHp: 70, types: ['electric'] },
-      { id: 'p2', pokemonId: 4, name: 'Charmander', level: 18, currentHp: 0, maxHp: 65, types: ['fire'] },
-      { id: 'p3', pokemonId: 1, name: 'Bulbasaur', level: 16, currentHp: 45, maxHp: 60, types: ['grass'] }
-    ];
   }
   
   getMoveType(moveId) {
