@@ -56,30 +56,20 @@ export class ItemEditorModule {
 
     // ===== LIFECYCLE METHODS =====
 
-    async onTabActivated() {
+   async onTabActivated() {
     console.log('📦 [ItemEditor] Activation de l\'onglet Items');
 
     try {
-        // Attendre DOM
         await this.waitForDOM();
+        
+        // ✅ VÉRIFICATION DES ÉLÉMENTS SPÉCIFIQUES
+        this.checkItemEditorElements();
 
-        // ✅ VÉRIFIER L'INTERFACE AVANT TOUT
-        this.checkUIElements();
-
-        // Détecter le préfixe d'API avant tout appel
         await this.detectApiPrefix();
-
-        // Charger les stats
         await this.loadStats();
         this.updateStatsHeader();
-
-        // Events
         this.setupEventListeners();
-
-        // Charger items
         await this.loadItems();
-
-        // Init dropdowns
         this.initializeDropdowns();
 
         console.log('✅ [ItemEditor] Activation terminée');
@@ -89,7 +79,6 @@ export class ItemEditorModule {
         this.adminPanel.showNotification('Erreur lors du chargement des items', 'error');
     }
 }
-
     async waitForDOM() {
         return new Promise((resolve) => {
             const checkDOM = () => {
@@ -424,39 +413,66 @@ checkUIElements() {
 
 
     updatePagination() {
-        const totalPages = Math.max(1, Math.ceil(this.filteredItems.length / this.itemsPerPage));
-        this.totalPages = totalPages;
-        if (this.currentPage > totalPages) this.currentPage = totalPages;
+    const totalPages = Math.max(1, Math.ceil(this.filteredItems.length / this.itemsPerPage));
+    this.totalPages = totalPages;
+    if (this.currentPage > totalPages) this.currentPage = totalPages;
 
-        // Info pagination
-        const infoElement = this.findElement('[id*="paginationInfo"], .pagination-info');
-        if (infoElement) {
-            if (this.filteredItems.length === 0) {
-                infoElement.textContent = `0-0 sur 0 items`;
-            } else {
-                const startItem = (this.currentPage - 1) * this.itemsPerPage + 1;
-                const endItem = Math.min(startItem + this.itemsPerPage - 1, this.filteredItems.length);
-                infoElement.textContent = `${startItem}-${endItem} sur ${this.filteredItems.length} items`;
-            }
-        }
-
-        // Contrôles pagination
-        const pageInfo = this.findElement('[id*="pageInfo"], .page-info');
-        if (pageInfo) pageInfo.textContent = `${this.currentPage} / ${this.totalPages}`;
-
-        const prevBtn = this.findElement('[id*="prevBtn"], .prev-btn, [onclick*="previous"]');
-        const nextBtn = this.findElement('[id*="nextBtn"], .next-btn, [onclick*="next"]');
-
-        if (prevBtn) {
-            prevBtn.disabled = this.currentPage <= 1;
-            prevBtn.style.opacity = this.currentPage <= 1 ? '0.5' : '1';
-        }
-
-        if (nextBtn) {
-            nextBtn.disabled = this.currentPage >= totalPages;
-            nextBtn.style.opacity = this.currentPage >= totalPages ? '0.5' : '1';
+    // ✅ SÉLECTEURS CORRIGÉS basés sur le diagnostic
+    const infoElement = document.getElementById('itemsPaginationInfo');
+    if (infoElement) {
+        if (this.filteredItems.length === 0) {
+            infoElement.textContent = `0-0 sur 0 items`;
+        } else {
+            const startItem = (this.currentPage - 1) * this.itemsPerPage + 1;
+            const endItem = Math.min(startItem + this.itemsPerPage - 1, this.filteredItems.length);
+            infoElement.textContent = `${startItem}-${endItem} sur ${this.filteredItems.length} items`;
         }
     }
+
+    // ✅ Pour les boutons de pagination, chercher les bons IDs
+    const prevBtn = document.getElementById('itemsPrevBtn');
+    const nextBtn = document.getElementById('itemsNextBtn');
+
+    if (prevBtn) {
+        prevBtn.disabled = this.currentPage <= 1;
+        prevBtn.style.opacity = this.currentPage <= 1 ? '0.5' : '1';
+    }
+
+    if (nextBtn) {
+        nextBtn.disabled = this.currentPage >= totalPages;
+        nextBtn.style.opacity = this.currentPage >= totalPages ? '0.5' : '1';
+    }
+}
+checkItemEditorElements() {
+    console.log('🔍 [ItemEditor] === VÉRIFICATION ÉLÉMENTS SPÉCIFIQUES ===');
+    
+    const elements = [
+        'itemEditorEmpty',
+        'itemEditorForm', 
+        'itemEditorActions',
+        'itemEditorTitle',
+        'itemEffectsList',
+        'itemObtainMethodsList',
+        'itemsPaginationInfo',
+        'itemsPrevBtn',
+        'itemsNextBtn'
+    ];
+
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            console.log(`✅ ${id}:`, {
+                found: true,
+                display: getComputedStyle(element).display,
+                visibility: getComputedStyle(element).visibility
+            });
+        } else {
+            console.error(`❌ ${id}: NON TROUVÉ`);
+        }
+    });
+    
+    console.log('🔍 [ItemEditor] === FIN VÉRIFICATION ===');
+}
 
     initializeDropdowns() {
         console.log('🎛️ [ItemEditor] Initialisation des dropdowns');
@@ -536,28 +552,33 @@ checkUIElements() {
     }
 }
 
-    showEmptyState() {
-        const emptyElement = this.findElement('[id*="editorEmpty"], .editor-empty');
-        const formElement = this.findElement('[id*="editorForm"], .editor-form, form');
-        const actionsElement = this.findElement('[id*="editorActions"], .editor-actions');
-        const titleElement = this.findElement('[id*="editorTitle"], .editor-title, h1, h2, h3');
+   showEmptyState() {
+    console.log('📝 [ItemEditor] showEmptyState() - Début');
+    
+    const emptyElement = document.getElementById('itemEditorEmpty');
+    const formElement = document.getElementById('itemEditorForm');
+    const actionsElement = document.getElementById('itemEditorActions');
+    const titleElement = document.getElementById('itemEditorTitle');
 
-        if (emptyElement) emptyElement.style.display = 'flex';
-        if (formElement) formElement.style.display = 'none';
-        if (actionsElement) actionsElement.style.display = 'none';
-        if (titleElement) titleElement.innerHTML = '<i class="fas fa-cube"></i> Sélectionnez un item';
-    }
+    if (emptyElement) emptyElement.style.display = 'flex';
+    if (formElement) formElement.style.display = 'none';
+    if (actionsElement) actionsElement.style.display = 'none';
+    if (titleElement) titleElement.innerHTML = '<i class="fas fa-cube"></i> Sélectionnez un item';
+    
+    console.log('📝 [ItemEditor] État vide affiché');
+}
+
 
    showItemEditor() {
-    console.log('📝 [ItemEditor] showItemEditor() - Début');
+    console.log('📝 [ItemEditor] showItemEditor() - Début (version corrigée)');
     
-    // Chercher tous les éléments possibles avec debug
-    const emptyElement = this.findElement('[id*="editorEmpty"], .editor-empty');
-    const formElement = this.findElement('[id*="editorForm"], .editor-form, form');
-    const actionsElement = this.findElement('[id*="editorActions"], .editor-actions');
-    const titleElement = this.findElement('[id*="editorTitle"], .editor-title, h1, h2, h3');
+    // ✅ SÉLECTEURS CORRIGÉS basés sur le diagnostic
+    const emptyElement = document.getElementById('itemEditorEmpty');
+    const formElement = document.getElementById('itemEditorForm'); 
+    const actionsElement = document.getElementById('itemEditorActions');
+    const titleElement = document.getElementById('itemEditorTitle');
 
-    console.log('📝 [ItemEditor] Éléments trouvés:');
+    console.log('📝 [ItemEditor] Éléments trouvés avec IDs spécifiques:');
     console.log('  - emptyElement:', emptyElement);
     console.log('  - formElement:', formElement);
     console.log('  - actionsElement:', actionsElement);
@@ -568,28 +589,15 @@ checkUIElements() {
         console.log('📝 [ItemEditor] Masquage état vide');
         emptyElement.style.display = 'none';
     } else {
-        console.warn('⚠️ [ItemEditor] Element état vide non trouvé');
+        console.warn('⚠️ [ItemEditor] Element itemEditorEmpty non trouvé');
     }
 
-    // Afficher le formulaire
+    // ✅ AFFICHER LE BON FORMULAIRE
     if (formElement) {
-        console.log('📝 [ItemEditor] Affichage formulaire');
+        console.log('📝 [ItemEditor] Affichage du formulaire itemEditorForm');
         formElement.style.display = 'block';
     } else {
-        console.error('❌ [ItemEditor] FORMULAIRE NON TROUVÉ ! Sélecteurs testés:');
-        console.error('  - [id*="editorForm"]');
-        console.error('  - .editor-form');
-        console.error('  - form');
-        
-        // Test des sélecteurs alternatifs
-        const allForms = document.querySelectorAll('form');
-        const allDivsWithForm = document.querySelectorAll('div[class*="form"]');
-        const allDivsWithEditor = document.querySelectorAll('div[class*="editor"]');
-        
-        console.log('🔍 [ItemEditor] Éléments alternatifs trouvés:');
-        console.log('  - Tous les <form>:', allForms.length, allForms);
-        console.log('  - Divs avec "form":', allDivsWithForm.length, allDivsWithForm);
-        console.log('  - Divs avec "editor":', allDivsWithEditor.length, allDivsWithEditor);
+        console.error('❌ [ItemEditor] Formulaire itemEditorForm non trouvé !');
     }
 
     // Afficher les actions
@@ -597,7 +605,7 @@ checkUIElements() {
         console.log('📝 [ItemEditor] Affichage actions');
         actionsElement.style.display = 'flex';
     } else {
-        console.warn('⚠️ [ItemEditor] Element actions non trouvé');
+        console.warn('⚠️ [ItemEditor] Element itemEditorActions non trouvé');
     }
 
     // Mettre à jour le titre
@@ -606,11 +614,14 @@ checkUIElements() {
         titleElement.innerHTML = `<i class="fas fa-cube"></i> ${this.escapeHtml(this.currentItem.name)}
             <span style="color: #666; font-size: 0.8em;">(${this.currentItem.itemId})</span>`;
     } else {
-        console.warn('⚠️ [ItemEditor] Element titre non trouvé ou item manquant');
+        console.warn('⚠️ [ItemEditor] Element itemEditorTitle non trouvé ou item manquant');
     }
 
     console.log('📝 [ItemEditor] showItemEditor() - Fin');
 }
+
+
+    
     // ===== SÉLECTION ET ÉDITION =====
 
     async selectItem(itemId) {
@@ -676,101 +687,109 @@ checkUIElements() {
     }
 
     populateEffects(effects) {
-        const container = this.findElement('[id*="effectsList"], .effects-list');
-        if (!container) return;
+    // ✅ SÉLECTEUR CORRIGÉ
+    const container = document.getElementById('itemEffectsList');
+    if (!container) {
+        console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
+        return;
+    }
 
-        if (effects.length === 0) {
-            container.innerHTML = `
-                <div style="padding: 2rem; text-align: center; color: #666;">
-                    <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                    <p>Aucun effet défini</p>
-                    <button onclick="window.itemEditorAddEffect()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                        <i class="fas fa-plus"></i> Ajouter un effet
-                    </button>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = effects.map((effect, index) => `
-            <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>${this.escapeHtml(effect.name || effect.id)}</strong>
-                        <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
-                    </div>
-                    <div>
-                        <button onclick="window.itemEditorEditEffect(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button onclick="window.itemEditorRemoveEffect(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                ${effect.description ? `<div style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">${this.escapeHtml(effect.description)}</div>` : ''}
-                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
-                    Actions: ${effect.actions?.length || 0} |
-                    Conditions: ${effect.conditions?.length || 0}
-                    ${effect.priority ? ` | Priorité: ${effect.priority}` : ''}
-                </div>
-            </div>
-        `).join('') + `
-            <div style="text-align: center; margin: 1rem 0;">
+    if (effects.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #666;">
+                <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>Aucun effet défini</p>
                 <button onclick="window.itemEditorAddEffect()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter un effet
                 </button>
             </div>
         `;
+        return;
     }
 
-    populateObtainMethods(methods) {
-        const container = this.findElement('[id*="obtainMethodsList"], .obtain-methods-list');
-        if (!container) return;
-
-        if (methods.length === 0) {
-            container.innerHTML = `
-                <div style="padding: 2rem; text-align: center; color: #666;">
-                    <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                    <p>Aucune méthode définie</p>
-                    <button onclick="window.itemEditorAddObtainMethod()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                        <i class="fas fa-plus"></i> Ajouter une méthode
+    container.innerHTML = effects.map((effect, index) => `
+        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${this.escapeHtml(effect.name || effect.id)}</strong>
+                    <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
+                </div>
+                <div>
+                    <button onclick="window.itemEditorEditEffect(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="window.itemEditorRemoveEffect(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = methods.map((method, index) => `
-            <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>${this.formatMethodName(method.method)}</strong>
-                        ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
-                    </div>
-                    <div>
-                        <button onclick="window.itemEditorEditObtainMethod(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button onclick="window.itemEditorRemoveObtainMethod(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
-                    ${method.chance ? `Chance: ${method.chance}% | ` : ''}
-                    ${method.cost ? `Coût: ${method.cost} ${method.currency || 'money'} | ` : ''}
-                    ${method.npc ? `NPC: ${method.npc}` : ''}
-                </div>
             </div>
-        `).join('') + `
-            <div style="text-align: center; margin: 1rem 0;">
+            ${effect.description ? `<div style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">${this.escapeHtml(effect.description)}</div>` : ''}
+            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
+                Actions: ${effect.actions?.length || 0} |
+                Conditions: ${effect.conditions?.length || 0}
+                ${effect.priority ? ` | Priorité: ${effect.priority}` : ''}
+            </div>
+        </div>
+    `).join('') + `
+        <div style="text-align: center; margin: 1rem 0;">
+            <button onclick="window.itemEditorAddEffect()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <i class="fas fa-plus"></i> Ajouter un effet
+            </button>
+        </div>
+    `;
+}
+
+    populateObtainMethods(methods) {
+    // ✅ SÉLECTEUR CORRIGÉ
+    const container = document.getElementById('itemObtainMethodsList');
+    if (!container) {
+        console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
+        return;
+    }
+
+    if (methods.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #666;">
+                <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>Aucune méthode définie</p>
                 <button onclick="window.itemEditorAddObtainMethod()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter une méthode
                 </button>
             </div>
         `;
+        return;
     }
+
+    container.innerHTML = methods.map((method, index) => `
+        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${this.formatMethodName(method.method)}</strong>
+                    ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
+                </div>
+                <div>
+                    <button onclick="window.itemEditorEditObtainMethod(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="window.itemEditorRemoveObtainMethod(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
+                ${method.chance ? `Chance: ${method.chance}% | ` : ''}
+                ${method.cost ? `Coût: ${method.cost} ${method.currency || 'money'} | ` : ''}
+                ${method.npc ? `NPC: ${method.npc}` : ''}
+            </div>
+        </div>
+    `).join('') + `
+        <div style="text-align: center; margin: 1rem 0;">
+            <button onclick="window.itemEditorAddObtainMethod()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <i class="fas fa-plus"></i> Ajouter une méthode
+            </button>
+        </div>
+    `;
+}
 
     // ===== ACTIONS =====
 
