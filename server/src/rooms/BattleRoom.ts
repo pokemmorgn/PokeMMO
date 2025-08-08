@@ -793,58 +793,59 @@ this.onMessage("attemptFlee", async (client, data) => {
     this.cleanupPlayer(client.sessionId);
   }
   
-  private async startBattleAuthentic() {
-    console.log(`🚀 [BattleRoom] Démarrage combat Pokémon authentique`);
+private async startBattleAuthentic() {
+  console.log(`🚀 [BattleRoom] Démarrage combat Pokémon authentique`);
+  
+  try {
+    const playerClient = Array.from(this.clients)[0];
+    if (!playerClient) throw new Error("Aucun client trouvé");
     
-    try {
-      const playerClient = Array.from(this.clients)[0];
-      if (!playerClient) throw new Error("Aucun client trouvé");
-      
-      const teamManager = this.teamManagers.get(playerClient.sessionId);
-      if (!teamManager) throw new Error("TeamManager non trouvé");
-      
-      const team = await teamManager.getTeam();
-      const firstPokemon = team.find(p => p.currentHp > 0 && p.moves?.length > 0);
-      if (!firstPokemon) throw new Error("Aucun Pokémon disponible");
-      
-      const player1Pokemon = await this.convertToBattleEnginePokemon(firstPokemon, false);
-      const player2Pokemon = await this.convertToBattleEnginePokemon(this.battleInitData.wildPokemon, true);
-      
-      const battleConfig: BattleConfig = {
-        type: this.state.battleType as any,
-        player1: {
-          sessionId: this.state.player1Id,
-          name: this.state.player1Name,
-          pokemon: player1Pokemon
-        },
-        opponent: {
-          sessionId: 'ai',
-          name: 'Pokémon Sauvage',
-          pokemon: player2Pokemon,
-          isAI: true
-        }
-      };
-      
-      const result = this.battleEngine.startBattle(battleConfig);
-      
-      if (result.success) {
-        this.battleGameState = result.gameState;
-        this.syncStateFromGameState();
-        
-        console.log(`✅ [BattleRoom] Combat Pokémon authentique démarré`);
-        console.log(`📖 [BattleRoom] Tour ${this.battleGameState.turnNumber} - ${result.events[0]}`);
-        
-      } else {
-        throw new Error(result.error || 'Erreur démarrage combat');
+    const teamManager = this.teamManagers.get(playerClient.sessionId);
+    if (!teamManager) throw new Error("TeamManager non trouvé");
+    
+    const team = await teamManager.getTeam();
+    const firstPokemon = team.find(p => p.currentHp > 0 && p.moves?.length > 0);
+    if (!firstPokemon) throw new Error("Aucun Pokémon disponible");
+    
+    const player1Pokemon = await this.convertToBattleEnginePokemon(firstPokemon, false);
+    const player2Pokemon = await this.convertToBattleEnginePokemon(this.battleInitData.wildPokemon, true);
+    
+    const battleConfig: BattleConfig = {
+      type: this.state.battleType as any,
+      player1: {
+        sessionId: this.state.player1Id,
+        name: this.state.player1Name,
+        pokemon: player1Pokemon
+      },
+      opponent: {
+        sessionId: 'ai',
+        name: 'Pokémon Sauvage',
+        pokemon: player2Pokemon,
+        isAI: true
       }
+    };
+    
+    // 🔧 CORRECTION: Await la promesse retournée par startBattle
+    const result = await this.battleEngine.startBattle(battleConfig);
+    
+    if (result.success) {
+      this.battleGameState = result.gameState;
+      this.syncStateFromGameState();
       
-    } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur démarrage:`, error);
-      this.broadcast("battleError", { 
-        message: error instanceof Error ? error.message : 'Erreur inconnue' 
-      });
+      console.log(`✅ [BattleRoom] Combat Pokémon authentique démarré`);
+      console.log(`📖 [BattleRoom] Tour ${this.battleGameState.turnNumber} - ${result.events[0]}`);
+      
+    } else {
+      throw new Error(result.error || 'Erreur démarrage combat');
     }
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur démarrage:`, error);
+    this.broadcast("battleError", { 
+      message: error instanceof Error ? error.message : 'Erreur inconnue' 
+    });
   }
+}
   
   private async convertToBattleEnginePokemon(pokemonData: any, isWild: boolean): Promise<Pokemon> {
     const baseData = await getPokemonById(pokemonData.pokemonId);
