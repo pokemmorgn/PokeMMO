@@ -765,8 +765,12 @@ export class BattleScene extends Phaser.Scene {
     
     this.actionInterface.setVisible(false);
     
-    // 🔧 CORRECTION SIMPLE - Ajouter écouteur clavier pour fermeture
+    // 🔧 CORRECTION SIMPLE - Ajouter écouteur clavier pour fermeture (avec délai)
+    let interfaceJustOpened = false;
+    
     this.input.keyboard.on('keydown-ESC', () => {
+      if (interfaceJustOpened) return; // Ignorer si vient d'ouvrir
+      
       console.log('🔧 [BattleScene] ESC pressé - Vérification interface équipe');
       if (this.pokemonTeamUI && this.pokemonTeamUI.isOpen && this.pokemonTeamUI.isOpen()) {
         console.log('🔧 [BattleScene] Fermeture interface équipe via ESC');
@@ -775,12 +779,21 @@ export class BattleScene extends Phaser.Scene {
       }
     });
     
-    // 🔧 CORRECTION SIMPLE - Ajouter clic sur vide pour fermer  
+    // 🔧 CORRECTION SIMPLE - Ajouter clic sur vide pour fermer (avec délai)  
     this.input.on('pointerdown', (pointer) => {
+      if (interfaceJustOpened) return; // Ignorer si vient d'ouvrir
+      
       // Si clic sur zone vide et interface équipe ouverte
       if (this.pokemonTeamUI && this.pokemonTeamUI.isOpen && this.pokemonTeamUI.isOpen()) {
-        // Vérifier si clic en dehors de l'interface
-        const interfaceZone = { x: 400, y: 300, width: 480, height: 360 }; // Zone approximative
+        // Vérifier si clic en dehors de l'interface (zone plus large)
+        const { width, height } = this.cameras.main;
+        const interfaceZone = { 
+          x: width * 0.2, 
+          y: height * 0.2, 
+          width: width * 0.6, 
+          height: height * 0.6 
+        };
+        
         if (pointer.x < interfaceZone.x || pointer.x > interfaceZone.x + interfaceZone.width ||
             pointer.y < interfaceZone.y || pointer.y > interfaceZone.y + interfaceZone.height) {
           console.log('🔧 [BattleScene] Clic extérieur - Fermeture interface équipe');
@@ -789,6 +802,14 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     });
+    
+    // Fonction helper pour marquer ouverture interface
+    this.markInterfaceOpened = () => {
+      interfaceJustOpened = true;
+      setTimeout(() => {
+        interfaceJustOpened = false;
+      }, 500); // Délai de protection
+    };
   }
 
   drawModernActionPanel(width, height, mode) {
@@ -1541,6 +1562,8 @@ export class BattleScene extends Phaser.Scene {
     
     console.log('🔗 [BattleScene] Configuration événements interface équipe');
     
+    // 🔧 DÉSACTIVER événements automatiques qui causent fermeture immédiate
+    /*
     // Écouter fermeture interface équipe
     if (this.pokemonTeamUI.on) {
       this.pokemonTeamUI.on('interfaceClosed', () => {
@@ -1563,6 +1586,9 @@ export class BattleScene extends Phaser.Scene {
         };
       }
     }
+    */
+    
+    console.log('⚠️ [BattleScene] Événements automatiques désactivés pour éviter fermeture immédiate');
   }
 
   /**
