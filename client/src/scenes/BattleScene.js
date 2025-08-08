@@ -15,6 +15,7 @@ import {
   isBattleTranslationsReady,
   loadBattleTranslations 
 } from '../managers/LocalizationManager.js';
+import { createPokemonTeamSwitchUI, setupTeamSwitchEvents } from '../Battle/PokemonTeamSwitchUI.js';
 
 let pokemonSpriteConfig = null;
 
@@ -52,7 +53,7 @@ export class BattleScene extends Phaser.Scene {
     this.actionMessageText = null;
     this.battleDialog = null;
     this.battleUI = null;
-    
+    this.pokemonTeamUI = null;
     // Données
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
@@ -118,6 +119,9 @@ export class BattleScene extends Phaser.Scene {
       this.isReadyForActivation = true;
       this.initializeCaptureManager();
       this.initializeBattleLocalization();
+      if (this.battleNetworkHandler) {
+        this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
+      }
     } catch (error) {
       console.error('[BattleScene] Erreur création:', error);
     }
@@ -1384,8 +1388,18 @@ export class BattleScene extends Phaser.Scene {
         break;
         
       case 'pokemon':
-        this.showActionMessage(t('battle.ui.messages.pokemon_change_unavailable'));
-        setTimeout(() => this.showActionButtons(), 2000);
+        if (this.pokemonTeamUI) {
+          // Données d'équipe simulées pour test (le serveur enverra les vraies données)
+          const teamData = {
+            pokemon: this.getTestTeamData(),
+            activePokemonIndex: 0,
+            canSwitch: true
+          };
+          this.pokemonTeamUI.showForSwitch(teamData);
+        } else {
+          this.showActionMessage(t('battle.ui.messages.pokemon_change_unavailable'));
+          setTimeout(() => this.showActionButtons(), 2000);
+        }
         break;
         
       case 'run':
@@ -2144,6 +2158,14 @@ export class BattleScene extends Phaser.Scene {
     return moveNames[moveId] || moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
+  getTestTeamData() {
+    return [
+      { id: 'p1', pokemonId: 25, name: 'Pikachu', level: 20, currentHp: 70, maxHp: 70, types: ['electric'] },
+      { id: 'p2', pokemonId: 4, name: 'Charmander', level: 18, currentHp: 0, maxHp: 65, types: ['fire'] },
+      { id: 'p3', pokemonId: 1, name: 'Bulbasaur', level: 16, currentHp: 45, maxHp: 60, types: ['grass'] }
+    ];
+  }
+  
   getMoveType(moveId) {
     const moveTypes = {
       'tackle': 'normal',
