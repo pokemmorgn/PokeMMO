@@ -815,6 +815,9 @@ async createNPCOfType(npcType, tileX, tileY) {
                 npcType: npcType,
                 isFromMap: false,
                 
+                // ✅ MARQUER COMME DÉJÀ SAUVEGARDÉ
+                isSavedInDB: true,  // ✅ NOUVEAU FLAG
+                
                 // Propriétés complètes
                 interactionRadius: npcData.interactionRadius,
                 canWalkAway: npcData.canWalkAway,
@@ -848,7 +851,6 @@ async createNPCOfType(npcType, tileX, tileY) {
     this.closeNPCTypeSelector()
     this.renderMap()
 }
-
 
 // ✅ Fermer la modal
 closeNPCTypeSelector() {
@@ -1110,9 +1112,7 @@ async saveMapObjects() {
 
     console.log(`💾 [MapEditor] Saving objects for zone: ${mapId}`)
     
-    // ✅ SEULEMENT LES OBJETS DE placedObjects (pas TMJ)
     const objectsToSave = [...this.placedObjects]
-    
     const gameObjects = objectsToSave.filter(obj => obj.type !== 'npc')
     const npcs = objectsToSave.filter(obj => obj.type === 'npc')
     
@@ -1123,9 +1123,9 @@ async saveMapObjects() {
         await this.saveGameObjects(mapId, gameObjects)
     }
     
-    // 2. Sauvegarder NPCs avec IDs stables (UPDATE seulement)
+    // 2. Sauvegarder NPCs - CORRECTION ICI
     if (npcs.length > 0) {
-        await this.saveNPCsWithStableIds(mapId, npcs)
+        await this.saveNPCsSmartly(mapId, npcs)  // ✅ NOUVELLE MÉTHODE
     }
     
     if (gameObjects.length === 0 && npcs.length === 0) {
@@ -1133,6 +1133,76 @@ async saveMapObjects() {
     }
 }
 
+    async saveNPCsSmartly(mapId, npcs) {
+    try {
+        console.log(`👤 [MapEditor] Smart saving ${npcs.length} NPCs for ${mapId}`)
+        
+        let savedCount = 0
+        let updatedCount = 0
+        let skippedCount = 0
+        let errorCount = 0
+        
+        for (const npc of npcs) {
+            try {
+                const globalId = npc.globalId || npc.id
+                
+                if (!globalId) {
+                    console.error(`❌ [MapEditor] NPC "${npc.name}" has no global ID - skipping`)
+                    errorCount++
+                    continue
+                }
+                
+                // ✅ VÉRIFIER SI LE NPC EST DÉJÀ SAUVEGARDÉ
+                if (npc.isSavedInDB === true) {
+                    console.log(`⏭️ [MapEditor] NPC ${globalId} already saved in DB during creation - skipping`)
+                    skippedCount++
+                    continue
+                }
+                
+                console.log(`🔄 [MapEditor] Updating NPC position: ${globalId} ("${npc.name}")`)
+                
+                // ✅ MISE À JOUR DE POSITION SEULEMENT
+                const npcUpdateData = {
+                    position: {
+                        x: npc.x * this.currentMapData.tilewidth,
+                        y: npc.y * this.currentMapData.tileheight
+                    }
+                    // Pas besoin de tous les autres champs, ils sont déjà en base
+                }
+                
+                const response = await this.adminPanel.apiCall(`/zones/${mapId}/npcs/${globalId}/update-single`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ npcData: npcUpdateData })
+                })
+                
+                if (response.success) {
+                    updatedCount++
+                    // ✅ MARQUER COMME SAUVEGARDÉ
+                    npc.isSavedInDB = true
+                    console.log(`✅ [MapEditor] NPC position updated: ${globalId}`)
+                } else {
+                    throw new Error(response.error || 'Erreur mise à jour NPC')
+                }
+                
+            } catch (error) {
+                errorCount++
+                console.error(`❌ [MapEditor] Error saving NPC "${npc.name}":`, error)
+            }
+        }
+        
+        const message = `NPCs: ${updatedCount} mis à jour, ${skippedCount} déjà sauvés` + 
+                       (errorCount > 0 ? ` (${errorCount} erreurs)` : '')
+        
+        this.adminPanel.showNotification(message, (updatedCount + skippedCount) > 0 ? 'success' : 'warning')
+        
+        console.log(`✅ [MapEditor] Smart NPCs save: ${updatedCount} updated, ${skippedCount} skipped, ${errorCount} errors`)
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error in smart NPC saving:', error)
+        this.adminPanel.showNotification('Erreur sauvegarde NPCs: ' + error.message, 'error')
+    }
+}
+    
 // 10. ✅ NOUVELLE MÉTHODE - Sauvegarder NPCs avec IDs stables (UPDATE ONLY)
 async saveNPCsWithStableIds(mapId, npcs) {
     try {
@@ -1794,13 +1864,12 @@ async loadObjectsFromDatabaseOnly(mapId) {
             const allObjects = response.data.objects
             console.log(`📦 [MapEditor] Found ${allObjects.length} objects in MongoDB`)
             
-            // Séparer gameobjects et NPCs
             const gameObjects = allObjects.filter(obj => obj.type !== 'npc')
             const npcs = allObjects.filter(obj => obj.type === 'npc')
             
             console.log(`📊 [MapEditor] GameObjects: ${gameObjects.length}, NPCs: ${npcs.length}`)
             
-            // ✅ TRAITER LES GAMEOBJECTS
+            // GameObjects (inchangé)
             gameObjects.forEach(obj => {
                 if (obj.position || (obj.x !== undefined && obj.y !== undefined)) {
                     const editorObject = {
@@ -1814,18 +1883,18 @@ async loadObjectsFromDatabaseOnly(mapId) {
                         cooldown: obj.cooldown || 24,
                         rarity: obj.rarity || 'common',
                         sprite: obj.sprite,
-                        isFromMap: false // ✅ Tous les objets DB sont éditables
+                        isFromMap: false
                     }
                     this.placedObjects.push(editorObject)
                 }
             })
             
-            // ✅ TRAITER LES NPCs AVEC ID GLOBAL STABLE
+            // ✅ NPCs avec flag isSavedInDB
             npcs.forEach(npc => {
                 if (npc.x !== undefined && npc.y !== undefined) {
                     const editorNPC = {
-                        id: npc.id || npc.globalId,           // ✅ ID GLOBAL STABLE
-                        globalId: npc.id || npc.globalId,     // ✅ Backup globalId
+                        id: npc.id || npc.globalId,
+                        globalId: npc.id || npc.globalId,
                         type: 'npc',
                         x: Math.floor(npc.x / this.currentMapData.tilewidth),
                         y: Math.floor(npc.y / this.currentMapData.tileheight),
@@ -1833,9 +1902,12 @@ async loadObjectsFromDatabaseOnly(mapId) {
                         sprite: npc.sprite || 'npc_default',
                         direction: npc.direction || 'south',
                         npcType: npc.npcType || 'dialogue',
-                        isFromMap: false, // ✅ Tous les NPCs DB sont éditables
+                        isFromMap: false,
                         
-                        // ✅ STOCKER TOUTES LES PROPRIÉTÉS POUR ÉDITION
+                        // ✅ MARQUER COMME DÉJÀ EN BASE
+                        isSavedInDB: true,
+                        
+                        // Propriétés pour édition
                         interactionRadius: npc.interactionRadius || 32,
                         canWalkAway: npc.canWalkAway !== false,
                         autoFacePlayer: npc.autoFacePlayer !== false,
@@ -1852,7 +1924,7 @@ async loadObjectsFromDatabaseOnly(mapId) {
                         customProperties: npc.customProperties || {}
                     }
                     
-                    console.log(`👤 [MapEditor] Added NPC: ${editorNPC.name} (GlobalID: ${editorNPC.globalId}) at tile (${editorNPC.x}, ${editorNPC.y})`)
+                    console.log(`👤 [MapEditor] Loaded existing NPC: ${editorNPC.name} (GlobalID: ${editorNPC.globalId}) - marked as saved`)
                     this.placedObjects.push(editorNPC)
                 }
             })
