@@ -1,5 +1,6 @@
 // server/src/battle/BattleEngine.ts
 // 🚀 SESSION 3 FINALE - EXTENSION COMPLÈTE POUR COMBATS DRESSEURS
+// 🎯 MODIFICATION: SUPPRESSION TIMEOUTS POUR COMBATS SOLO/IA
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -79,20 +80,20 @@ export class BattleEngine {
   private broadcastManager: BroadcastManager | null = null;
   private spectatorManager: SpectatorManager | null = null;
 
-  // Timers & timeouts - OPTIMISÉS
+  // 🎯 TIMEOUTS RÉVISÉS - SEULEMENT TECHNIQUES
+  // ❌ SUPPRIMÉ: turnTimeoutId, aiActionTimer (pas de timeout pour actions)
+  // ✅ GARDE: battleTimeoutId (seulement pour crash/nettoyage technique)
   private battleTimeoutId: NodeJS.Timeout | null = null;
-  private turnTimeoutId: NodeJS.Timeout | null = null;
   private introTimer: NodeJS.Timeout | null = null;
-  private aiActionTimer: NodeJS.Timeout | null = null;
 
   // Configuration optimisée
   private turnCounter = 0;
   private transitionAttempts = 0;
-  private readonly MAX_TURNS = 50;
+  private readonly MAX_TURNS = 200; // 🎯 AUGMENTÉ: pas de limite artificielle
   private readonly MAX_TRANSITION_ATTEMPTS = 3;
-  private readonly BATTLE_TIMEOUT_MS = 45000; // 🆕 Augmenté pour dresseurs
-  private readonly TURN_TIMEOUT_MS = 600000; // 🆕 Augmenté pour changements
-  private readonly AI_ACTION_DELAY = 800; // 🆕 Plus réaliste
+  // 🎯 TIMEOUT TECHNIQUE SEULEMENT (crash/nettoyage, pas pour actions)
+  private readonly BATTLE_CRASH_TIMEOUT_MS = 1800000; // 30 minutes (technique seulement)
+  // ❌ SUPPRIMÉ: TURN_TIMEOUT_MS, AI_ACTION_DELAY
 
   // Events
   private eventListeners = new Map<string, Function[]>();
@@ -125,7 +126,7 @@ export class BattleEngine {
       // 🆕 INITIALISATION MODULES ÉTENDUS
       this.initializeExtendedModules();
       this.initializeAllModules();
-      this.startBattleTimeout();
+      this.startBattleTimeout(); // 🎯 SEULEMENT timeout technique
       
       // 🆕 SYSTÈME IA ÉTENDU
       await this.initializeExtendedAISystem();
@@ -171,14 +172,12 @@ export class BattleEngine {
     // 🆕 AUTO-DÉTECTION COMBAT DRESSEUR
     if (isTrainerBattleConfig(config)) {
       console.log('🎯 [BattleEngine] Combat dresseur détecté, redirection...');
-      // Méthode async, on doit gérer différemment
       this.startTrainerBattle(config).then(result => {
         if (!result.success) {
           console.error('❌ [BattleEngine] Échec combat dresseur:', result.error);
         }
       });
       
-      // Retour immédiat pour compatibilité
       return {
         success: true,
         gameState: this.gameState,
@@ -194,7 +193,7 @@ export class BattleEngine {
       this.isTrainerBattle = false;
       
       this.initializeAllModules();
-      this.startBattleTimeout();
+      this.startBattleTimeout(); // 🎯 SEULEMENT timeout technique
       this.initializeAISystem();
       
       this.isInitialized = true;
@@ -227,7 +226,6 @@ export class BattleEngine {
    * 🆕 MÉTHODE SOUMISSION ÉTENDUE : Support changements
    */
 async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-  // 🚨 DEBUG: Log TOUTES les entrées dans submitAction
   console.log('🚨 [BattleEngine] submitAction() ENTRY:');
   console.log(`    action.playerId: "${action.playerId}"`);
   console.log(`    action.type: "${action.type}"`);
@@ -294,9 +292,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
 
       // 🔥 VÉRIFICATION ACTIONS PRÊTES OPTIMISÉE
       if (this.actionQueue.areAllActionsReady()) {
-        this.clearActionTimers();
-        this.clearTurnTimeout();
-        
+        // 🎯 PLUS DE CLEAR TIMEOUT (plus de timeout pour actions)
         const transitionSuccess = this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
         if (!transitionSuccess) {
           console.error('❌ [BattleEngine] Échec transition vers résolution');
@@ -328,14 +324,11 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     }
 
     try {
-      // Traiter via SwitchManager
       const switchResult = await this.switchManager.processSwitchAction(switchAction);
       
       if (switchResult.success) {
-        // 🆕 MISE À JOUR GAMESTATE APRÈS CHANGEMENT
         this.updateGameStateAfterSwitch(playerRole, switchResult);
         
-        // 🆕 TRACKING IA CHANGEMENT
         this.trackPlayerActionInBattle(switchAction.playerId, 'POKEMON_SWITCH', {
           fromIndex: switchAction.data.fromPokemonIndex,
           toIndex: switchAction.data.toPokemonIndex,
@@ -387,11 +380,9 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     console.log('🎮 [BattleEngine] Initialisation Team Managers...');
     
     try {
-      // Team Manager joueur
       this.playerTeamManager = new TrainerTeamManager(config.player1.sessionId);
       this.playerTeamManager.initializeWithPokemon(config.playerTeam);
       
-      // Team Manager dresseur (IA)
       this.trainerTeamManager = new TrainerTeamManager('ai');
       this.trainerTeamManager.initializeWithPokemon(config.trainer.pokemon);
       
@@ -410,7 +401,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     console.log('🔧 [BattleEngine] Initialisation modules étendus...');
     
     try {
-      // SwitchManager avec Team Managers
       if (this.playerTeamManager && this.trainerTeamManager) {
         this.switchManager.initialize(
           this.gameState,
@@ -421,7 +411,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
         console.log('✅ [BattleEngine] SwitchManager initialisé');
       }
       
-      // TrainerAI avec données dresseur et AINPCManager
       if (this.trainerData) {
         this.trainerAI.initialize(
           this.trainerData,
@@ -431,11 +420,9 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
         console.log('✅ [BattleEngine] TrainerAI initialisé');
       }
       
-      // TrainerRewardManager
       this.trainerRewardManager.initialize(this.gameState);
       console.log('✅ [BattleEngine] TrainerRewardManager initialisé');
       
-      // Configuration ActionQueue pour changements
       this.actionQueue.configureSwitchBehavior(true, 2, 'priority');
       
     } catch (error) {
@@ -449,11 +436,9 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
    */
   private async initializeExtendedAISystem(): Promise<void> {
     try {
-      // 🔥 IA SYSTÈME EXISTANT
       await this.aiNPCManager.initialize();
       this.registerPlayersInAI();
       
-      // 🆕 ENREGISTRER DRESSEUR COMME NPC
       if (this.trainerData) {
         await this.registerTrainerAsNPC();
       }
@@ -536,7 +521,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     
     try {
       const playerName = this.getPlayerName(playerId);
-      if (playerName === playerId) return; // Skip si pas de nom résolu
+      if (playerName === playerId) return;
       
       this.aiNPCManager.trackPlayerAction(
         playerName,
@@ -561,17 +546,16 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     if (playerId === this.gameState.player1.sessionId) {
       return this.gameState.player1.name;
     }
-    return playerId; // Fallback
+    return playerId;
   }
 
   // === 🔥 GESTION PHASES AMÉLIORÉE ===
 
   private handleActionSelectionPhase(): void {
-    this.clearActionTimers();
-    this.clearTurnTimeout();
+    // 🎯 PLUS DE CLEAR TIMEOUT (pas de timeout pour actions)
     this.actionQueue.clear();
     this.resetSubPhaseState();
-    this.startTurnTimeout();
+    // 🎯 PLUS DE START TURN TIMEOUT
 
     // 🆕 RESET COMPTEURS SWITCH POUR NOUVEAU TOUR
     if (this.isTrainerBattle && this.switchManager.isReady()) {
@@ -582,10 +566,13 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       canAct: true,
       gameState: this.gameState,
       turnNumber: this.gameState.turnNumber,
-      isTrainerBattle: this.isTrainerBattle
+      isTrainerBattle: this.isTrainerBattle,
+      // 🎯 PAS DE TIME LIMIT (authentique Pokémon)
+      noTimeLimit: true,
+      message: "Prenez tout le temps nécessaire pour choisir votre action"
     });
 
-    // 🆕 IA DRESSEUR AMÉLIORÉE
+    // 🆕 IA DRESSEUR AMÉLIORÉE (mais pas de timeout)
     if (this.isTrainerBattle) {
       this.scheduleTrainerAIAction();
     } else {
@@ -594,20 +581,21 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
   }
 
   /**
-   * 🆕 IA Dresseur intelligente
+   * 🆕 IA Dresseur intelligente (SANS timeout)
    */
   private scheduleTrainerAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
     
-    const delay = this.trainerAI.isReady() ? 
+    // 🎯 IA NATURELLE: Délai de réflexion réaliste mais pas de timeout
+    const thinkingDelay = this.trainerAI.isReady() ? 
       this.trainerAI.getThinkingDelay() : 
-      this.AI_ACTION_DELAY;
+      1200; // Délai de réflexion naturel
     
-    this.aiActionTimer = setTimeout(() => {
+    setTimeout(() => {
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
         this.executeTrainerAIAction();
       }
-    }, delay);
+    }, thinkingDelay);
   }
 
   /**
@@ -621,7 +609,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
         return;
       }
 
-      // 🆕 DÉCISION IA INTELLIGENTE
       const aiDecision = this.trainerAI.makeDecision(
         this.gameState,
         this.playerTeamManager?.getActivePokemon() || null,
@@ -631,9 +618,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       if (aiDecision.success && aiDecision.action) {
         console.log(`🧠 [BattleEngine] IA dresseur: ${aiDecision.action.type} (stratégie: ${aiDecision.strategy})`);
         
-        // 🆕 TRACKING DÉCISION IA
         this.trackAIDecision(aiDecision);
-        
         this.submitAction(aiDecision.action);
       } else {
         console.log('⚠️ [BattleEngine] IA dresseur échec, fallback');
@@ -642,7 +627,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       
     } catch (error) {
       console.error('❌ [BattleEngine] Erreur IA dresseur:', error);
-      this.executeAIAction(); // Fallback
+      this.executeAIAction();
     }
   }
 
@@ -653,7 +638,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     try {
       this.aiNPCManager.trackPlayerAction(
         'AI_TRAINER',
-        ActionType.NPC_TALK, // Réutilise ce type pour les décisions IA
+        ActionType.NPC_TALK,
         {
           strategy: aiDecision.strategy,
           actionType: aiDecision.action?.type,
@@ -690,13 +675,11 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     if (player1KO.isKO || player2KO.isKO) {
       console.log(`💀 [BattleEngine] KO détecté - P1: ${player1KO.isKO}, P2: ${player2KO.isKO}`);
       
-      // 🆕 GESTION KO SPÉCIFIQUE DRESSEURS
       if (this.isTrainerBattle) {
         await this.handleTrainerBattleKO(player1KO, player2KO);
         return;
       }
       
-      // 🔥 GESTION KO COMBAT SAUVAGE (EXISTANTE)
       if (this.broadcastManager) {
         if (player1KO.isKO) {
           this.broadcastManager.emit('pokemonFainted', {
@@ -729,12 +712,10 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     console.log('💀 [BattleEngine] Gestion KO combat dresseur...');
     
     try {
-      // Traiter KO joueur
       if (player1KO.isKO && this.playerTeamManager) {
         await this.handlePlayerKO('player1');
       }
       
-      // Traiter KO dresseur
       if (player2KO.isKO && this.trainerTeamManager) {
         await this.handleTrainerKO('player2');
       }
@@ -755,7 +736,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     const analysis = teamManager.analyzeTeam();
     
     if (!analysis.battleReady) {
-      // Équipe vaincue
       console.log(`💀 [BattleEngine] Équipe ${playerRole} vaincue !`);
       const winner = playerRole === 'player1' ? 'player2' : 'player1';
       
@@ -763,13 +743,11 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       return;
     }
 
-    // Changement forcé nécessaire
     console.log(`🔄 [BattleEngine] Changement forcé requis pour ${playerRole}`);
     
     const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
     
     if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
-      // Changement réussi
       this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
       
       this.emit('pokemonSwitched', {
@@ -781,7 +759,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       
       await this.completeActionResolution();
     } else {
-      // Équipe vaincue ou erreur
       const winner = playerRole === 'player1' ? 'player2' : 'player1';
       await this.handleTrainerBattleEnd(winner, 'team_defeat');
     }
@@ -791,7 +768,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
    * 🆕 Gestion KO dresseur (identique logique)
    */
   private async handleTrainerKO(playerRole: PlayerRole): Promise<void> {
-    await this.handlePlayerKO(playerRole); // Même logique
+    await this.handlePlayerKO(playerRole);
   }
 
   /**
@@ -804,7 +781,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     this.gameState.winner = winner;
     
     try {
-      // 🆕 CALCUL ET ATTRIBUTION RÉCOMPENSES
       if (winner === 'player1' && this.trainerData) {
         const rewards = await this.trainerRewardManager.calculateAndGiveRewards(
           this.gameState.player1.name,
@@ -817,7 +793,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
         this.emit('rewardsEarned', rewards);
       }
       
-      // 🆕 TRACKING FIN COMBAT POUR IA
       this.trackTrainerBattleEnd(winner, reason);
       
     } catch (error) {
@@ -875,43 +850,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
   }
 
-  // === UTILITAIRES ET COMPATIBILITÉ ===
-
-  private validateTrainerConfig(config: TrainerBattleConfig): void {
-    if (!config.player1?.name || !config.playerTeam?.length) {
-      throw new Error('Configuration joueur invalide');
-    }
-    if (!config.trainer?.name || !config.trainer.pokemon?.length) {
-      throw new Error('Configuration dresseur invalide');
-    }
-    if (config.type !== 'trainer') {
-      throw new Error('Type de combat doit être "trainer"');
-    }
-  }
-
-  private initializeTrainerGameState(config: TrainerBattleConfig): BattleGameState {
-    return {
-      battleId: `trainer_battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: 'trainer',
-      phase: 'battle',
-      turnNumber: 1,
-      currentTurn: 'player1',
-      player1: {
-        sessionId: config.player1.sessionId,
-        name: config.player1.name,
-        pokemon: config.playerTeam[0] // Premier Pokémon actif
-      },
-      player2: {
-        sessionId: 'ai',
-        name: config.trainer.name,
-        pokemon: config.trainer.pokemon[0], // Premier Pokémon du dresseur
-        isAI: true
-      },
-      isEnded: false,
-      winner: null
-    };
-  }
-
   // === MÉTHODES PRÉSERVÉES SYSTÈME EXISTANT ===
   
   async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
@@ -923,7 +861,6 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
       return null;
     }
     
-    // 🆕 UTILISER TRAINER AI SI DISPONIBLE
     if (this.isTrainerBattle && this.trainerAI.isReady()) {
       const decision = this.trainerAI.makeDecision(
         this.gameState,
@@ -1033,7 +970,7 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
 
   private async handleActionResolutionPhase(): Promise<void> {
     this.isProcessingActions = true;
-    this.clearTurnTimeout();
+    // 🎯 PLUS DE CLEAR TURN TIMEOUT
 
     try {
       const allActions = this.actionQueue.getAllActions();
@@ -1079,9 +1016,7 @@ private async processAllActionsRapidly(): Promise<void> {
           playerRole: actionData.playerRole
         });
         
-        // ✅ GESTION TIMING AVEC BROADCASTMANAGER
         if (this.broadcastManager && actionData.action.type === 'attack') {
-          // Créer les données d'attaque pour BroadcastManager
           const defenderRole = result.data.defenderRole;
           const defenderPokemon = defenderRole === 'player1' ? 
             this.gameState.player1.pokemon : 
@@ -1107,7 +1042,6 @@ private async processAllActionsRapidly(): Promise<void> {
             isKnockedOut: result.data.isKnockedOut || false
           };
           
-          // ✅ ÉMETTRE AVEC TIMING AUTOMATIQUE
           await this.broadcastManager.emitAttackSequence(attackSequenceData);
         }
       }
@@ -1116,15 +1050,13 @@ private async processAllActionsRapidly(): Promise<void> {
       continue;
     }
     
-    // ✅ DÉLAI ENTRE LES ACTIONS (si plusieurs)
     if (i < this.orderedActions.length - 1) {
-      await this.delay(800); // 800ms entre chaque attaque
+      await this.delay(800);
     }
   }
 
   await this.performKOCheckPhase();
 }
-
 
   private async completeActionResolution(): Promise<void> {
     if (!this.isInitialized || this.battleEndHandled) return;
@@ -1133,7 +1065,7 @@ private async processAllActionsRapidly(): Promise<void> {
     
     if (this.turnCounter > this.MAX_TURNS) {
       console.log(`⏰ [BattleEngine] Max turns atteint (${this.MAX_TURNS}), fin combat`);
-      this.forceBattleEnd('max_turns_reached', 'Combat trop long');
+      this.forceBattleEnd('max_turns_reached', 'Combat très long');
       return;
     }
 
@@ -1158,17 +1090,18 @@ private async processAllActionsRapidly(): Promise<void> {
     }
   }
 
-  // [Le reste des méthodes existantes reste identique...]
-  // Toutes les méthodes de gestion des timers, utilitaires, etc. sont préservées
+  // 🎯 MÉTHODES TIMEOUT RÉVISÉES - SEULEMENT IA ET TECHNIQUE
 
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
-    const delay = this.AI_ACTION_DELAY;
-    this.aiActionTimer = setTimeout(() => {
+    
+    // 🎯 DÉLAI NATUREL DE RÉFLEXION IA (pas un timeout)
+    const thinkingDelay = 800;
+    setTimeout(() => {
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
         this.executeAIAction();
       }
-    }, delay);
+    }, thinkingDelay);
   }
 
   private executeAIAction(): void {
@@ -1201,108 +1134,18 @@ private async processAllActionsRapidly(): Promise<void> {
     }
   }
 
+  // 🎯 TIMEOUT TECHNIQUE SEULEMENT (pour crash/nettoyage)
   private startBattleTimeout(): void {
     this.clearBattleTimeout();
     this.battleTimeoutId = setTimeout(() => {
       if (!this.battleEndHandled) {
-        this.forceBattleEnd('timeout', 'Combat interrompu par timeout');
+        console.log('🧹 [BattleEngine] Timeout technique - Nettoyage après 30 minutes');
+        this.forceBattleEnd('technical_timeout', 'Nettoyage technique automatique');
       }
-    }, this.BATTLE_TIMEOUT_MS);
+    }, this.BATTLE_CRASH_TIMEOUT_MS);
   }
 
-  private startTurnTimeout(): void {
-    this.clearTurnTimeout();
-    this.turnTimeoutId = setTimeout(() => {
-      if (!this.battleEndHandled) {
-        this.handleTurnTimeout();
-      }
-    }, this.TURN_TIMEOUT_MS);
-  }
-
-  private handleTurnTimeout(): void {
-    try {
-      console.log('⏰ [BattleEngine] Timeout tour détecté');
-      
-      if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION) {
-        this.forceDefaultActions();
-      }
-      if (this.getCurrentPhase() === InternalBattlePhase.ACTION_RESOLUTION) {
-        this.forceResolutionComplete();
-      }
-      if (!this.gameState.isEnded && !this.battleEndHandled) {
-        this.forceNextTurn();
-      }
-    } catch (error) {
-      console.error('❌ [BattleEngine] Erreur timeout:', error);
-      this.forceBattleEnd('error', 'Erreur timeout');
-    }
-  }
-
-  private forceDefaultActions(): void {
-    console.log('🔧 [BattleEngine] Force actions par défaut');
-    
-    if (!this.actionQueue.hasAction('player1')) {
-      const defaultAction: BattleAction = {
-        actionId: `timeout_action_p1_${Date.now()}`,
-        playerId: this.gameState.player1.sessionId,
-        type: 'attack',
-        data: { moveId: 'tackle' },
-        timestamp: Date.now()
-      };
-      
-      if (this.gameState.player1.pokemon) {
-        this.actionQueue.addAction('player1', defaultAction, this.gameState.player1.pokemon);
-      }
-    }
-
-    if (!this.actionQueue.hasAction('player2')) {
-      const defaultAction: BattleAction = {
-        actionId: `timeout_action_p2_${Date.now()}`,
-        playerId: this.gameState.player2.sessionId,
-        type: 'attack',
-        data: { moveId: 'tackle' },
-        timestamp: Date.now()
-      };
-      
-      if (this.gameState.player2.pokemon) {
-        this.actionQueue.addAction('player2', defaultAction, this.gameState.player2.pokemon);
-      }
-    }
-
-    if (this.actionQueue.areAllActionsReady()) {
-      this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'timeout_force');
-    }
-  }
-
-  private forceResolutionComplete(): void {
-    console.log('🔧 [BattleEngine] Force fin résolution');
-    
-    this.isProcessingActions = false;
-    this.resetSubPhaseState();
-    this.gameState.turnNumber++;
-
-    this.emit('resolutionComplete', {
-      actionsExecuted: 0,
-      battleEnded: false,
-      newTurnNumber: this.gameState.turnNumber,
-      message: "Tour forcé terminé par timeout"
-    });
-
-    if (this.isInitialized && !this.gameState.isEnded && !this.battleEndHandled) {
-      if (!this.phaseManager.isReady()) {
-        this.phaseManager.initialize(this.gameState);
-      }
-      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'timeout_force_complete');
-    }
-  }
-
-  private forceNextTurn(): void {
-    console.log('🔧 [BattleEngine] Force tour suivant');
-    
-    this.gameState.turnNumber++;
-    this.actionQueue.clear();
-    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'timeout_next_turn');
-  }
+  // 🎯 MÉTHODES SIMPLIFIÉES (plus de timeout pour actions)
 
   private forceBattleEnd(reason: string, message: string): void {
     if (this.battleEndHandled) {
@@ -1462,11 +1305,11 @@ private async processAllActionsRapidly(): Promise<void> {
     return result;
   }
 
+  // 🎯 NETTOYAGE TIMEOUTS SIMPLIFIÉ
   private clearAllTimers(): void {
     this.clearIntroTimer();
-    this.clearActionTimers();
     this.clearBattleTimeout();
-    this.clearTurnTimeout();
+    // 🎯 PLUS DE turnTimeoutId, aiActionTimer (supprimés)
   }
 
   private clearIntroTimer(): void {
@@ -1476,24 +1319,10 @@ private async processAllActionsRapidly(): Promise<void> {
     }
   }
 
-  private clearActionTimers(): void {
-    if (this.aiActionTimer) {
-      clearTimeout(this.aiActionTimer);
-      this.aiActionTimer = null;
-    }
-  }
-
   private clearBattleTimeout(): void {
     if (this.battleTimeoutId) {
       clearTimeout(this.battleTimeoutId);
       this.battleTimeoutId = null;
-    }
-  }
-
-  private clearTurnTimeout(): void {
-    if (this.turnTimeoutId) {
-      clearTimeout(this.turnTimeoutId);
-      this.turnTimeoutId = null;
     }
   }
 
@@ -1531,7 +1360,7 @@ private async processAllActionsRapidly(): Promise<void> {
   }
 
   private getAIDelay(): number {
-    if (this.gameState.type === 'wild') return this.AI_ACTION_DELAY;
+    if (this.gameState.type === 'wild') return 800; // 🎯 Délai naturel simple
     return Math.min(this.aiPlayer.getThinkingDelay(), 1000);
   }
 
@@ -1557,6 +1386,41 @@ private async processAllActionsRapidly(): Promise<void> {
       currentTurn: 'player1',
       player1: { sessionId: '', name: '', pokemon: null },
       player2: { sessionId: '', name: '', pokemon: null },
+      isEnded: false,
+      winner: null
+    };
+  }
+
+  private validateTrainerConfig(config: TrainerBattleConfig): void {
+    if (!config.player1?.name || !config.playerTeam?.length) {
+      throw new Error('Configuration joueur invalide');
+    }
+    if (!config.trainer?.name || !config.trainer.pokemon?.length) {
+      throw new Error('Configuration dresseur invalide');
+    }
+    if (config.type !== 'trainer') {
+      throw new Error('Type de combat doit être "trainer"');
+    }
+  }
+
+  private initializeTrainerGameState(config: TrainerBattleConfig): BattleGameState {
+    return {
+      battleId: `trainer_battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'trainer',
+      phase: 'battle',
+      turnNumber: 1,
+      currentTurn: 'player1',
+      player1: {
+        sessionId: config.player1.sessionId,
+        name: config.player1.name,
+        pokemon: config.playerTeam[0]
+      },
+      player2: {
+        sessionId: 'ai',
+        name: config.trainer.name,
+        pokemon: config.trainer.pokemon[0],
+        isAI: true
+      },
       isEnded: false,
       winner: null
     };
@@ -1752,7 +1616,7 @@ private async processAllActionsRapidly(): Promise<void> {
 
   getSystemState(): any {
     return {
-      version: 'battle_engine_session3_trainer_complete_v1',
+      version: 'battle_engine_session3_trainer_complete_v1_no_timeout',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1762,8 +1626,8 @@ private async processAllActionsRapidly(): Promise<void> {
       battleEndHandled: this.battleEndHandled,
       isTrainerBattle: this.isTrainerBattle,
       timeouts: {
-        battleTimeout: this.battleTimeoutId !== null,
-        turnTimeout: this.turnTimeoutId !== null
+        battleCrashTimeout: this.battleTimeoutId !== null, // 🎯 Seulement technique
+        // 🎯 SUPPRIMÉ: turnTimeout, aiActionTimer
       },
       phaseState: this.phaseManager.getPhaseState(),
       actionQueueState: this.actionQueue.getQueueState(),
@@ -1786,6 +1650,12 @@ private async processAllActionsRapidly(): Promise<void> {
         rewardManagerReady: this.trainerRewardManager?.isReady(),
         pendingSwitches: this.pendingSwitches.size
       } : null,
+      pokemonExperience: {
+        noTimeLimit: true,
+        maxTurns: this.MAX_TURNS,
+        technicalTimeoutOnly: this.BATTLE_CRASH_TIMEOUT_MS,
+        message: "Prenez tout le temps nécessaire - Expérience Pokémon authentique"
+      },
       newFeatures: [
         'trainer_battle_support_complete',
         'multi_pokemon_teams',
@@ -1796,9 +1666,45 @@ private async processAllActionsRapidly(): Promise<void> {
         'forced_switch_handling',
         'battle_memory_tracking',
         'strategic_ai_decisions',
-        'seamless_wild_compatibility'
+        'seamless_wild_compatibility',
+        'no_action_timeouts_authentic_pokemon', // 🎯 NOUVEAU
+        'natural_ai_thinking_delays', // 🎯 NOUVEAU
+        'technical_cleanup_only_timeout' // 🎯 NOUVEAU
       ]
     };
+  }
+
+  // 🎯 MÉTHODES TIMEOUT SUPPRIMÉES/SIMPLIFIÉES
+
+  // ❌ SUPPRIMÉ: handleTurnTimeout() - plus de timeout pour actions
+  // ❌ SUPPRIMÉ: forceDefaultActions() - plus de timeout pour actions  
+  // ❌ SUPPRIMÉ: forceResolutionComplete() - plus de timeout pour actions
+  // ❌ SUPPRIMÉ: forceNextTurn() - plus de timeout pour actions
+  // ❌ SUPPRIMÉ: clearActionTimers() - plus de timeout pour actions
+  // ❌ SUPPRIMÉ: clearTurnTimeout() - plus de timeout pour actions
+  // ❌ SUPPRIMÉ: startTurnTimeout() - plus de timeout pour actions
+
+  // 🎯 NOUVELLE MÉTHODE: Forcer résolution en cas d'urgence seulement
+  private forceResolutionComplete(): void {
+    console.log('🔧 [BattleEngine] Force fin résolution (urgence seulement)');
+    
+    this.isProcessingActions = false;
+    this.resetSubPhaseState();
+    this.gameState.turnNumber++;
+
+    this.emit('resolutionComplete', {
+      actionsExecuted: 0,
+      battleEnded: false,
+      newTurnNumber: this.gameState.turnNumber,
+      message: "Résolution forcée par erreur technique"
+    });
+
+    if (this.isInitialized && !this.gameState.isEnded && !this.battleEndHandled) {
+      if (!this.phaseManager.isReady()) {
+        this.phaseManager.initialize(this.gameState);
+      }
+      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'emergency_force_complete');
+    }
   }
 }
 
