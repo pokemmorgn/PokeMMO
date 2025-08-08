@@ -128,8 +128,33 @@ export class BattleScene extends Phaser.Scene {
       this.isReadyForActivation = true;
       this.initializeCaptureManager();
       this.initializeBattleLocalization();
-      if (this.battleNetworkHandler) {
-        this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
+      
+      // 🔧 CORRECTION SIMPLE - Toujours créer l'interface équipe
+      console.log('🔧 [BattleScene] Création interface équipe...');
+      try {
+        if (this.battleNetworkHandler) {
+          this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
+          console.log('✅ [BattleScene] Interface équipe créée avec NetworkHandler');
+        } else {
+          // Créer sans NetworkHandler pour éviter erreur
+          this.pokemonTeamUI = {
+            showUniversalSwitch: (data) => {
+              console.warn('⚠️ [BattleScene] Interface équipe simulée - NetworkHandler manquant');
+              return false;
+            },
+            isOpen: () => false,
+            destroy: () => {}
+          };
+          console.log('⚠️ [BattleScene] Interface équipe simulée créée (NetworkHandler manquant)');
+        }
+      } catch (error) {
+        console.error('❌ [BattleScene] Erreur création interface équipe:', error);
+        // Interface de secours
+        this.pokemonTeamUI = {
+          showUniversalSwitch: (data) => false,
+          isOpen: () => false,
+          destroy: () => {}
+        };
       }
     } catch (error) {
       console.error('[BattleScene] Erreur création:', error);
@@ -1407,30 +1432,55 @@ export class BattleScene extends Phaser.Scene {
           battleType: this.battleType
         });
         
-        if (this.pokemonTeamUI) {
-          // 🆕 UTILISER L'INTERFACE UNIVERSELLE
-          const switchData = {
-            canSwitch: this.canSwitch,
-            availableSwitches: this.availableSwitches,
-            isMultiPokemonBattle: this.isMultiPokemonBattle,
-            switchingEnabled: this.canSwitch,
-            battleType: this.battleType,
-            noTimeLimit: this.noTimeLimit,
-            playerTeam: this.currentPlayerPokemon ? [this.currentPlayerPokemon] : [],
-            activePokemonIndex: 0
-          };
-          
-          console.log(`🔄 [BattleScene] Ouverture interface switch:`, switchData);
-          
+        // 🔧 CORRECTION SIMPLE - Vérifications et messages clairs
+        if (!this.pokemonTeamUI) {
+          console.error('❌ [BattleScene] Interface équipe totalement manquante');
+          // Essayer de créer l'interface manquante
+          if (!this.ensurePokemonTeamUI()) {
+            this.showActionMessage('Erreur : Interface équipe non initialisée');
+            setTimeout(() => this.showActionButtons(), 2000);
+            break;
+          }
+        }
+        
+        // Vérification basique des capacités de switch
+        if (!this.canSwitch && !this.isMultiPokemonBattle) {
+          const message = this.battleType === 'wild' ? 
+            'Combat sauvage 1v1 - Changement impossible' :
+            'Combat 1v1 - Changement impossible';
+          console.log('ℹ️ [BattleScene] Changement bloqué:', message);
+          this.showActionMessage(message);
+          setTimeout(() => this.showActionButtons(), 2000);
+          break;
+        }
+        
+        // Données minimales pour l'interface
+        const switchData = {
+          canSwitch: this.canSwitch || false,
+          availableSwitches: this.availableSwitches || [],
+          isMultiPokemonBattle: this.isMultiPokemonBattle || false,
+          switchingEnabled: this.canSwitch || false,
+          battleType: this.battleType || 'wild',
+          noTimeLimit: this.noTimeLimit !== false,
+          playerTeam: this.currentPlayerPokemon ? [this.currentPlayerPokemon] : [],
+          activePokemonIndex: 0
+        };
+        
+        console.log(`🔄 [BattleScene] Tentative ouverture interface:`, switchData);
+        
+        try {
           const success = this.pokemonTeamUI.showUniversalSwitch(switchData);
           if (!success) {
-            const reasonMessage = this.getUnavailableReason();
+            const reasonMessage = 'Changement actuellement indisponible';
+            console.log('⚠️ [BattleScene] Interface refusée:', reasonMessage);
             this.showActionMessage(reasonMessage);
             setTimeout(() => this.showActionButtons(), 2000);
+          } else {
+            console.log('✅ [BattleScene] Interface équipe ouverte');
           }
-        } else {
-          console.error('❌ [BattleScene] Interface équipe non disponible');
-          this.showActionMessage('Interface équipe non disponible');
+        } catch (error) {
+          console.error('❌ [BattleScene] Erreur ouverture interface:', error);
+          this.showActionMessage('Erreur : Impossible d\'ouvrir l\'interface équipe');
           setTimeout(() => this.showActionButtons(), 2000);
         }
         break;
@@ -1455,24 +1505,33 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * 🆕 Détermine pourquoi le changement n'est pas disponible
+   * 🔧 CORRECTION SIMPLE - Initialisation forcée interface équipe
    */
-  getUnavailableReason() {
-    if (!this.isMultiPokemonBattle) {
-      return this.battleType === 'wild' ? 
-        'Combat sauvage 1v1 - Pas de changement possible' :
-        'Combat 1v1 - Pas de changement possible';
+  ensurePokemonTeamUI() {
+    if (!this.pokemonTeamUI) {
+      console.log('🔧 [BattleScene] Création tardive interface équipe...');
+      try {
+        if (this.battleNetworkHandler) {
+          this.pokemonTeamUI = createPokemonTeamSwitchUI(this, this.battleNetworkHandler);
+          console.log('✅ [BattleScene] Interface équipe créée tardivement');
+        } else {
+          // Interface simulée pour éviter crash
+          this.pokemonTeamUI = {
+            showUniversalSwitch: (data) => {
+              console.warn('⚠️ [BattleScene] Pas de NetworkHandler - Changement simulé bloqué');
+              return false;
+            },
+            isOpen: () => false,
+            destroy: () => {}
+          };
+          console.log('⚠️ [BattleScene] Interface équipe simulée créée');
+        }
+      } catch (error) {
+        console.error('❌ [BattleScene] Erreur création tardive:', error);
+        return false;
+      }
     }
-    
-    if (!this.canSwitch) {
-      return 'Changement actuellement indisponible';
-    }
-    
-    if (!this.availableSwitches || this.availableSwitches.length === 0) {
-      return 'Aucun Pokémon disponible pour le changement';
-    }
-    
-    return 'Changement temporairement indisponible';
+    return true;
   }
 
   requestMovesFromServer() {
