@@ -57,35 +57,38 @@ export class ItemEditorModule {
     // ===== LIFECYCLE METHODS =====
 
     async onTabActivated() {
-        console.log('📦 [ItemEditor] Activation de l\'onglet Items');
+    console.log('📦 [ItemEditor] Activation de l\'onglet Items');
 
-        try {
-            // Attendre DOM
-            await this.waitForDOM();
+    try {
+        // Attendre DOM
+        await this.waitForDOM();
 
-            // Détecter le préfixe d’API avant tout appel
-            await this.detectApiPrefix();
+        // ✅ VÉRIFIER L'INTERFACE AVANT TOUT
+        this.checkUIElements();
 
-            // Charger les stats
-            await this.loadStats();
-this.updateStatsHeader();   // <-- NEW
+        // Détecter le préfixe d'API avant tout appel
+        await this.detectApiPrefix();
 
-            // Events
-            this.setupEventListeners();
+        // Charger les stats
+        await this.loadStats();
+        this.updateStatsHeader();
 
-            // Charger items
-            await this.loadItems();
+        // Events
+        this.setupEventListeners();
 
-            // Init dropdowns
-            this.initializeDropdowns();
+        // Charger items
+        await this.loadItems();
 
-            console.log('✅ [ItemEditor] Activation terminée');
+        // Init dropdowns
+        this.initializeDropdowns();
 
-        } catch (error) {
-            console.error('❌ [ItemEditor] Erreur activation:', error);
-            this.adminPanel.showNotification('Erreur lors du chargement des items', 'error');
-        }
+        console.log('✅ [ItemEditor] Activation terminée');
+
+    } catch (error) {
+        console.error('❌ [ItemEditor] Erreur activation:', error);
+        this.adminPanel.showNotification('Erreur lors du chargement des items', 'error');
     }
+}
 
     async waitForDOM() {
         return new Promise((resolve) => {
@@ -309,76 +312,116 @@ async loadStats() {
         this.updateUI();
     }
 
-    updateItemsList() {
-        const listElement = this.findElement('[id*="itemsList"], .items-list, .item-editor-list');
-        if (!listElement) {
-            console.error('❌ [ItemEditor] Liste items non trouvée');
-            return;
-        }
+   updateItemsList() {
+    const listElement = this.findElement('[id*="itemsList"], .items-list, .item-editor-list');
+    if (!listElement) {
+        console.error('❌ [ItemEditor] Liste items non trouvée');
+        return;
+    }
 
-        // Pagination
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-        const endIndex = startIndex + this.itemsPerPage;
-        const itemsToShow = this.filteredItems.slice(startIndex, endIndex);
+    // Pagination
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    const itemsToShow = this.filteredItems.slice(startIndex, endIndex);
 
-        if (itemsToShow.length === 0) {
-            listElement.innerHTML = `
-                <div class="empty-state" style="padding: 2rem; text-align: center;">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h4>Aucun item trouvé</h4>
-                    <p>Essayez de modifier vos critères de recherche.</p>
-                    ${this.hasActiveFilters() ? '<button onclick="window.itemEditorClearFilters()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px;">Effacer les filtres</button>' : ''}
+    if (itemsToShow.length === 0) {
+        listElement.innerHTML = `
+            <div class="empty-state" style="padding: 2rem; text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-search"></i>
                 </div>
-            `;
-            return;
-        }
+                <h4>Aucun item trouvé</h4>
+                <p>Essayez de modifier vos critères de recherche.</p>
+                ${this.hasActiveFilters() ? '<button onclick="window.itemEditorClearFilters()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px;">Effacer les filtres</button>' : ''}
+            </div>
+        `;
+        return;
+    }
 
-        listElement.innerHTML = itemsToShow.map(item => `
-            <div class="item-card ${this.selectedItemId === item.itemId ? 'selected' : ''}"
-                 onclick="window.itemEditorSelectItem('${item.itemId}')"
-                 style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem; cursor: pointer; border-radius: 4px; ${this.selectedItemId === item.itemId ? 'background: #e3f2fd;' : ''}">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="font-size: 1.5rem; color: #666;">
-                        <i class="fas fa-cube"></i>
+    listElement.innerHTML = itemsToShow.map(item => `
+        <div class="item-card ${this.selectedItemId === item.itemId ? 'selected' : ''}"
+             onclick="window.itemEditorSelectItem('${item.itemId}')"
+             style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem; cursor: pointer; border-radius: 4px; ${this.selectedItemId === item.itemId ? 'background: #e3f2fd;' : ''}">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="font-size: 1.5rem; color: #666;">
+                    <i class="fas fa-cube"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: bold; font-size: 1.1rem;">${this.escapeHtml(item.name)}</div>
+                    <div style="color: #666; font-size: 0.9rem;">
+                        <span style="background: #f0f0f0; padding: 0.2rem 0.5rem; border-radius: 3px; margin-right: 0.5rem;">
+                            ${this.formatCategoryName(item.category)}
+                        </span>
+                        <span>Gen ${item.generation}</span>
+                        <span style="margin-left: 0.5rem; color: ${this.getRarityColor(item.rarity)};">
+                            ${this.formatRarityName(item.rarity)}
+                        </span>
+                        ${item.price ? `<span style="margin-left: 0.5rem;">${item.price}₽</span>` : ''}
                     </div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; font-size: 1.1rem;">${this.escapeHtml(item.name)}</div>
-                        <div style="color: #666; font-size: 0.9rem;">
-                            <span style="background: #f0f0f0; padding: 0.2rem 0.5rem; border-radius: 3px; margin-right: 0.5rem;">
-                                ${this.formatCategoryName(item.category)}
-                            </span>
-                            <span>Gen ${item.generation}</span>
-                            <span style="margin-left: 0.5rem; color: ${this.getRarityColor(item.rarity)};">
-                                ${this.formatRarityName(item.rarity)}
-                            </span>
-                            ${item.price ? `<span style="margin-left: 0.5rem;">${item.price}₽</span>` : ''}
-                        </div>
-                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.25rem;">
-                            ${item.effectCount > 0 ? `<span style="margin-right: 0.5rem;"><i class="fas fa-magic"></i> ${item.effectCount} effets</span>` : ''}
-                            ${item.obtainMethodCount > 0 ? `<span><i class="fas fa-map-marker-alt"></i> ${item.obtainMethodCount} méthodes</span>` : ''}
-                        </div>
+                    <div style="font-size: 0.8rem; color: #888; margin-top: 0.25rem;">
+                        ${item.effectCount > 0 ? `<span style="margin-right: 0.5rem;"><i class="fas fa-magic"></i> ${item.effectCount} effets</span>` : ''}
+                        ${item.obtainMethodCount > 0 ? `<span><i class="fas fa-map-marker-alt"></i> ${item.obtainMethodCount} méthodes</span>` : ''}
                     </div>
                 </div>
             </div>
-        `).join('');
+        </div>
+    `).join('');
 
-        console.log(`✅ [ItemEditor] ${itemsToShow.length} items affichés (page ${this.currentPage})`);
-        // --- mise à jour stats ---
-this.updateStatsHeader();
+    console.log(`✅ [ItemEditor] ${itemsToShow.length} items affichés (page ${this.currentPage})`);
+    
+    // ✅ MISE À JOUR STATS SÉCURISÉE
+    this.updateStatsHeader();
 
-// --- mise à jour pagination ---
-const totalItems = this.filteredItems.length;
-const startDisplay = startIndex + 1;
-const endDisplay = Math.min(endIndex, totalItems);
+    // ✅ MISE À JOUR PAGINATION SÉCURISÉE
+    const totalItems = this.filteredItems.length;
+    const startDisplay = startIndex + 1;
+    const endDisplay = Math.min(endIndex, totalItems);
 
-document.getElementById('itemsPaginationInfo').textContent =
-    `${startDisplay}-${endDisplay} sur ${totalItems} items`;
-
-document.getElementById('itemsPageInfo').textContent =
-    `${this.currentPage} / ${Math.max(1, Math.ceil(totalItems / this.itemsPerPage))}`;
+    // Vérifier l'existence des éléments avant mise à jour
+    const paginationInfoElement = document.getElementById('itemsPaginationInfo');
+    if (paginationInfoElement) {
+        paginationInfoElement.textContent = `${startDisplay}-${endDisplay} sur ${totalItems} items`;
+    } else {
+        console.warn('❌ [ItemEditor] Element "itemsPaginationInfo" non trouvé');
     }
+
+    const pageInfoElement = document.getElementById('itemsPageInfo');
+    if (pageInfoElement) {
+        pageInfoElement.textContent = `${this.currentPage} / ${Math.max(1, Math.ceil(totalItems / this.itemsPerPage))}`;
+    } else {
+        console.warn('❌ [ItemEditor] Element "itemsPageInfo" non trouvé');
+    }
+}
+
+    // ✅ NOUVELLE MÉTHODE : Vérification de l'interface utilisateur
+checkUIElements() {
+    const requiredElements = [
+        'totalItems',
+        'activeItems', 
+        'categoriesCount',
+        'itemsPaginationInfo',
+        'itemsPageInfo',
+        'itemsList'
+    ];
+
+    const missingElements = [];
+    
+    requiredElements.forEach(elementId => {
+        if (!document.getElementById(elementId)) {
+            missingElements.push(elementId);
+        }
+    });
+
+    if (missingElements.length > 0) {
+        console.warn('⚠️ [ItemEditor] Éléments DOM manquants:', missingElements);
+        console.log('💡 [ItemEditor] Vérifiez que le HTML contient tous les éléments requis');
+    } else {
+        console.log('✅ [ItemEditor] Tous les éléments DOM requis sont présents');
+    }
+
+    return missingElements.length === 0;
+}
+
 
     updatePagination() {
         const totalPages = Math.max(1, Math.ceil(this.filteredItems.length / this.itemsPerPage));
@@ -851,10 +894,32 @@ updateStatsHeader() {
     const actifs = this.items.filter(item => item.isActive).length;
     const categories = new Set(this.items.map(item => item.category)).size;
 
-    document.getElementById("totalItems").textContent = total;
-    document.getElementById("activeItems").textContent = actifs;
-    document.getElementById("categoriesCount").textContent = categories;
+    // ✅ VÉRIFICATION SÉCURISÉE des éléments DOM avant mise à jour
+    const totalElement = document.getElementById("totalItems");
+    const activeElement = document.getElementById("activeItems");
+    const categoriesElement = document.getElementById("categoriesCount");
+
+    if (totalElement) {
+        totalElement.textContent = total;
+    } else {
+        console.warn('❌ [ItemEditor] Element "totalItems" non trouvé dans le DOM');
+    }
+
+    if (activeElement) {
+        activeElement.textContent = actifs;
+    } else {
+        console.warn('❌ [ItemEditor] Element "activeItems" non trouvé dans le DOM');
+    }
+
+    if (categoriesElement) {
+        categoriesElement.textContent = categories;
+    } else {
+        console.warn('❌ [ItemEditor] Element "categoriesCount" non trouvé dans le DOM');
+    }
+
+    console.log(`📊 [ItemEditor] Stats header updated: ${total} total, ${actifs} actifs, ${categories} catégories`);
 }
+
     
     // ===== PAGINATION =====
 
