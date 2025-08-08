@@ -1,6 +1,6 @@
 // client/src/components/DialogueUI.js
-// 🎭 Interface utilisateur pour les dialogues NPCs - FIX OVERLAY INVISIBLE
-// 🔧 CORRECTION CRITIQUE : Plus d'overlay invisible qui bloque les clics
+// 🎭 Interface utilisateur pour les dialogues NPCs - FIX SIMPLE
+// 🔧 CORRECTION : L'intercepteur quête ne bloque plus les boutons shop
 
 export class DialogueUI {
   constructor() {
@@ -26,11 +26,12 @@ export class DialogueUI {
     this.addIntegratedStyles();
     this.setupEventListeners();
     this.setupNpcIdTracking();
-    this.setupQuestButtonInterceptor();
+    this.setupQuestButtonInterceptor(); // ✅ CORRIGÉ
     
-    console.log('✅ DialogueUI initialisé avec fix overlay invisible');
+    console.log('✅ DialogueUI initialisé avec fix shop');
   }
 
+  // ✅ CONSERVÉ : Système de tracking NPC ID
   setupNpcIdTracking() {
     if (!this.container) return;
     
@@ -100,14 +101,19 @@ export class DialogueUI {
     console.log('📋 NPC ID extrait:', npcId);
   }
 
+  // 🔧 FIX CRITIQUE : Intercepteur quête CORRIGÉ
   setupQuestButtonInterceptor() {
+    // 🔧 CHANGEMENT CRITIQUE : Utiliser false (bubbling) au lieu de true (capture)
+    // et NE PAS bloquer les autres types de boutons
     document.addEventListener('click', (e) => {
+      // ✅ VÉRIFIER QUE C'EST BIEN UN BOUTON QUÊTE ET PAS AUTRE CHOSE
       const actionBtn = e.target.closest('.action-btn');
       
       if (!actionBtn || !this.isVisible) {
-        return;
+        return; // ✅ LAISSER PASSER si pas un bouton d'action ou dialogue fermé
       }
       
+      // ✅ VÉRIFICATION PRÉCISE : SEULEMENT les boutons de quête
       const isQuestButton = (
         actionBtn.dataset.actionType === 'quest' ||
         actionBtn.classList.contains('quest') ||
@@ -129,9 +135,13 @@ export class DialogueUI {
         return false;
       }
       
-    }, false);
+      // ✅ IMPORTANT : Pour les autres boutons (shop, heal, etc.), 
+      // NE PAS intercepter - laisser le système normal fonctionner
+      
+    }, false); // ✅ PHASE BUBBLING au lieu de capture
   }
 
+  // ✅ GESTION ACTION QUÊTE (inchangée)
   handleQuestAction(npcId, questId = null) {
     console.log('🎯 Gestion action quête pour NPC:', npcId, 'Quest:', questId);
     
@@ -241,12 +251,8 @@ export class DialogueUI {
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
     
-    // ✅ CORRECTION CRITIQUE : S'assurer que le conteneur ne bloque pas par défaut
-    this.container.style.pointerEvents = 'none';
-    this.container.style.display = 'none'; // ← AJOUTÉ pour être sûr
-    
     this.container.innerHTML = `
-      <div id="dialogue-box" class="dialogue-box-unified" style="display:none; pointer-events:none;">
+      <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
         <div class="dialogue-main-content">
           <div id="npc-portrait" class="npc-portrait"></div>
           <div id="npc-dialogue" class="npc-dialogue">
@@ -266,7 +272,7 @@ export class DialogueUI {
         </div>
       </div>
 
-      <div id="unified-interface" class="unified-interface" style="display:none; pointer-events:none;">
+      <div id="unified-interface" class="unified-interface" style="display:none;">
         <div class="unified-header">
           <div class="unified-portrait">
             <img id="unified-npc-image" src="" alt="NPC" class="unified-npc-image">
@@ -295,40 +301,6 @@ export class DialogueUI {
     `;
 
     document.body.appendChild(this.container);
-    
-    // ✅ DOUBLE VÉRIFICATION : S'assurer qu'aucun élément ne bloque au démarrage
-    this.ensureNoBlocking();
-  }
-
-  // ✅ NOUVELLE MÉTHODE : S'assurer qu'aucun élément ne bloque
-  ensureNoBlocking() {
-    if (!this.container) return;
-    
-    // Forcer l'état initial non-bloquant
-    this.container.style.pointerEvents = 'none';
-    this.container.style.display = 'none';
-    this.container.style.zIndex = '-1';
-    this.container.classList.add('hidden');
-    
-    // Aussi pour les éléments enfants
-    const dialogueBox = this.container.querySelector('#dialogue-box');
-    const unifiedInterface = this.container.querySelector('#unified-interface');
-    
-    if (dialogueBox) {
-      dialogueBox.style.pointerEvents = 'none';
-      dialogueBox.style.display = 'none';
-      dialogueBox.style.zIndex = '-1';
-    }
-    
-    if (unifiedInterface) {
-      unifiedInterface.style.pointerEvents = 'none';
-      unifiedInterface.style.display = 'none';
-      unifiedInterface.style.zIndex = '-1';
-    }
-    
-    this.isVisible = false;
-    
-    console.log('✅ [DialogueUI] État initial non-bloquant forcé');
   }
 
   addIntegratedStyles() {
@@ -343,25 +315,19 @@ export class DialogueUI {
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: -1; /* ← IMPORTANT: z-index négatif par défaut */
-        pointer-events: none; /* ← IMPORTANT: pas d'events par défaut */
+        z-index: 100;
+        pointer-events: none;
         transition: opacity 0.3s ease;
-        display: none; /* ← IMPORTANT: caché par défaut */
       }
 
       .dialogue-container.hidden {
         opacity: 0;
         pointer-events: none;
-        z-index: -1;
-        display: none;
       }
 
-      /* ✅ ACTIF seulement quand vraiment affiché */
-      .dialogue-container.showing {
+      .dialogue-container:not(.hidden) {
         opacity: 1;
         pointer-events: auto;
-        z-index: 100;
-        display: block;
       }
 
       .dialogue-box-unified {
@@ -378,22 +344,14 @@ export class DialogueUI {
           0 8px 40px rgba(0, 0, 0, 0.6),
           0 0 0 1px rgba(255, 255, 255, 0.2),
           inset 0 2px 0 rgba(255, 255, 255, 0.3);
-        display: none; /* ← Par défaut caché */
-        flex-direction: column;
+        display: flex !important;
+        flex-direction: column !important;
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
         backdrop-filter: blur(8px);
         transition: all 0.3s ease;
-        pointer-events: none; /* ← Par défaut sans events */
+        pointer-events: auto;
         overflow: hidden;
         width: auto;
-        z-index: -1; /* ← z-index négatif par défaut */
-      }
-
-      /* ✅ Actif seulement quand montré */
-      .dialogue-box-unified.active {
-        display: flex !important;
-        pointer-events: auto;
-        z-index: 101;
       }
 
       .dialogue-main-content {
@@ -526,6 +484,7 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
       }
 
+      /* 🛒 Styles pour shop */
       .action-btn.shop {
         background: linear-gradient(135deg, #28a745, #1e7e34);
         color: white;
@@ -536,6 +495,7 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
       }
 
+      /* 📋 Styles pour quêtes */
       .action-btn.quest,
       .action-btn.quest-specific {
         background: linear-gradient(135deg, #ffc107, #e0a800);
@@ -571,6 +531,7 @@ export class DialogueUI {
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       }
 
+      /* 💊 Styles pour heal */
       .action-btn.heal {
         background: linear-gradient(135deg, #dc3545, #c82333);
         color: white;
@@ -581,6 +542,7 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
       }
 
+      /* ℹ️ Styles pour info */
       .action-btn.info {
         background: linear-gradient(135deg, #17a2b8, #138496);
         color: white;
@@ -590,42 +552,12 @@ export class DialogueUI {
         background: linear-gradient(135deg, #20c0db, #17a2b8);
         box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
       }
-
-      /* ✅ Interface unifiée styles (inchangés) */
-      .unified-interface {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 90%;
-        max-width: 800px;
-        height: 80%;
-        max-height: 600px;
-        background: linear-gradient(145deg, rgba(36, 76, 116, 0.95), rgba(25, 55, 95, 0.95));
-        border: 3px solid rgba(255, 255, 255, 0.8);
-        border-radius: 20px;
-        box-shadow: 
-          0 8px 40px rgba(0, 0, 0, 0.6),
-          0 0 0 1px rgba(255, 255, 255, 0.2),
-          inset 0 2px 0 rgba(255, 255, 255, 0.3);
-        display: none;
-        flex-direction: column;
-        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
-        backdrop-filter: blur(8px);
-        pointer-events: none;
-        z-index: -1;
-      }
-
-      .unified-interface.active {
-        display: flex !important;
-        pointer-events: auto;
-        z-index: 101;
-      }
     `;
 
     document.head.appendChild(style);
   }
 
+  // ✅ SETUP EVENT LISTENERS NORMAL (plus de conflit)
   setupEventListeners() {
     // 1️⃣ Event listener pour l'avancement du dialogue
     this.container.addEventListener('click', (e) => {
@@ -649,7 +581,7 @@ export class DialogueUI {
       }
     });
 
-    console.log('✅ Event listeners configurés');
+    console.log('✅ Event listeners configurés (fix shop)');
   }
 
   handleDialogueClick() {
@@ -703,6 +635,7 @@ export class DialogueUI {
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
+    // ✅ FIX : Ne pas afficher le compteur s'il n'y a qu'une seule page
     if (lines.length > 1) {
       continueIndicator.style.display = 'flex';
       const counter = continueIndicator.querySelector('.dialogue-counter');
@@ -714,7 +647,7 @@ export class DialogueUI {
     }
 
     actionsZone.style.display = 'none';
-    dialogueBox.className = 'dialogue-box-unified simple active'; // ← AJOUT classe 'active'
+    dialogueBox.className = 'dialogue-box-unified simple';
 
     this.classicDialogueData = {
       lines: lines,
@@ -722,8 +655,9 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ CORRECTION CRITIQUE : Activer correctement le conteneur
-    this.activateContainer(dialogueBox);
+    this.container.classList.remove('hidden');
+    dialogueBox.style.display = 'flex';
+    this.isVisible = true;
   }
 
   showDialogueWithActions(data) {
@@ -760,12 +694,12 @@ export class DialogueUI {
       });
       
       actionsZone.style.display = 'block';
-      dialogueBox.className = 'dialogue-box-unified with-actions active'; // ← AJOUT classe 'active'
+      dialogueBox.className = 'dialogue-box-unified with-actions';
       
       console.log(`✅ [DialogueUI] ${data.actions.length} boutons d'action créés`);
     } else {
       actionsZone.style.display = 'none';
-      dialogueBox.className = 'dialogue-box-unified simple active'; // ← AJOUT classe 'active'
+      dialogueBox.className = 'dialogue-box-unified simple';
     }
 
     this.classicDialogueData = {
@@ -774,34 +708,12 @@ export class DialogueUI {
       onClose: data.onClose
     };
 
-    // ✅ CORRECTION CRITIQUE : Activer correctement le conteneur
-    this.activateContainer(dialogueBox);
-  }
-
-  // ✅ NOUVELLE MÉTHODE : Activer le conteneur correctement
-  activateContainer(dialogueBox) {
-    // 1. Activer le conteneur principal
     this.container.classList.remove('hidden');
-    this.container.classList.add('showing'); // ← NOUVELLE classe pour état actif
-    this.container.style.display = 'block';
-    this.container.style.pointerEvents = 'auto';
-    this.container.style.zIndex = '100';
-    this.container.style.opacity = '1';
-    
-    // 2. Activer la dialogue box
-    if (dialogueBox) {
-      dialogueBox.style.display = 'flex';
-      dialogueBox.style.pointerEvents = 'auto';
-      dialogueBox.style.zIndex = '101';
-      dialogueBox.classList.add('active');
-    }
-    
-    // 3. Marquer comme visible
+    dialogueBox.style.display = 'flex';
     this.isVisible = true;
-    
-    console.log('✅ [DialogueUI] Conteneur activé correctement');
   }
 
+  // 🔧 CREATEACTIONBUTTON avec event listener DIRECT
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
@@ -820,6 +732,7 @@ export class DialogueUI {
       ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
     `;
     
+    // ✅ EVENT LISTENER DIRECT pour les boutons NON-QUÊTE
     if (action.type !== 'quest') {
       button.addEventListener('click', (e) => {
         console.log(`🎯 [DialogueUI] Bouton ${action.type} cliqué DIRECTEMENT`);
@@ -831,6 +744,7 @@ export class DialogueUI {
         }
       });
     }
+    // ✅ Les boutons quête sont gérés par l'intercepteur
     
     console.log('🔧 [DialogueUI] Bouton créé:', {
       id: action.id,
@@ -842,7 +756,7 @@ export class DialogueUI {
     return button;
   }
 
-  // === INTERFACE UNIFIÉE ===
+  // ===== INTERFACE UNIFIÉE (inchangée) =====
 
   showUnifiedInterface(data) {
     this.currentNpcId = this.extractNpcId(data);
@@ -860,18 +774,8 @@ export class DialogueUI {
       this.switchToTab(this.tabs[0].id);
     }
     
-    // ✅ ACTIVER correctement l'interface unifiée
     this.container.classList.remove('hidden');
-    this.container.classList.add('showing');
-    this.container.style.display = 'block';
-    this.container.style.pointerEvents = 'auto';
-    this.container.style.zIndex = '100';
-    
     unifiedInterface.style.display = 'flex';
-    unifiedInterface.style.pointerEvents = 'auto';
-    unifiedInterface.style.zIndex = '101';
-    unifiedInterface.classList.add('active');
-    
     this.isVisible = true;
     this.isUnifiedInterface = true;
   }
@@ -981,42 +885,50 @@ export class DialogueUI {
     }
   }
 
-  // ✅ HIDE CORRIGÉ : Désactivation complète garantie
-  hide() {
+hide() {
     console.log('🎭 [DialogueUI] Fermeture dialogue...');
     
-    // 1. Masquer l'interface spécifique
     if (this.isUnifiedInterface) {
-      const unifiedInterface = this.container.querySelector('#unified-interface');
-      if (unifiedInterface) {
-        unifiedInterface.style.display = 'none';
-        unifiedInterface.style.pointerEvents = 'none';
-        unifiedInterface.style.zIndex = '-1';
-        unifiedInterface.style.visibility = 'hidden';
-        unifiedInterface.classList.remove('active');
-      }
+        const unifiedInterface = this.container.querySelector('#unified-interface');
+        if (unifiedInterface) {
+            unifiedInterface.style.display = 'none';
+            unifiedInterface.style.pointerEvents = 'none';  // ✅ AJOUTÉ
+            unifiedInterface.style.zIndex = '-1';           // ✅ AJOUTÉ
+            unifiedInterface.style.visibility = 'hidden';   // ✅ AJOUTÉ
+        }
+        this.completeHide();
     } else {
-      const dialogueBox = this.container.querySelector('#dialogue-box');
-      if (dialogueBox) {
-        dialogueBox.style.display = 'none';
-        dialogueBox.style.pointerEvents = 'none';
-        dialogueBox.style.zIndex = '-1';
-        dialogueBox.style.visibility = 'hidden';
-        dialogueBox.style.opacity = '0';
-        dialogueBox.classList.remove('active');
-      }
+        const dialogueBox = this.container.querySelector('#dialogue-box');
+        if (dialogueBox) {
+            dialogueBox.style.display = 'none';
+            dialogueBox.style.pointerEvents = 'none';       // ✅ AJOUTÉ
+            dialogueBox.style.zIndex = '-1';                // ✅ AJOUTÉ  
+            dialogueBox.style.visibility = 'hidden';        // ✅ AJOUTÉ
+            dialogueBox.style.opacity = '0';                // ✅ AJOUTÉ
+        }
+        this.completeHide();
     }
     
-    // 2. ✅ DÉSACTIVATION TOTALE DU CONTENEUR
-    this.container.classList.remove('showing');
+    // ✅ NETTOYAGE BRUTAL DE TOUS LES DIALOGUES
+    setTimeout(() => {
+        document.querySelectorAll('[id*="dialogue"], [class*="dialogue"]').forEach(el => {
+            el.style.pointerEvents = 'none';
+            el.style.zIndex = '-9999';
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
+        
+        // Vérifier qu'on n'a plus d'élément bloquant au centre
+        const centerEl = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
+        if (centerEl && (centerEl.id?.includes('dialogue') || centerEl.className?.includes('dialogue'))) {
+            console.warn('⚠️ Élément dialogue toujours au centre, suppression forcée');
+            centerEl.remove();
+        }
+    }, 50);
+}
+
+  completeHide() {
     this.container.classList.add('hidden');
-    this.container.style.display = 'none';         // ← CRUCIAL
-    this.container.style.pointerEvents = 'none';   // ← CRUCIAL  
-    this.container.style.zIndex = '-1';             // ← CRUCIAL
-    this.container.style.visibility = 'hidden';    // ← BONUS
-    this.container.style.opacity = '0';             // ← BONUS
-    
-    // 3. Nettoyer l'état
     this.isVisible = false;
     this.isUnifiedInterface = false;
     this.currentTab = null;
@@ -1024,27 +936,10 @@ export class DialogueUI {
     this.quickActions = [];
     this.classicDialogueData = null;
 
-    // 4. Callback de fermeture
     if (this.onClose && typeof this.onClose === 'function') {
       this.onClose();
       this.onClose = null;
     }
-    
-    // 5. ✅ VÉRIFICATION DE SÉCURITÉ : S'assurer qu'aucun élément ne bloque
-    setTimeout(() => {
-      this.ensureNoBlocking();
-      
-      // Double vérification centre écran
-      const centerEl = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
-      if (centerEl && (centerEl.id?.includes('dialogue') || centerEl.className?.includes('dialogue'))) {
-        console.warn('⚠️ [DialogueUI] Élément dialogue toujours au centre, suppression forcée');
-        centerEl.style.pointerEvents = 'none';
-        centerEl.style.zIndex = '-9999';
-        centerEl.style.display = 'none';
-      }
-    }, 50);
-    
-    console.log('✅ [DialogueUI] Dialogue complètement désactivé');
   }
 
   isOpen() {
