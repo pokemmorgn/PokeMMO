@@ -6840,18 +6840,17 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
  * GET /api/admin/items/list
  * Liste détaillée pour l'interface admin
  */
+/**
+ * GET /api/admin/items/list
+ */
 router.get('/items/list', requireMacAndDev, async (req: any, res) => {
   try {
     console.log('📦 [Items Admin] Loading items list...');
-    
     const { page = 1, limit = 50, category, search } = req.query;
-    
     const filter: any = { isActive: true };
-    
-    if (category && category !== 'all') {
-      filter.category = category;
-    }
-    
+
+    if (category && category !== 'all') filter.category = category;
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -6859,17 +6858,17 @@ router.get('/items/list', requireMacAndDev, async (req: any, res) => {
         { description: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     const [items, total] = await Promise.all([
       ItemData.find(filter)
         .sort({ category: 1, name: 1 })
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit))
+        .limit(parseInt(limit as string, 10))
+        .skip((parseInt(page as string, 10) - 1) * parseInt(limit as string, 10))
         .lean(),
       ItemData.countDocuments(filter)
     ]);
-    
-    const formattedItems = items.map(item => ({
+
+    const formatted = items.map((item: any) => ({
       itemId: item.itemId,
       name: item.name,
       description: item.description,
@@ -6887,262 +6886,157 @@ router.get('/items/list', requireMacAndDev, async (req: any, res) => {
       isActive: item.isActive,
       lastUpdated: item.lastUpdated
     }));
-    
-    res.json({
-      success: true,
-      items: formattedItems,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit)
-    });
-    
+
+    res.json({ success: true, items: formatted, total, page: Number(page), limit: Number(limit) });
   } catch (error) {
     console.error('❌ [Items Admin] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur chargement liste items'
-    });
+    res.status(500).json({ success: false, error: 'Erreur chargement liste items' });
   }
 });
 
 /**
  * GET /api/admin/items/details/:itemId
- * Détails complets d'un item pour édition
  */
 router.get('/items/details/:itemId', requireMacAndDev, async (req: any, res) => {
   try {
     const { itemId } = req.params;
-    
     console.log(`📦 [Items Admin] Loading details for: ${itemId}`);
-    
+
     const item = await ItemData.findOne({ itemId }).lean();
-    
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        error: 'Item non trouvé'
-      });
-    }
-    
-    res.json({
-      success: true,
-      item: item
-    });
-    
+    if (!item) return res.status(404).json({ success: false, error: 'Item non trouvé' });
+
+    res.json({ success: true, item });
   } catch (error) {
     console.error(`❌ [Items Admin] Error loading ${req.params.itemId}:`, error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur chargement détails item'
-    });
+    res.status(500).json({ success: false, error: 'Erreur chargement détails item' });
   }
 });
 
 /**
  * POST /api/admin/items
- * Créer un nouvel item
  */
 router.post('/items', requireMacAndDev, async (req: any, res) => {
   try {
     const itemData = req.body;
-    
     console.log(`📦 [Items Admin] Creating item: ${itemData.itemId}`);
-    
-    // Validation des champs requis
+
     if (!itemData.itemId || !itemData.name || !itemData.description) {
-      return res.status(400).json({
-        success: false,
-        error: 'Champs requis manquants (itemId, name, description)'
-      });
+      return res.status(400).json({ success: false, error: 'Champs requis manquants (itemId, name, description)' });
     }
-    
-    // Vérifier que l'ID n'existe pas déjà
+
     const existing = await ItemData.findOne({ itemId: itemData.itemId });
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        error: 'Un item avec cet ID existe déjà'
-      });
-    }
-    
-    // Créer le nouvel item
-    const newItem = await ItemData.createFromJson({
+    if (existing) return res.status(400).json({ success: false, error: 'Un item avec cet ID existe déjà' });
+
+    const newItem = await (ItemData as any).createFromJson({
       id: itemData.itemId,
       ...itemData,
       createdBy: req.user.username
     });
-    
+
     console.log(`✅ [Items Admin] Item créé: ${itemData.itemId} par ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: 'Item créé avec succès',
-      item: {
-        itemId: newItem.itemId,
-        name: newItem.name,
-        category: newItem.category,
-        isActive: newItem.isActive
-      },
+      item: { itemId: newItem.itemId, name: newItem.name, category: newItem.category, isActive: newItem.isActive },
       createdBy: req.user.username
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Items Admin] Error creating item:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur création item',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, error: 'Erreur création item', details: error?.message || 'Unknown error' });
   }
 });
 
 /**
  * PUT /api/admin/items/:itemId
- * Mettre à jour un item existant
  */
 router.put('/items/:itemId', requireMacAndDev, async (req: any, res) => {
   try {
     const { itemId } = req.params;
     const updateData = req.body;
-    
     console.log(`📦 [Items Admin] Updating item: ${itemId}`);
-    
+
     const item = await ItemData.findOne({ itemId });
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        error: 'Item non trouvé'
-      });
-    }
-    
-    // Mettre à jour via la méthode du modèle
-    await item.updateFromJson(updateData);
-    
+    if (!item) return res.status(404).json({ success: false, error: 'Item non trouvé' });
+
+    await (item as any).updateFromJson(updateData);
+
     console.log(`✅ [Items Admin] Item mis à jour: ${itemId} par ${req.user.username}`);
-    
-    res.json({
-      success: true,
-      message: 'Item mis à jour avec succès',
-      item: item.toItemFormat(),
-      updatedBy: req.user.username
-    });
-    
-  } catch (error) {
+
+    res.json({ success: true, message: 'Item mis à jour avec succès', item: (item as any).toItemFormat(), updatedBy: req.user.username });
+  } catch (error: any) {
     console.error('❌ [Items Admin] Error updating item:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur mise à jour item',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, error: 'Erreur mise à jour item', details: error?.message || 'Unknown error' });
   }
 });
 
 /**
  * DELETE /api/admin/items/:itemId
- * Supprimer un item (désactiver)
  */
 router.delete('/items/:itemId', requireMacAndDev, async (req: any, res) => {
   try {
     const { itemId } = req.params;
-    
     console.log(`📦 [Items Admin] Deleting item: ${itemId}`);
-    
+
     const item = await ItemData.findOne({ itemId });
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        error: 'Item non trouvé'
-      });
-    }
-    
-    // Désactiver au lieu de supprimer
+    if (!item) return res.status(404).json({ success: false, error: 'Item non trouvé' });
+
     item.isActive = false;
     await item.save();
-    
+
     console.log(`✅ [Items Admin] Item désactivé: ${itemId} par ${req.user.username}`);
-    
-    res.json({
-      success: true,
-      message: 'Item désactivé avec succès',
-      deletedItem: {
-        itemId: item.itemId,
-        name: item.name
-      },
-      deletedBy: req.user.username
-    });
-    
+
+    res.json({ success: true, message: 'Item désactivé avec succès', deletedItem: { itemId: item.itemId, name: item.name }, deletedBy: req.user.username });
   } catch (error) {
     console.error('❌ [Items Admin] Error deleting item:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur suppression item'
-    });
+    res.status(500).json({ success: false, error: 'Erreur suppression item' });
   }
 });
 
 /**
  * POST /api/admin/items/:itemId/duplicate
- * Dupliquer un item
  */
 router.post('/items/:itemId/duplicate', requireMacAndDev, async (req: any, res) => {
   try {
     const { itemId } = req.params;
-    
     console.log(`📋 [Items Admin] Duplicating item: ${itemId}`);
-    
-    const originalItem = await ItemData.findOne({ itemId });
-    if (!originalItem) {
-      return res.status(404).json({
-        success: false,
-        error: 'Item original non trouvé'
-      });
-    }
-    
-    // Générer un nouvel ID unique
+
+    const original = await ItemData.findOne({ itemId });
+    if (!original) return res.status(404).json({ success: false, error: 'Item original non trouvé' });
+
     const newItemId = `${itemId}_copy_${Date.now()}`;
-    
-    // Créer la copie
-    const duplicateData = originalItem.toObject();
-    delete duplicateData._id;
-    duplicateData.itemId = newItemId;
-    duplicateData.name = `${duplicateData.name} (Copie)`;
-    duplicateData.createdBy = req.user.username;
-    duplicateData.lastUpdated = new Date();
-    
-    const duplicatedItem = await ItemData.create(duplicateData);
-    
+    const dup = original.toObject();
+    delete dup._id;
+    dup.itemId = newItemId;
+    dup.name = `${dup.name} (Copie)`;
+    dup.createdBy = req.user.username;
+    dup.lastUpdated = new Date();
+
+    const created = await ItemData.create(dup);
+
     console.log(`✅ [Items Admin] Item dupliqué: ${itemId} -> ${newItemId} par ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: 'Item dupliqué avec succès',
       originalItemId: itemId,
-      newItemId: newItemId,
-      item: {
-        itemId: duplicatedItem.itemId,
-        name: duplicatedItem.name,
-        category: duplicatedItem.category
-      },
+      newItemId,
+      item: { itemId: created.itemId, name: created.name, category: created.category },
       duplicatedBy: req.user.username
     });
-    
   } catch (error) {
     console.error('❌ [Items Admin] Error duplicating item:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur duplication item'
-    });
+    res.status(500).json({ success: false, error: 'Erreur duplication item' });
   }
 });
 
 /**
  * GET /api/admin/items/stats
- * Statistiques des items
  */
 router.get('/items/stats', requireMacAndDev, async (req: any, res) => {
   try {
     console.log('📊 [Items Admin] Generating statistics...');
-    
+
     const [
       totalItems,
       activeItems,
@@ -7153,71 +7047,40 @@ router.get('/items/stats', requireMacAndDev, async (req: any, res) => {
     ] = await Promise.all([
       ItemData.countDocuments({}),
       ItemData.countDocuments({ isActive: true }),
-      ItemData.aggregate([
-        { $match: { isActive: true } },
-        { $group: { _id: '$category', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      ItemData.aggregate([
-        { $match: { isActive: true } },
-        { $group: { _id: '$generation', count: { $sum: 1 } } },
-        { $sort: { _id: 1 } }
-      ]),
-      ItemData.aggregate([
-        { $match: { isActive: true } },
-        { $group: { _id: '$rarity', count: { $sum: 1 } } }
-      ]),
+      ItemData.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$category', count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
+      ItemData.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$generation', count: { $sum: 1 } } }, { $sort: { _id: 1 } }]),
+      ItemData.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$rarity', count: { $sum: 1 } } }]),
       ItemData.countDocuments({ price: { $ne: null, $gt: 0 }, isActive: true })
     ]);
-    
+
     const stats = {
       total: totalItems,
       active: activeItems,
       inactive: totalItems - activeItems,
       buyable: buyableItems,
-      byCategory: itemsByCategory.reduce((acc: any, item: any) => {
-        acc[item._id] = item.count;
-        return acc;
-      }, {}),
-      byGeneration: itemsByGeneration.reduce((acc: any, item: any) => {
-        acc[`gen_${item._id}`] = item.count;
-        return acc;
-      }, {}),
-      byRarity: itemsByRarity.reduce((acc: any, item: any) => {
-        acc[item._id] = item.count;
-        return acc;
-      }, {})
+      byCategory: itemsByCategory.reduce((acc: any, x: any) => (acc[x._id] = x.count, acc), {}),
+      byGeneration: itemsByGeneration.reduce((acc: any, x: any) => (acc[`gen_${x._id}`] = x.count, acc), {}),
+      byRarity: itemsByRarity.reduce((acc: any, x: any) => (acc[x._id] = x.count, acc), {})
     };
-    
+
     console.log('✅ [Items Admin] Statistics generated');
-    
-    res.json({
-      success: true,
-      stats
-    });
-    
+    res.json({ success: true, stats });
   } catch (error) {
     console.error('❌ [Items Admin] Error generating stats:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur génération statistiques'
-    });
+    res.status(500).json({ success: false, error: 'Erreur génération statistiques' });
   }
 });
 
 /**
  * POST /api/admin/items/search
- * Recherche avancée d'items
  */
 router.post('/items/search', requireMacAndDev, async (req: any, res) => {
   try {
     const { query, category, generation, rarity, priceRange, hasEffects, limit = 50 } = req.body;
-    
     console.log(`🔍 [Items Admin] Searching items: "${query}"`);
-    
+
     const filter: any = { isActive: true };
-    
-    // Recherche textuelle
+
     if (query && query.length >= 2) {
       filter.$or = [
         { name: { $regex: query, $options: 'i' } },
@@ -7226,78 +7089,59 @@ router.post('/items/search', requireMacAndDev, async (req: any, res) => {
         { tags: { $in: [new RegExp(query, 'i')] } }
       ];
     }
-    
-    // Filtres avancés
+
     if (category && category !== 'all') filter.category = category;
-    if (generation && generation !== 'all') filter.generation = parseInt(generation);
+    if (generation && generation !== 'all') filter.generation = parseInt(generation, 10);
     if (rarity && rarity !== 'all') filter.rarity = rarity;
-    
+
     if (priceRange) {
-      if (priceRange.min !== undefined) filter.price = { ...filter.price, $gte: priceRange.min };
-      if (priceRange.max !== undefined) filter.price = { ...filter.price, $lte: priceRange.max };
+      if (priceRange.min !== undefined) filter.price = { ...(filter.price || {}), $gte: priceRange.min };
+      if (priceRange.max !== undefined) filter.price = { ...(filter.price || {}), $lte: priceRange.max };
     }
-    
-    if (hasEffects === true) {
-      filter['effects.0'] = { $exists: true };
-    } else if (hasEffects === false) {
-      filter.effects = { $size: 0 };
-    }
-    
+
+    if (hasEffects === true) filter['effects.0'] = { $exists: true };
+    else if (hasEffects === false) filter.effects = { $size: 0 };
+
     const results = await ItemData.find(filter)
       .select('itemId name description category price generation rarity effects tags')
       .sort({ name: 1 })
-      .limit(parseInt(limit))
+      .limit(parseInt(limit, 10))
       .lean();
-    
-    const formattedResults = results.map(item => ({
-      itemId: item.itemId,
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      price: item.price,
-      generation: item.generation,
-      rarity: item.rarity,
-      effectCount: item.effects?.length || 0,
-      tags: item.tags
+
+    const formatted = results.map((x: any) => ({
+      itemId: x.itemId,
+      name: x.name,
+      description: x.description,
+      category: x.category,
+      price: x.price,
+      generation: x.generation,
+      rarity: x.rarity,
+      effectCount: x.effects?.length || 0,
+      tags: x.tags
     }));
-    
-    res.json({
-      success: true,
-      results: formattedResults,
-      total: formattedResults.length,
-      query
-    });
-    
+
+    res.json({ success: true, results: formatted, total: formatted.length, query });
   } catch (error) {
     console.error('❌ [Items Admin] Error searching:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur recherche items'
-    });
+    res.status(500).json({ success: false, error: 'Erreur recherche items' });
   }
 });
 
 /**
  * POST /api/admin/items/import
- * Importer des items depuis JSON
  */
 router.post('/items/import', requireMacAndDev, async (req: any, res) => {
   try {
-    const { items, overwrite = false } = req.body;
-    
+    const { items } = req.body;
     console.log(`📥 [Items Admin] Importing ${Object.keys(items || {}).length} items by ${req.user.username}`);
-    
+
     if (!items || typeof items !== 'object') {
-      return res.status(400).json({
-        success: false,
-        error: 'Format d\'items invalide'
-      });
+      return res.status(400).json({ success: false, error: "Format d'items invalide" });
     }
-    
-    const result = await ItemData.bulkImportFromJson(items);
-    
-    console.log(`✅ [Items Admin] Import completed: ${result.success} success, ${result.errors.length} errors`);
-    
+
+    const result = await (ItemData as any).bulkImportFromJson(items);
+    console.log(`✅ [Items Admin] Import: ${result.success} ok, ${result.errors.length} erreurs`);
+
     res.json({
       success: true,
       message: `Import terminé: ${result.success} items importés`,
@@ -7306,52 +7150,35 @@ router.post('/items/import', requireMacAndDev, async (req: any, res) => {
       errorDetails: result.errors.length > 0 ? result.errors.slice(0, 10) : undefined,
       importedBy: req.user.username
     });
-    
   } catch (error) {
     console.error('❌ [Items Admin] Error importing:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur import items'
-    });
+    res.status(500).json({ success: false, error: 'Erreur import items' });
   }
 });
 
 /**
  * GET /api/admin/items/export/all
- * Exporter tous les items
  */
 router.get('/items/export/all', requireMacAndDev, async (req: any, res) => {
   try {
     console.log(`📤 [Items Admin] Exporting all items by ${req.user.username}`);
-    
-    const items = await ItemData.findActiveItems();
-    
-    // Format compatible avec l'ancien JSON
-    const exportData: { [key: string]: any } = {};
-    
-    items.forEach(item => {
-      exportData[item.itemId] = item.toItemFormat();
-    });
-    
-    const exportMetadata = {
+
+    const items = await (ItemData as any).findActiveItems();
+    const exportData: Record<string, any> = {};
+    items.forEach((it: any) => { exportData[it.itemId] = (it as any).toItemFormat(); });
+
+    const payload = {
       exportedAt: new Date().toISOString(),
       exportedBy: req.user.username,
       version: '2.0.0',
       totalItems: items.length,
       items: exportData
     };
-    
-    res.json({
-      success: true,
-      data: exportMetadata
-    });
-    
+
+    res.json({ success: true, data: payload });
   } catch (error) {
     console.error('❌ [Items Admin] Error exporting:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur export items'
-    });
+    res.status(500).json({ success: false, error: 'Erreur export items' });
   }
 });
 
