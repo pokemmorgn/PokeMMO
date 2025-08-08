@@ -1,0 +1,605 @@
+{
+  "1": {
+    "name": "Bulbasaur",
+    "description": "Un seme strano è stato piantato sulla sua schiena alla nascita. La pianta germoglia e cresce con questo Pokémon."
+  },
+  "2": {
+    "name": "Ivysaur",
+    "description": "Quando il bulbo sulla sua schiena diventa grande, sembra perdere la capacità di stare sulle zampe posteriori."
+  },
+  "3": {
+    "name": "Venusaur",
+    "description": "La pianta fiorisce quando assorbe energia solare. Rimane in movimento per cercare la luce del sole."
+  },
+  "4": {
+    "name": "Charmander",
+    "description": "Ovviamente preferisce i luoghi caldi. Quando piove, si dice che vapore fuoriesca dalla punta della sua coda."
+  },
+  "5": {
+    "name": "Charmeleon",
+    "description": "Quando oscilla la sua coda ardente, eleva la temperatura a livelli insopportabilmente alti."
+  },
+  "6": {
+    "name": "Charizard",
+    "description": "Sputa fuoco abbastanza caldo da sciogliere massi. Noto per causare incendi boschivi involontariamente."
+  },
+  "7": {
+    "name": "Squirtle",
+    "description": "Dopo la nascita, la sua schiena si gonfia e si indurisce formando un guscio. Spruzza potentemente schiuma dalla bocca."
+  },
+  "8": {
+    "name": "Wartortle",
+    "description": "Spesso si nasconde nell'acqua per inseguire prede ignare. Per nuotare veloce, muove le orecchie per mantenere l'equilibrio."
+  },
+  "9": {
+    "name": "Blastoise",
+    "description": "Un Pokémon brutale con getti d'acqua pressurizzati sul suo guscio. Sono usati per attacchi ad alta velocità."
+  },
+  "10": {
+    "name": "Caterpie",
+    "description": "I suoi piedi corti hanno ventose che gli permettono di scalare instancabilmente pendii e muri."
+  },
+  "11": {
+    "name": "Metapod",
+    "description": "Questo Pokémon è vulnerabile agli attacchi mentre il suo guscio è morbido, esponendo il suo corpo debole e tenero."
+  },
+  "12": {
+    "name": "Butterfree",
+    "description": "In battaglia, sbatte le ali a grande velocità per rilasciare polvere altamente tossica nell'aria."
+  },
+  "13": {
+    "name": "Weedle",
+    "description": "Spesso trovato nelle foreste, mangia foglie. Ha un aculeo affilato sulla testa che inietta veleno."
+  },
+  "14": {
+    "name": "Kakuna",
+    "description": "Quasi incapace di muoversi, questo Pokémon può solo indurire il suo guscio per proteggersi dai predatori."
+  },
+  "15": {
+    "name": "Beedrill",
+    "description": "Vola ad alta velocità e attacca usando i suoi grandi aculei velenosi sulle zampe anteriori e sulla coda."
+  },
+  "16": {
+    "name": "Pidgey",
+    "description": "Una vista comune nelle foreste e nei boschi. Sbatte le ali a livello del suolo per sollevare sabbia accecante."
+  },
+  "17": {
+    "name": "Pidgeotto",
+    "description": "Molto protettivo della sua vasta area territoriale, questo Pokémon beccherà ferocemente qualsiasi intruso."
+  },
+  "18": {
+    "name": "Pidgeot",
+    "description": "Quando caccia, sfiora la superficie dell'acqua ad alta velocità per catturare prede ignare come Magikarp."
+  },
+  "19": {
+    "name": "Rattata",
+    "description": "Morde tutto quando attacca. Piccolo e molto veloce, è una vista comune in molti luoghi."
+  },
+  "20": {
+    "name": "Raticate",
+    "description": "Le sue zampe posteriori sono palmate. Agiscono come pinne, così può nuotare nei fiumi e cacciare prede."
+  },
+  "21": {
+    "name": "Spearow",
+    "description": "Mangia insetti nelle aree erbose. Deve sbattere le sue ali corte ad alta velocità per rimanere in volo."
+  },
+  "22": {
+    "name": "Fearow",
+    "description": "Con le sue ali enormi e magnifiche, può rimanere in volo senza mai dover atterrare per riposare."
+  },
+  "23": {
+    "name": "Ekans",
+    "description": "Si muove silenziosamente e furtivamente. Mangia le uova di uccelli, come Pidgey e Spearow, intere."
+  },
+  "24": {
+    "name": "Arbok",
+    "description": "Si dice che i feroci segni di avvertimento sul suo ventre differiscano da area ad area."
+  },
+  "25": {
+    "name": "Pikachu",
+    "description": "Quando molti di questi Pokémon si riuniscono, la loro elettricità potrebbe accumularsi e causare tempeste di fulmini."
+  },
+  "26": {
+    "name": "Raichu",
+    "description": "La sua lunga coda serve come terra per proteggersi dal suo stesso potere ad alto voltaggio."
+  },
+  "27": {
+    "name": "Sandshrew",
+    "description": "Scava profondamente sottoterra in luoghi aridi lontani dall'acqua. Emerge solo per cacciare cibo."
+  },
+  "28": {
+    "name": "Sandslash",
+    "description": "Si arrotola in una palla spinosa quando minacciato. Può rotolare mentre arrotolato per attaccare o fuggire."
+  },
+  "29": {
+    "name": "Nidoran♀",
+    "description": "Anche se piccolo, le sue barbe velenose rendono questo Pokémon pericoloso. La femmina ha corna più piccole."
+  },
+  "30": {
+    "name": "Nidorina",
+    "description": "Il corno della femmina si sviluppa lentamente. Preferisce attacchi fisici come graffiare e mordere."
+  },
+  "31": {
+    "name": "Nidoqueen",
+    "description": "Squame resistenti coprono il corpo robusto di questo Pokémon. Sembra che le squame crescano in cicli."
+  },
+  "32": {
+    "name": "Nidoran♂",
+    "description": "Irrigidisce le orecchie per percepire il pericolo. Più grandi sono le sue corna, più potente è il veleno che secerne."
+  },
+  "33": {
+    "name": "Nidorino",
+    "description": "Un Pokémon aggressivo che è veloce ad attaccare. Il corno sulla sua testa secerne un veleno potente."
+  },
+  "34": {
+    "name": "Nidoking",
+    "description": "Usa la sua coda potente in battaglia per schiacciare, costringere, poi spezzare le ossa della sua preda."
+  },
+  "35": {
+    "name": "Clefairy",
+    "description": "Il suo fascino magico e carino ha molti ammiratori. È raro e si trova solo in certe aree."
+  },
+  "36": {
+    "name": "Clefable",
+    "description": "Un Pokémon fata timido che è raramente visto. Correrà e si nasconderà nel momento in cui percepisce persone."
+  },
+  "37": {
+    "name": "Vulpix",
+    "description": "Al momento della nascita, ha solo una coda. La coda si divide dalla punta mentre invecchia."
+  },
+  "38": {
+    "name": "Ninetales",
+    "description": "Molto intelligente e molto vendicativo. Afferrare una delle sue molte code potrebbe risultare in una maledizione di 1000 anni."
+  },
+  "39": {
+    "name": "Jigglypuff",
+    "description": "Quando i suoi occhi enormi si illuminano, canta una melodia misteriosamente rilassante che addormenta i suoi nemici."
+  },
+  "40": {
+    "name": "Wigglytuff",
+    "description": "Il corpo è morbido e gommoso. Quando arrabbiato, aspirerà aria e si gonfierà a dimensioni enormi."
+  },
+  "41": {
+    "name": "Zubat",
+    "description": "Forma colonie in luoghi perpetuamente bui. Usa onde ultrasoniche per identificare e avvicinarsi ai bersagli."
+  },
+  "42": {
+    "name": "Golbat",
+    "description": "Una volta che colpisce, non smetterà di drenare energia dalla vittima anche se diventa troppo pesante per volare."
+  },
+  "43": {
+    "name": "Oddish",
+    "description": "Durante il giorno, tiene la faccia sepolta nel terreno. Di notte, vaga in giro seminando i suoi semi."
+  },
+  "44": {
+    "name": "Gloom",
+    "description": "Il fluido che gocciola dalla sua bocca non è bava. È un nettare che viene usato per attirare prede."
+  },
+  "45": {
+    "name": "Vileplume",
+    "description": "Più grandi sono i suoi petali, più polline tossico contiene. La sua testa grande è pesante e difficile da tenere su."
+  },
+  "46": {
+    "name": "Paras",
+    "description": "Scava per succhiare radici di alberi. I funghi sulla sua schiena crescono traendo nutrienti dall'ospite insetto."
+  },
+  "47": {
+    "name": "Parasect",
+    "description": "Una coppia ospite-parassita in cui il fungo parassita ha preso il controllo dell'insetto ospite. Preferisce luoghi umidi."
+  },
+  "48": {
+    "name": "Venonat",
+    "description": "I suoi grandi occhi agiscono come radar. In un posto luminoso, puoi vedere che sono gruppi di molti piccoli occhi."
+  },
+  "49": {
+    "name": "Venomoth",
+    "description": "Le squame polverose che coprono le sue ali sono codificate a colori per indicare i tipi di veleno che ha."
+  },
+  "50": {
+    "name": "Diglett",
+    "description": "Vive circa un metro sottoterra dove si nutre di radici di piante. A volte appare sopra terra."
+  },
+  "51": {
+    "name": "Dugtrio",
+    "description": "Un team di tripletti Diglett. Innesca enormi terremoti scavando 100 chilometri sottoterra."
+  },
+  "52": {
+    "name": "Meowth",
+    "description": "Adora oggetti circolari. Vaga per le strade di notte per cercare monete cadute."
+  },
+  "53": {
+    "name": "Persian",
+    "description": "Anche se la sua pelliccia ha molti ammiratori, è difficile da allevare come animale domestico a causa della sua cattiveria capricciosa."
+  },
+  "54": {
+    "name": "Psyduck",
+    "description": "Mentre culla i suoi nemici con il suo sguardo vacuo, questo Pokémon astuto userà poteri psicocinetici."
+  },
+  "55": {
+    "name": "Golduck",
+    "description": "Spesso visto nuotare elegantemente vicino alle rive dei laghi. È spesso scambiato per il mostro giapponese, Kappa."
+  },
+  "56": {
+    "name": "Mankey",
+    "description": "Estremamente veloce ad arrabbiarsi. Potrebbe essere docile un momento e poi scatenarsi l'istante successivo."
+  },
+  "57": {
+    "name": "Primeape",
+    "description": "Sempre furioso e tenace in aggiunta. Non abbandonerà l'inseguimento della sua preda finché non viene catturata."
+  },
+  "58": {
+    "name": "Growlithe",
+    "description": "Molto protettivo del suo territorio. Abbaierà e morderà per respingere intrusi dal suo spazio."
+  },
+  "59": {
+    "name": "Arcanine",
+    "description": "Un Pokémon leggendario in Cina. Molte persone sono affascinate dalla sua grazia e bellezza mentre corre."
+  },
+  "60": {
+    "name": "Poliwag",
+    "description": "Le sue gambe appena cresciute gli impediscono di correre. Sembra preferire nuotare piuttosto che cercare di stare in piedi."
+  },
+  "61": {
+    "name": "Poliwhirl",
+    "description": "Capace di vivere dentro o fuori dall'acqua. Quando fuori dall'acqua, suda per mantenere il suo corpo viscido."
+  },
+  "62": {
+    "name": "Poliwrath",
+    "description": "Un nuotatore esperto sia nello stile libero che a rana. Supera facilmente i migliori nuotatori umani."
+  },
+  "63": {
+    "name": "Abra",
+    "description": "Usando la sua capacità di leggere le menti, identificherà pericolo imminente e si teletrasporterà in sicurezza."
+  },
+  "64": {
+    "name": "Kadabra",
+    "description": "Emette onde alfa speciali dal suo corpo che inducono mal di testa solo essendo vicini."
+  },
+  "65": {
+    "name": "Alakazam",
+    "description": "Il suo cervello può superare un supercomputer. Si dice che il suo quoziente intellettivo sia 5000."
+  },
+  "66": {
+    "name": "Machop",
+    "description": "Ama sviluppare i suoi muscoli. Si allena in tutti gli stili di arti marziali per diventare ancora più forte."
+  },
+  "67": {
+    "name": "Machoke",
+    "description": "Il suo corpo muscoloso è così potente che deve indossare una cintura risparmia-energia per poter regolare i suoi movimenti."
+  },
+  "68": {
+    "name": "Machamp",
+    "description": "Usando i suoi muscoli pesanti, lancia pugni potenti che possono mandare la vittima oltre l'orizzonte."
+  },
+  "69": {
+    "name": "Bellsprout",
+    "description": "Un Pokémon carnivoro che intrappola e mangia insetti. Usa i suoi piedi-radice per assorbire l'umidità necessaria."
+  },
+  "70": {
+    "name": "Weepinbell",
+    "description": "Sputa polvere velenosa per immobilizzare il nemico e poi lo finisce con uno spruzzo di acido."
+  },
+  "71": {
+    "name": "Victreebel",
+    "description": "Si dice che viva in enormi colonie nel profondo delle giungle, anche se nessuno è mai tornato da lì."
+  },
+  "72": {
+    "name": "Tentacool",
+    "description": "Deriva in mari poco profondi. Pescatori che li agganciano per errore sono spesso puniti dal loro acido pungente."
+  },
+  "73": {
+    "name": "Tentacruel",
+    "description": "I tentacoli sono normalmente tenuti corti. Durante le cacce, sono estesi per impigliare e immobilizzare prede."
+  },
+  "74": {
+    "name": "Geodude",
+    "description": "Trovato in campi e montagne. Scambiandoli per massi, le persone spesso ci camminano sopra o inciampano."
+  },
+  "75": {
+    "name": "Graveler",
+    "description": "Rotola giù per i pendii per muoversi. Rotola sopra qualsiasi ostacolo senza rallentare o cambiare direzione."
+  },
+  "76": {
+    "name": "Golem",
+    "description": "Il suo corpo roccioso è estremamente duro. Può facilmente resistere a esplosioni di dinamite senza danni."
+  },
+  "77": {
+    "name": "Ponyta",
+    "description": "I suoi zoccoli sono 10 volte più duri dei diamanti. Può calpestare qualsiasi cosa completamente piatta in poco tempo."
+  },
+  "78": {
+    "name": "Rapidash",
+    "description": "Molto competitivo, questo Pokémon inseguirà qualsiasi cosa si muova velocemente nella speranza di gareggiare con essa."
+  },
+  "79": {
+    "name": "Slowpoke",
+    "description": "Incredibilmente lento e stupido. Ci vogliono cinque secondi per sentire dolore quando è sotto attacco."
+  },
+  "80": {
+    "name": "Slowbro",
+    "description": "Lo Shellder che è attaccato alla coda di Slowpoke si dice che si nutra degli avanzi dell'ospite."
+  },
+  "81": {
+    "name": "Magnemite",
+    "description": "Usa l'anti-gravità per rimanere sospeso. Appare senza preavviso e usa Tuononda e mosse simili."
+  },
+  "82": {
+    "name": "Magneton",
+    "description": "Formato da diversi Magnemite collegati insieme. Appaiono frequentemente quando le macchie solari si infiammano."
+  },
+  "83": {
+    "name": "Farfetch'd",
+    "description": "Il rametto di cipolle verdi che tiene è la sua arma. È usato come una spada di metallo."
+  },
+  "84": {
+    "name": "Doduo",
+    "description": "Un uccello che compensa il suo scarso volo con la sua velocità di corsa. Lascia impronte giganti."
+  },
+  "85": {
+    "name": "Dodrio",
+    "description": "Usa i suoi tre cervelli per eseguire piani complessi. Mentre due teste dormono, una testa rimane sveglia."
+  },
+  "86": {
+    "name": "Seel",
+    "description": "Il corno sporgente sulla sua testa è molto duro. È usato per sfondare il ghiaccio spesso."
+  },
+  "87": {
+    "name": "Dewgong",
+    "description": "Immagazzina energia termica nel suo corpo. Nuota a 8 nodi costanti anche in acque intensamente fredde."
+  },
+  "88": {
+    "name": "Grimer",
+    "description": "Appare in aree sporche. Prospera assorbendo fango inquinato che viene pompato fuori dalle fabbriche."
+  },
+  "89": {
+    "name": "Muk",
+    "description": "Densamente coperto con un fango sporco e disgustoso. È così tossico che anche le sue impronte contengono veleno."
+  },
+  "90": {
+    "name": "Shellder",
+    "description": "Il suo guscio duro respinge qualsiasi tipo di attacco. È vulnerabile solo quando il suo guscio è aperto."
+  },
+  "91": {
+    "name": "Cloyster",
+    "description": "Quando attaccato, lancia i suoi corni in raffiche veloci. Le sue interiora non sono mai state viste."
+  },
+  "92": {
+    "name": "Gastly",
+    "description": "Quasi invisibile, questo Pokémon gassoso avvolge il bersaglio e lo addormenta senza preavviso."
+  },
+  "93": {
+    "name": "Haunter",
+    "description": "A causa della sua capacità di scivolare attraverso muri di blocchi, si dice che provenga da un'altra dimensione."
+  },
+  "94": {
+    "name": "Gengar",
+    "description": "Sotto la luna piena, a questo Pokémon piace imitare le ombre delle persone e ridere della loro paura."
+  },
+  "95": {
+    "name": "Onix",
+    "description": "Mentre cresce, le parti rocciose del suo corpo si induriscono per diventare simili a un diamante, ma colorate di nero."
+  },
+  "96": {
+    "name": "Drowzee",
+    "description": "Addormenta i nemici poi mangia i loro sogni. Occasionalmente si ammala mangiando solo incubi."
+  },
+  "97": {
+    "name": "Hypno",
+    "description": "Quando fa contatto visivo con un nemico, userà un mix di mosse psi come Ipnosi e Confusione."
+  },
+  "98": {
+    "name": "Krabby",
+    "description": "Le sue chele non sono solo armi potenti, sono usate per l'equilibrio quando cammina di lato."
+  },
+  "99": {
+    "name": "Kingler",
+    "description": "Una chela è cresciuta massicciamente ed è dura come l'acciaio. Ha una forza di 10.000 cavalli. Tuttavia, è troppo pesante."
+  },
+  "100": {
+    "name": "Voltorb",
+    "description": "Solitamente trovato nelle centrali elettriche. Facilmente scambiato per una Poké Ball, hanno fulminato molte persone."
+  },
+  "101": {
+    "name": "Electrode",
+    "description": "Immagazzina energia elettrica sotto altissima pressione. Spesso esplode con poca o nessuna provocazione."
+  },
+  "102": {
+    "name": "Exeggcute",
+    "description": "Spesso scambiati per uova. Quando disturbati, si radunano rapidamente e attaccano in sciami."
+  },
+  "103": {
+    "name": "Exeggutor",
+    "description": "La leggenda dice che in rare occasioni, una delle sue teste cadrà e continuerà come un Exeggcute."
+  },
+  "104": {
+    "name": "Cubone",
+    "description": "Poiché non rimuove mai il suo elmetto di teschio, nessuno ha mai visto la vera faccia di questo Pokémon."
+  },
+  "105": {
+    "name": "Marowak",
+    "description": "Piccolo e debole, questo Pokémon è abile con il suo bastone d'osso. È diventato più vizioso nel corso dei secoli."
+  },
+  "106": {
+    "name": "Hitmonlee",
+    "description": "Quando ha fretta, le sue gambe si allungano progressivamente. Corre dolcemente con passi extra lunghi e saltellanti."
+  },
+  "107": {
+    "name": "Hitmonchan",
+    "description": "Mentre apparentemente non fa nulla, spara pugni in raffiche ultra-veloci che sono impossibili da vedere."
+  },
+  "108": {
+    "name": "Lickitung",
+    "description": "La sua lingua può essere estesa come quella di un camaleonte. Lascia una sensazione di formicolio quando lecca i nemici."
+  },
+  "109": {
+    "name": "Koffing",
+    "description": "Poiché immagazzina diversi tipi di gas tossici nel suo corpo, è incline a esplodere senza preavviso."
+  },
+  "110": {
+    "name": "Weezing",
+    "description": "Dove due tipi di gas velenosi si incontrano, due Koffing possono fondersi in un Weezing nel corso di molti anni."
+  },
+  "111": {
+    "name": "Rhyhorn",
+    "description": "Le sue ossa massicce sono 1000 volte più dure delle ossa umane. Può facilmente far volare un rimorchio."
+  },
+  "112": {
+    "name": "Rhydon",
+    "description": "Protetto da una pelle simile a un'armatura, è capace di vivere nella lava fusa a 3600 gradi."
+  },
+  "113": {
+    "name": "Chansey",
+    "description": "Un Pokémon raro ed elusivo che si dice porti felicità a coloro che riescono a ottenerlo."
+  },
+  "114": {
+    "name": "Tangela",
+    "description": "La sua identità è oscurata da masse di spesse viti blu. Si dice che le viti non smettano mai di crescere."
+  },
+  "115": {
+    "name": "Kangaskhan",
+    "description": "Il cucciolo si avventura raramente fuori dalla tasca protettiva di sua madre fino a quando non ha 3 anni."
+  },
+  "116": {
+    "name": "Horsea",
+    "description": "Noto per abbattere insetti volanti con getti di inchiostro di precisione dalla superficie dell'acqua."
+  },
+  "117": {
+    "name": "Seadra",
+    "description": "Capace di nuotare all'indietro sbattendo rapidamente le sue pinne pettorali simili ad ali e la coda robusta."
+  },
+  "118": {
+    "name": "Goldeen",
+    "description": "La sua pinna caudale ondeggia come un elegante vestito da ballo, dandogli il soprannome di Regina dell'Acqua."
+  },
+  "119": {
+    "name": "Seaking",
+    "description": "Nella stagione di deposizione autunnale, possono essere visti nuotare potentemente su fiumi e torrenti."
+  },
+  "120": {
+    "name": "Staryu",
+    "description": "Un Pokémon enigmatico che può rigenerare senza sforzo qualsiasi appendice perda in battaglia."
+  },
+  "121": {
+    "name": "Starmie",
+    "description": "Il suo nucleo centrale brilla con i sette colori dell'arcobaleno. Alcune persone lo apprezzano come una gemma."
+  },
+  "122": {
+    "name": "Mr. Mime",
+    "description": "Se interrotto mentre sta mimando, schiaffeggerà l'offensore con le sue mani larghe."
+  },
+  "123": {
+    "name": "Scyther",
+    "description": "Con agilità e velocità da ninja, può creare l'illusione che ce ne sia più di uno."
+  },
+  "124": {
+    "name": "Jynx",
+    "description": "Dondola seducentemente i fianchi mentre cammina. Può far ballare le persone all'unisono con esso."
+  },
+  "125": {
+    "name": "Electabuzz",
+    "description": "Normalmente trovato vicino alle centrali elettriche, possono allontanarsi e causare grandi blackout nelle città."
+  },
+  "126": {
+    "name": "Magmar",
+    "description": "Il suo corpo brucia sempre con un bagliore arancione che gli permette di nascondersi perfettamente tra le fiamme."
+  },
+  "127": {
+    "name": "Pinsir",
+    "description": "Se fallisce nel schiacciare la vittima nelle sue chele, la farà oscillare e la lancerà forte."
+  },
+  "128": {
+    "name": "Tauros",
+    "description": "Quando prende di mira un nemico, carica furiosamente mentre frusta il suo corpo con le sue lunghe code."
+  },
+  "129": {
+    "name": "Magikarp",
+    "description": "Nel passato distante, era un po' più forte dei discendenti orribilmente deboli che esistono oggi."
+  },
+  "130": {
+    "name": "Gyarados",
+    "description": "Raramente visto in natura. Enorme e vizioso, è capace di distruggere intere città in una furia."
+  },
+  "131": {
+    "name": "Lapras",
+    "description": "Un Pokémon che è stato sovrapescato quasi fino all'estinzione. Può trasportare persone attraverso l'acqua."
+  },
+  "132": {
+    "name": "Ditto",
+    "description": "Capace di copiare il codice genetico di un nemico per trasformarsi istantaneamente in un duplicato del nemico."
+  },
+  "133": {
+    "name": "Eevee",
+    "description": "Il suo codice genetico è irregolare. Può mutare se esposto a radiazioni da pietre elementali."
+  },
+  "134": {
+    "name": "Vaporeon",
+    "description": "Vive vicino all'acqua. La sua lunga coda è scanalata con una pinna, che spesso viene scambiata per quella di una sirena."
+  },
+  "135": {
+    "name": "Jolteon",
+    "description": "Accumula ioni negativi nell'atmosfera per sparare fulmini da 10.000 volt."
+  },
+  "136": {
+    "name": "Flareon",
+    "description": "Quando immagazzina energia termica nel suo corpo, la sua temperatura potrebbe salire a oltre 1600 gradi."
+  },
+  "137": {
+    "name": "Porygon",
+    "description": "Un Pokémon che consiste interamente di codice di programmazione. Capace di muoversi liberamente nel cyberspazio."
+  },
+  "138": {
+    "name": "Omanyte",
+    "description": "Anche se estinto da tempo, in rari casi, può essere geneticamente risorto dai fossili."
+  },
+  "139": {
+    "name": "Omastar",
+    "description": "Il suo guscio era troppo grande per muoversi liberamente, così si estinse."
+  },
+  "140": {
+    "name": "Kabuto",
+    "description": "Un Pokémon che fu risorto da un fossile trovato in quello che una volta era il fondo dell'oceano."
+  },
+  "141": {
+    "name": "Kabutops",
+    "description": "La sua forma elegante è perfetta per nuotare. Taglia le prede con i suoi artigli e drena i fluidi corporali."
+  },
+  "142": {
+    "name": "Aerodactyl",
+    "description": "Un Pokémon feroce e preistorico che va per la gola del nemico con le sue zanne seghettate."
+  },
+  "143": {
+    "name": "Snorlax",
+    "description": "Molto pigro. Mangia e dorme solamente. Mentre la sua massa rotonda si accumula, diventa sempre più pigro."
+  },
+  "144": {
+    "name": "Articuno",
+    "description": "Un Pokémon uccello leggendario che si dice appaia a persone condannate perse nelle montagne ghiacciate."
+  },
+  "145": {
+    "name": "Zapdos",
+    "description": "Un Pokémon uccello leggendario che si dice appaia dalle nuvole mentre scaglia enormi fulmini."
+  },
+  "146": {
+    "name": "Moltres",
+    "description": "Conosciuto come l'uccello leggendario del fuoco. Ogni battito delle sue ali crea un bagliore abbagliante di fiamme."
+  },
+  "147": {
+    "name": "Dratini",
+    "description": "A lungo considerato un Pokémon mitico fino a poco tempo fa quando una piccola colonia è stata trovata vivendo sott'acqua."
+  },
+  "148": {
+    "name": "Dragonair",
+    "description": "Un Pokémon mistico che emana un'aura gentile. Ha la capacità di cambiare le condizioni climatiche."
+  },
+  "149": {
+    "name": "Dragonite",
+    "description": "Un Pokémon estremamente raro e altamente intelligente. Capace di girare intorno al globo in sole sedici ore."
+  },
+  "150": {
+    "name": "Mewtwo",
+    "description": "Fu creato da uno scienziato dopo anni di orribili esperimenti di splicing genetico e ingegneria del DNA."
+  },
+  "151": {
+    "name": "Mew",
+    "description": "Così raro che è ancora detto essere un miraggio da molti esperti. Solo poche persone l'hanno visto nel mondo."
+  }
