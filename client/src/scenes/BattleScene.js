@@ -550,15 +550,27 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ✅ NOUVEAU: Animation spéciale vers 0 pour KO
-  animateModernHealthBarToZero(hpBarContainer) {
+animateModernHealthBarToZero(hpBarContainer) {
     if (!hpBarContainer || !hpBarContainer.hpBar) return;
     
     const { hpBar, maxWidth } = hpBarContainer;
     
+    // ✅ FIX: Utiliser la valeur actuelle au lieu de 1
+    const startPercentage = hpBarContainer.currentPercentage || 0;
+    
+    console.log(`💀 [SCENE] Animation KO: ${(startPercentage * 100).toFixed(1)}% → 0%`);
+    
+    // Si déjà à 0, pas d'animation
+    if (startPercentage <= 0) {
+      hpBar.clear();
+      hpBarContainer.currentPercentage = 0;
+      return;
+    }
+    
     this.tweens.add({
-      targets: { value: hpBarContainer.currentPercentage || 1 },
+      targets: { value: startPercentage },
       value: 0,
-      duration: 800,
+      duration: 1200, // Plus lent pour effet dramatique
       ease: 'Power2.easeIn',
       onUpdate: (tween) => {
         const percentage = tween.targets[0].value;
@@ -568,13 +580,22 @@ export class BattleScene extends Phaser.Scene {
         if (percentage > 0) {
           const currentWidth = Math.floor(maxWidth * percentage);
           
-          // Couleur rouge pour le KO
-          hpBar.fillGradientStyle(0xFF0000, 0xFF0000, 0xCC0000, 0xCC0000);
+          // ✅ Couleur rouge intense pour le KO
+          hpBar.fillGradientStyle(0xFF0000, 0xFF0000, 0xAA0000, 0xAA0000);
           hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
+          
+          // Effet de clignotement en fin d'animation
+          if (percentage < 0.1) {
+            const flickerAlpha = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
+            hpBar.clear();
+            hpBar.fillGradientStyle(0xFF0000, 0xFF0000, 0xAA0000, 0xAA0000, flickerAlpha);
+            hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
+          }
         }
       },
       onComplete: () => {
         hpBarContainer.currentPercentage = 0;
+        console.log('💀 [SCENE] Animation KO terminée');
       }
     });
   }
