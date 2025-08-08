@@ -1,6 +1,7 @@
-// managers/LocalizationManager.js - VERSION MODULAIRE AVEC DÉTECTION PÉRIODIQUE
+// managers/LocalizationManager.js - VERSION MODULAIRE AVEC DÉTECTION PÉRIODIQUE + BATTLE
 // 🌐 Gestionnaire de traductions modulaire avec fichiers séparés
 // 🔄 Détection automatique périodique des nouveaux modules
+// ⚔️ Support intégré pour le système de combat
 
 export class LocalizationManager {
   constructor() {
@@ -13,13 +14,13 @@ export class LocalizationManager {
     // === CONFIGURATION MODULAIRE ===
     this.fallbackLanguage = 'en';
     
-    // 🔥 NOUVEAU : Configuration des modules
+    // 🔥 NOUVEAU : Configuration des modules avec BATTLE
     this.moduleConfig = {
       // Modules obligatoires (toujours chargés)
       required: ['common'],
       
-      // Modules optionnels (chargés si demandés ou auto-détectés)
-      optional: ['quest', 'team', 'inventory', 'options', 'pokedex'],
+      // ⚔️ NOUVEAU: Modules optionnels avec battle
+      optional: ['quest', 'team', 'inventory', 'options', 'pokedex', 'battle'],
       
       // Chemins des fichiers
       basePath: '/localization',
@@ -49,7 +50,7 @@ export class LocalizationManager {
     this.loadedModules = new Set();
     this.failedModules = new Set();
     
-    console.log('🌐 [LocalizationManager] Instance modulaire créée avec détection périodique');
+    console.log('🌐 [LocalizationManager] Instance modulaire créée avec support Battle');
   }
   
   // === 🚀 CHARGEMENT INTELLIGENT ===
@@ -230,7 +231,7 @@ export class LocalizationManager {
       }
     }));
     
-    // 🔄 NOUVEAU : Force mise à jour des icônes existantes
+    // 🔄 NOUVEAU : Force mise à jour des composants existants
     this.updateExistingComponents();
   }
   
@@ -269,6 +270,26 @@ export class LocalizationManager {
           window.optionsSystemGlobal.icon.updateLanguage();
           console.log('🔄 [LocalizationManager] OptionsIcon mis à jour');
         }
+      },
+      
+      // ⚔️ NOUVEAU: Battle Systems
+      () => {
+        if (window.game?.scene?.getScene('BattleScene')) {
+          const battleScene = window.game.scene.getScene('BattleScene');
+          if (battleScene.battleTranslator?.setLanguage) {
+            const currentLang = this.getCurrentLanguage();
+            battleScene.battleTranslator.setLanguage(currentLang);
+            console.log('🔄 [LocalizationManager] BattleTranslator mis à jour');
+          }
+        }
+      },
+      
+      // ⚔️ Battle Action UI
+      () => {
+        if (window.battleActionUI?.updateLanguage) {
+          window.battleActionUI.updateLanguage();
+          console.log('🔄 [LocalizationManager] BattleActionUI mis à jour');
+        }
       }
     ];
     
@@ -281,13 +302,13 @@ export class LocalizationManager {
     });
   }
   
-  // === 📁 STRATÉGIES DE CHARGEMENT (INCHANGÉES) ===
+  // === 📁 STRATÉGIES DE CHARGEMENT ===
   
   /**
    * Stratégie SMART : Charger required + modules détectés
    */
   async _loadSmartModules() {
-    console.log('🧠 [LocalizationManager] Stratégie SMART');
+    console.log('🧠 [LocalizationManager] Stratégie SMART avec Battle');
     
     // 1. Charger modules obligatoires
     const requiredModules = this.moduleConfig.required;
@@ -323,7 +344,7 @@ export class LocalizationManager {
    * Stratégie ALL : Charger tous les modules
    */
   async _loadAllModules() {
-    console.log('🎯 [LocalizationManager] Stratégie ALL');
+    console.log('🎯 [LocalizationManager] Stratégie ALL avec Battle');
     
     const allModules = [...this.moduleConfig.required, ...this.moduleConfig.optional];
     
@@ -353,7 +374,7 @@ export class LocalizationManager {
     return success;
   }
   
-  // === 🔍 DÉTECTION AUTOMATIQUE (AMÉLIORÉE) ===
+  // === 🔍 DÉTECTION AUTOMATIQUE (AMÉLIORÉE AVEC BATTLE) ===
   
   /**
    * Détecter automatiquement les modules utilisés sur la page
@@ -367,7 +388,16 @@ export class LocalizationManager {
       team: ['#team-icon', '.team-overlay', '[data-team]', '#team-manager'],
       inventory: ['#inventory-icon', '.inventory-overlay', '[data-inventory]'],
       options: ['#options-icon', '.options-overlay', '[data-options]'],
-      pokedex: ['#pokedex-icon', '.pokedex-overlay', '[data-pokedex]']
+      pokedex: ['#pokedex-icon', '.pokedex-overlay', '[data-pokedex]'],
+      
+      // ⚔️ NOUVEAU: Détection Battle
+      battle: [
+        '#battleScene', '.battle-scene', 
+        '.battle-action-ui', '.battle-ui',
+        '.battle-health-bar', '.battle-interface',
+        '.pokemon-moves-ui', '.battle-inventory',
+        '[data-battle]', '.battle-transition'
+      ]
     };
     
     Object.entries(domIndicators).forEach(([module, selectors]) => {
@@ -384,7 +414,14 @@ export class LocalizationManager {
       team: ['teamSystem', 'teamSystemGlobal'],
       inventory: ['inventorySystem', 'inventorySystemGlobal'],
       options: ['optionsSystem', 'optionsSystemGlobal'],
-      pokedex: ['pokedexSystem', 'pokedexSystemGlobal']
+      pokedex: ['pokedexSystem', 'pokedexSystemGlobal'],
+      
+      // ⚔️ NOUVEAU: Variables globales Battle
+      battle: [
+        'battleSystem', 'battleManager', 'battleNetworkHandler',
+        'battleActionUI', 'pokemonMovesUI', 'koManager',
+        'battleTranslator', 'battleScene'
+      ]
     };
     
     Object.entries(globalIndicators).forEach(([module, globals]) => {
@@ -397,6 +434,32 @@ export class LocalizationManager {
         console.log(`🌐 [LocalizationManager] Module détecté (global): ${module}`);
       }
     });
+    
+    // ⚔️ NOUVEAU: Détection spéciale Phaser Battle Scene
+    if (window.game?.scene?.getScene) {
+      try {
+        const battleScene = window.game.scene.getScene('BattleScene');
+        if (battleScene && !detectedModules.includes('battle')) {
+          detectedModules.push('battle');
+          console.log(`🎮 [LocalizationManager] Module détecté (Phaser): battle`);
+        }
+      } catch (error) {
+        // Pas grave si la scène n'existe pas encore
+      }
+    }
+    
+    // ⚔️ NOUVEAU: Détection par état du jeu
+    if (window.pokemonUISystem?.getCurrentGameState) {
+      try {
+        const gameState = window.pokemonUISystem.getCurrentGameState();
+        if (gameState === 'battle' && !detectedModules.includes('battle')) {
+          detectedModules.push('battle');
+          console.log(`🎯 [LocalizationManager] Module détecté (state): battle`);
+        }
+      } catch (error) {
+        // Pas grave
+      }
+    }
     
     return detectedModules;
   }
@@ -463,14 +526,15 @@ export class LocalizationManager {
    * Obtenir le nom de fichier pour un module
    */
   _getModuleFilename(moduleName) {
-    // Mapping personnalisé ou format standard
+    // ⚔️ NOUVEAU: Mapping avec battle
     const fileMapping = {
       common: 'modules/common-ui.json',
       quest: 'modules/quest-ui.json',
       team: 'modules/team-ui.json',
       inventory: 'modules/inventory-ui.json',
       options: 'modules/options-ui.json',
-      pokedex: 'modules/pokedex-ui.json'
+      pokedex: 'modules/pokedex-ui.json',
+      battle: 'modules/battle-ui.json'  // ⚔️ NOUVEAU
     };
     
     return fileMapping[moduleName] || `modules/${moduleName}-ui.json`;
@@ -563,16 +627,17 @@ export class LocalizationManager {
     }
   }
   
-  // === 🎯 API PUBLIQUE (COMPATIBLE) ===
+  // === 🎯 API PUBLIQUE (COMPATIBLE + NOUVELLES MÉTHODES BATTLE) ===
   
   /**
    * Obtenir une traduction (API inchangée)
-   * @param {string} path - Chemin (ex: "quest.label")
+   * @param {string} path - Chemin (ex: "battle.ui.actions.attack")
    * @param {string} lang - Langue (optionnel)
+   * @param {object} variables - Variables pour remplacement (optionnel)
    * @returns {string}
    */
-  t(path, lang = null) {
-    // ✅ API IDENTIQUE à l'ancienne version
+  t(path, lang = null, variables = {}) {
+    // ✅ API IDENTIQUE à l'ancienne version + support variables
     if (!this.isReady || !this.translations) {
       console.warn(`⚠️ [LocalizationManager] Pas prêt pour: ${path}`);
       return path;
@@ -595,7 +660,89 @@ export class LocalizationManager {
       return path;
     }
     
+    // ⚔️ NOUVEAU: Support des variables pour les traductions Battle
+    if (variables && Object.keys(variables).length > 0) {
+      translation = this.replaceVariables(translation, variables);
+    }
+    
     return translation;
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: Remplacer les variables dans une traduction
+   * @param {string} text - Texte avec variables {nom}
+   * @param {object} variables - Variables à remplacer
+   * @returns {string}
+   */
+  replaceVariables(text, variables) {
+    let result = text;
+    
+    Object.entries(variables).forEach(([key, value]) => {
+      const placeholder = `{${key}}`;
+      result = result.replace(new RegExp(placeholder, 'g'), value);
+    });
+    
+    return result;
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: API spécialisée pour les traductions de combat
+   * @param {string} key - Clé battle (ex: "actions.attack")
+   * @param {object} variables - Variables pour remplacement
+   * @param {string} lang - Langue (optionnel)
+   * @returns {string}
+   */
+  battleT(key, variables = {}, lang = null) {
+    const fullPath = `battle.ui.${key}`;
+    return this.t(fullPath, lang, variables);
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: API pour les noms d'attaques
+   * @param {string} moveId - ID de l'attaque (ex: "tackle")
+   * @param {string} lang - Langue (optionnel)
+   * @returns {string}
+   */
+  getMoveNameT(moveId, lang = null) {
+    const movePath = `battle.ui.moves_names.${moveId}`;
+    const translation = this.t(movePath, lang);
+    
+    // Si pas trouvé, formatter le moveId
+    if (translation === movePath) {
+      return moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    return translation;
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: API pour les types Pokémon
+   * @param {string} type - Type Pokémon (ex: "fire")
+   * @param {string} lang - Langue (optionnel)
+   * @returns {string}
+   */
+  getTypeNameT(type, lang = null) {
+    const typePath = `battle.ui.types.${type}`;
+    const translation = this.t(typePath, lang);
+    
+    // Si pas trouvé, capitaliser le type
+    if (translation === typePath) {
+      return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+    
+    return translation;
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: API pour les messages de combat avec variables
+   * @param {string} messageKey - Clé du message (ex: "pokemon_uses_move")
+   * @param {object} variables - Variables (ex: {pokemon: "Pikachu", move: "Éclair"})
+   * @param {string} lang - Langue (optionnel)
+   * @returns {string}
+   */
+  getBattleMessageT(messageKey, variables = {}, lang = null) {
+    const messagePath = `battle.ui.messages.${messageKey}`;
+    return this.t(messagePath, lang, variables);
   }
   
   /**
@@ -691,10 +838,42 @@ export class LocalizationManager {
   }
   
   /**
+   * ⚔️ NOUVEAU: Charger spécifiquement le module battle
+   */
+  async loadBattleModule(force = false) {
+    console.log('⚔️ [LocalizationManager] Chargement spécifique module battle...');
+    
+    const success = await this.loadModule('battle', force);
+    
+    if (success) {
+      console.log('✅ [LocalizationManager] Module battle chargé avec succès');
+      
+      // Notifier les systèmes de combat
+      if (window.battleSystem) {
+        window.battleSystem.onLanguageUpdated?.();
+      }
+      
+      if (window.game?.scene?.getScene('BattleScene')) {
+        const battleScene = window.game.scene.getScene('BattleScene');
+        battleScene.onLanguageUpdated?.();
+      }
+    }
+    
+    return success;
+  }
+  
+  /**
    * Vérifier si un module est chargé
    */
   isModuleLoaded(moduleName) {
     return this.loadedModules.has(moduleName);
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: Vérifier si le module battle est chargé
+   */
+  isBattleModuleLoaded() {
+    return this.isModuleLoaded('battle');
   }
   
   /**
@@ -735,6 +914,14 @@ export class LocalizationManager {
     const currentLang = lang || this.getCurrentLanguage();
     const translation = this.getTranslationByPath(path, currentLang);
     return translation !== null;
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: Vérifier si une traduction battle existe
+   */
+  hasBattleTranslation(key, lang = null) {
+    const fullPath = `battle.ui.${key}`;
+    return this.hasTranslation(fullPath, lang);
   }
   
   async reload() {
@@ -798,7 +985,7 @@ export class LocalizationManager {
     return {
       isReady: this.isReady,
       isLoading: this.isLoading,
-      mode: 'modular-with-periodic-detection',
+      mode: 'modular-with-periodic-detection-and-battle',
       strategy: this.moduleConfig.loadingStrategy.mode,
       loadedModules: Array.from(this.loadedModules),
       failedModules: Array.from(this.failedModules),
@@ -809,7 +996,15 @@ export class LocalizationManager {
       lastError: this.lastError?.message || null,
       sampleTranslation: this.isReady ? this.t('quest.label') : null,
       
-      // 🔄 NOUVEAU : Stats détection périodique
+      // ⚔️ NOUVEAU: Stats Battle
+      battleModule: {
+        loaded: this.isBattleModuleLoaded(),
+        sampleBattleTranslation: this.isReady ? this.battleT('actions.attack') : null,
+        movesCount: this.isReady ? Object.keys(this.getTranslationByPath('battle.ui.moves_names', this.getCurrentLanguage()) || {}).length : 0,
+        messagesCount: this.isReady ? Object.keys(this.getTranslationByPath('battle.ui.messages', this.getCurrentLanguage()) || {}).length : 0
+      },
+      
+      // 🔄 Stats détection périodique
       periodicDetection: {
         enabled: this.periodicDetection.enabled,
         active: !!this.periodicDetection.timerId,
@@ -827,6 +1022,69 @@ export class LocalizationManager {
         cacheSize: this.moduleTranslations.size,
         translationKeys: this.isReady ? Object.keys(this.translations[this.fallbackLanguage] || {}).length : 0
       }
+    };
+  }
+  
+  /**
+   * ⚔️ NOUVEAU: Test spécifique des traductions battle
+   */
+  testBattleTranslations(lang = null) {
+    const currentLang = lang || this.getCurrentLanguage();
+    
+    if (!this.isReady) {
+      console.warn('⚠️ [LocalizationManager] Pas prêt pour test battle');
+      return;
+    }
+    
+    if (!this.isBattleModuleLoaded()) {
+      console.warn('⚠️ [LocalizationManager] Module battle non chargé');
+      return;
+    }
+    
+    console.log(`🧪 [LocalizationManager] Test traductions battle en ${currentLang}:`);
+    
+    // Test actions
+    console.log('🎮 Actions:');
+    ['attack', 'bag', 'pokemon', 'run'].forEach(action => {
+      const translation = this.battleT(`actions.${action}`, {}, currentLang);
+      console.log(`  ${action}: "${translation}"`);
+    });
+    
+    // Test messages avec variables
+    console.log('💬 Messages:');
+    const testMessage = this.getBattleMessageT('pokemon_uses_move', {
+      pokemon: 'Pikachu',
+      move: 'Éclair'
+    }, currentLang);
+    console.log(`  Avec variables: "${testMessage}"`);
+    
+    // Test noms d'attaques
+    console.log('⚔️ Attaques:');
+    ['tackle', 'ember', 'water_gun', 'thunder_shock'].forEach(move => {
+      const translation = this.getMoveNameT(move, currentLang);
+      console.log(`  ${move}: "${translation}"`);
+    });
+    
+    // Test types
+    console.log('🏷️ Types:');
+    ['fire', 'water', 'electric', 'grass'].forEach(type => {
+      const translation = this.getTypeNameT(type, currentLang);
+      console.log(`  ${type}: "${translation}"`);
+    });
+    
+    return {
+      actions: ['attack', 'bag', 'pokemon', 'run'].map(action => ({
+        key: action,
+        translation: this.battleT(`actions.${action}`, {}, currentLang)
+      })),
+      moves: ['tackle', 'ember', 'water_gun', 'thunder_shock'].map(move => ({
+        key: move,
+        translation: this.getMoveNameT(move, currentLang)
+      })),
+      types: ['fire', 'water', 'electric', 'grass'].map(type => ({
+        key: type,
+        translation: this.getTypeNameT(type, currentLang)
+      }))
     };
   }
   
@@ -874,7 +1132,7 @@ export class LocalizationManager {
   }
 }
 
-// === 🌐 INSTANCE GLOBALE (INCHANGÉE) ===
+// === 🌐 INSTANCE GLOBALE (ÉTENDUE POUR BATTLE) ===
 
 let globalLocalizationManager = null;
 
@@ -898,39 +1156,132 @@ export async function initLocalizationManager(options = {}) {
   return manager;
 }
 
+// === ⚔️ NOUVELLES FONCTIONS GLOBALES BATTLE ===
+
+/**
+ * API globale classique (inchangée)
+ */
 export function t(path, lang = null) {
   const manager = getLocalizationManager();
   return manager.t(path, lang);
 }
 
+/**
+ * ⚔️ NOUVEAU: API globale pour traductions battle
+ * @param {string} key - Clé battle (ex: "actions.attack")
+ * @param {object} variables - Variables pour remplacement
+ * @param {string} lang - Langue (optionnel)
+ * @returns {string}
+ */
+export function battleT(key, variables = {}, lang = null) {
+  const manager = getLocalizationManager();
+  return manager.battleT(key, variables, lang);
+}
+
+/**
+ * ⚔️ NOUVEAU: API globale pour noms d'attaques
+ */
+export function getMoveNameT(moveId, lang = null) {
+  const manager = getLocalizationManager();
+  return manager.getMoveNameT(moveId, lang);
+}
+
+/**
+ * ⚔️ NOUVEAU: API globale pour noms de types
+ */
+export function getTypeNameT(type, lang = null) {
+  const manager = getLocalizationManager();
+  return manager.getTypeNameT(type, lang);
+}
+
+/**
+ * ⚔️ NOUVEAU: API globale pour messages de combat
+ */
+export function getBattleMessageT(messageKey, variables = {}, lang = null) {
+  const manager = getLocalizationManager();
+  return manager.getBattleMessageT(messageKey, variables, lang);
+}
+
+/**
+ * ⚔️ NOUVEAU: Forcer le chargement du module battle
+ */
+export async function loadBattleTranslations() {
+  const manager = getLocalizationManager();
+  return await manager.loadBattleModule();
+}
+
+/**
+ * ⚔️ NOUVEAU: Vérifier si les traductions battle sont prêtes
+ */
+export function isBattleTranslationsReady() {
+  const manager = getLocalizationManager();
+  return manager.isReady && manager.isBattleModuleLoaded();
+}
+
 export default LocalizationManager;
 
+// === 🚀 INITIALISATION AUTOMATIQUE BATTLE ===
+
+// ⚔️ NOUVEAU: Auto-détection et chargement battle
+window.addEventListener('DOMContentLoaded', () => {
+  // Attendre un peu que les systèmes se chargent
+  setTimeout(() => {
+    const manager = getLocalizationManager();
+    
+    // Si pas encore initialisé, l'initialiser
+    if (!manager.isReady) {
+      initLocalizationManager().then(() => {
+        console.log('🌐 [LocalizationManager] Auto-initialisé au chargement DOM');
+      });
+    }
+  }, 1000);
+});
+
+// ⚔️ NOUVEAU: Écouter les changements d'état du jeu pour battle
+window.addEventListener('gameStateChanged', (event) => {
+  if (event.detail?.newState === 'battle') {
+    const manager = getLocalizationManager();
+    if (!manager.isBattleModuleLoaded()) {
+      console.log('⚔️ [LocalizationManager] État battle détecté - chargement module...');
+      manager.loadBattleModule();
+    }
+  }
+});
+
 console.log(`
-🌐 === LOCALIZATION MANAGER AVEC DÉTECTION PÉRIODIQUE ===
+🌐 === LOCALIZATION MANAGER AVEC SUPPORT BATTLE COMPLET ===
 
-🔄 NOUVELLES FONCTIONNALITÉS:
-• Détection périodique automatique (3s x 20 = 1 minute)
-• Chargement dynamique des modules détectés
-• Notification automatique des composants
-• Mise à jour en temps réel des icônes existantes
-• Arrêt intelligent quand tous modules traités
+⚔️ NOUVELLES FONCTIONNALITÉS BATTLE:
+• Module battle-ui.json avec traductions complètes FR/EN/ES
+• API spécialisées: battleT(), getMoveNameT(), getTypeNameT()
+• Messages avec variables: getBattleMessageT('pokemon_uses_move', {pokemon: 'Pikachu', move: 'Éclair'})
+• Détection automatique des systèmes de combat
+• Chargement dynamique quand BattleScene détectée
 
-⚡ RÉSOLUTION PROBLÈME INVENTORY:
-• Détecte inventory-icon créé après initialisation
-• Charge inventory-ui.json automatiquement
-• Met à jour InventoryIcon avec nouvelles traductions
-• Plus besoin de reload manuel !
+🔄 DÉTECTION PÉRIODIQUE ÉTENDUE:
+• Détecte BattleScene Phaser automatiquement
+• Détecte variables globales battle (battleSystem, koManager, etc.)
+• Détecte état jeu 'battle' via pokemonUISystem
+• Notification automatique des composants battle
 
-🔧 CONFIGURATION:
-• Interval: 3000ms (configurable)
-• Max tentatives: 20 (configurable)
-• Auto-arrêt si tous modules traités
-• Événements globaux 'localizationModulesUpdated'
+⚡ APIS GLOBALES BATTLE:
+• battleT('actions.attack') → "ATTAQUER"
+• getMoveNameT('tackle') → "Charge"  
+• getTypeNameT('fire') → "Feu"
+• getBattleMessageT('pokemon_uses_move', {pokemon: 'Pikachu', move: 'Éclair'}) → "Pikachu utilise Éclair !"
 
-📊 DEBUG AMÉLIORÉ:
-• window.localizationManager.getDebugInfo().periodicDetection
-• window.localizationManager.disablePeriodicDetection()
-• window.localizationManager.enablePeriodicDetection()
+🧪 DEBUG BATTLE:
+• window.localizationManager.testBattleTranslations()
+• window.localizationManager.loadBattleModule()
+• window.localizationManager.isBattleModuleLoaded()
 
-✅ INVENTORY MAINTENANT DÉTECTÉ AUTOMATIQUEMENT !
+📁 STRUCTURE FICHIER:
+/localization/modules/battle-ui.json avec:
+- Actions: attack, bag, pokemon, run
+- Messages: pokemon_uses_move, victory, defeat, etc.
+- Moves: tackle, ember, water_gun, etc.
+- Types: fire, water, electric, etc.
+- Status: paralyzed, poisoned, etc.
+
+✅ PLUS BESOIN DE RELOAD MANUEL - TOUT AUTOMATIQUE !
 `);
