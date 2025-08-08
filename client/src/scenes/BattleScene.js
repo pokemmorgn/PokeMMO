@@ -1,10 +1,11 @@
-// client/src/scenes/BattleScene.js - VERSION HARMONISÉE AVEC L'INVENTAIRE
+// client/src/scenes/BattleScene.js - Version clean avec KOManager
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
+import { KOManager } from '../Battle/KOManager.js';
 import { t } from '../managers/LocalizationManager.js';
 
 let pokemonSpriteConfig = null;
@@ -13,41 +14,42 @@ export class BattleScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene' });
     
-    // Managers essentiels
+    // Managers
     this.gameManager = null;
     this.battleNetworkHandler = null;
     this.healthBarManager = null;
+    this.koManager = null;
     this.playerRole = null;
     this.battleInventoryUI = null;
+    this.captureManager = null;
+    
+    // État
     this.isActive = false;
     this.isVisible = false;
     this.isReadyForActivation = false;
-    this.captureManager = null;
     
     // Sprites Pokémon
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
     this.battleBackground = null;
     
-    // Interface moderne harmonisée
+    // Interface
     this.modernHealthBars = { player1: null, player2: null };
     this.actionInterface = null;
     this.actionMessageText = null;
     this.battleDialog = null;
     this.battleUI = null;
     
-    // Données Pokémon actuelles
+    // Données
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
+    this.currentPlayerMoves = [];
     this.previousUIState = null;
     this.spriteStructures = new Map();
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
-    // ✅ NOUVEAU : Stockage des moves actuelles du joueur
-    this.currentPlayerMoves = [];
-    
-    // Positions optimisées
+    // Positions
     this.pokemonPositions = {
       player: { x: 0.15, y: 0.78 },
       opponent: { x: 0.70, y: 0.50 },
@@ -58,8 +60,6 @@ export class BattleScene extends Phaser.Scene {
     // Interface state
     this.interfaceMode = 'hidden';
     this.battleTranslator = null;
-    
-    // Boutons d'attaques
     this.moveButtons = [];
   }
 
@@ -96,6 +96,7 @@ export class BattleScene extends Phaser.Scene {
       this.createModernBattleEnvironment();
       this.createModernPokemonPlatforms();
       this.healthBarManager = new HealthBarManager(this);
+      this.koManager = new KOManager(this);
       this.createModernHealthBars();
       this.createModernActionInterface();
       this.createModernBattleDialog();
@@ -109,7 +110,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === ENVIRONNEMENT MODERNE ===
+  // === ENVIRONNEMENT ===
 
   createModernBattleEnvironment() {
     const { width, height } = this.cameras.main;
@@ -142,11 +143,9 @@ export class BattleScene extends Phaser.Scene {
     const border = this.add.graphics();
     border.setDepth(200);
     
-    // Bordure principale - même style que l'inventaire
     border.lineStyle(3, 0x4a90e2, 1);
     border.strokeRect(8, 8, width - 16, height - 16);
     
-    // Bordure intérieure 
     border.lineStyle(2, 0x357abd, 0.8);
     border.strokeRect(12, 12, width - 24, height - 24);
   }
@@ -156,19 +155,15 @@ export class BattleScene extends Phaser.Scene {
     const ground = this.add.graphics();
     ground.setDepth(-50);
     
-    // Dégradé moderne
     ground.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x357abd, 0x357abd, 0.3);
     ground.fillRect(0, groundY, width, height - groundY);
     
-    // Lignes d'effet
     ground.lineStyle(1, 0x87ceeb, 0.4);
     for (let i = 0; i < 3; i++) {
       const y = groundY + (i * 12);
       ground.lineBetween(0, y, width, y);
     }
   }
-
-  // === PLATEFORMES MODERNES ===
 
   createModernPokemonPlatforms() {
     const { width, height } = this.cameras.main;
@@ -190,24 +185,19 @@ export class BattleScene extends Phaser.Scene {
     const platform = this.add.graphics();
     platform.setDepth(type === 'player' ? 15 : 10);
     
-    // Ombre moderne
     platform.fillStyle(0x000000, 0.2);
     platform.fillEllipse(x + 4, y + 4, size, size * 0.25);
     
-    // Base avec style inventaire
     const baseColor = type === 'player' ? 0x4a90e2 : 0x357abd;
     platform.fillGradientStyle(baseColor, baseColor, 0x2a3f5f, 0x2a3f5f, 0.8);
     platform.fillEllipse(x, y, size, size * 0.25);
     
-    // Reflet
     platform.fillStyle(0x87ceeb, 0.3);
     platform.fillEllipse(x, y - 2, size * 0.8, size * 0.15);
     
-    // Bordure
     platform.lineStyle(2, 0x87ceeb, 0.8);
     platform.strokeEllipse(x, y, size, size * 0.25);
     
-    // Points lumineux
     for (let i = 0; i < 6; i++) {
       const angle = (i * Math.PI * 2) / 6;
       const pointX = x + Math.cos(angle) * (size * 0.4);
@@ -218,7 +208,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === BARRES DE VIE MODERNES ===
+  // === BARRES DE VIE ===
 
   createModernHealthBars() {
     const { width, height } = this.cameras.main;
@@ -244,11 +234,9 @@ export class BattleScene extends Phaser.Scene {
     const container = this.add.container(config.x, config.y);
     container.setDepth(180);
     
-    // Panel avec le style de l'inventaire
     const bgPanel = this.add.graphics();
     this.drawModernPanel(bgPanel, config.width, config.height);
     
-    // Zone nom/niveau
     const nameText = this.add.text(15, 15, 
       config.isPlayer ? t('battle.ui.your_pokemon') : t('battle.ui.wild_pokemon'), {
       fontSize: config.isPlayer ? '14px' : '12px',
@@ -257,7 +245,6 @@ export class BattleScene extends Phaser.Scene {
       fontWeight: 'bold'
     });
     
-    // Badge niveau moderne
     const levelContainer = this.add.container(config.width - 45, 20);
     const levelBadge = this.add.graphics();
     levelBadge.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x357abd, 0x357abd);
@@ -274,7 +261,6 @@ export class BattleScene extends Phaser.Scene {
     levelText.setOrigin(0.5);
     levelContainer.add([levelBadge, levelText]);
     
-    // Label HP moderne
     const hpLabel = this.add.text(15, 42, 'HP', {
       fontSize: '13px',
       fontFamily: "'Segoe UI', Arial, sans-serif",
@@ -282,7 +268,6 @@ export class BattleScene extends Phaser.Scene {
       fontWeight: 'bold'
     });
     
-    // Barre HP moderne
     const hpBarContainer = this.createModernHPBar(45, 42, config.width - 60);
     
     let hpText = null;
@@ -334,19 +319,15 @@ export class BattleScene extends Phaser.Scene {
   drawModernPanel(graphics, width, height) {
     graphics.clear();
     
-    // Fond avec dégradé moderne (même style que l'inventaire)
     graphics.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
     graphics.fillRoundedRect(0, 0, width, height, 12);
     
-    // Bordure principale bleue
     graphics.lineStyle(3, 0x4a90e2, 1);
     graphics.strokeRoundedRect(0, 0, width, height, 12);
     
-    // Bordure intérieure
     graphics.lineStyle(2, 0x357abd, 0.8);
     graphics.strokeRoundedRect(3, 3, width - 6, height - 6, 10);
     
-    // Effet de brillance
     graphics.lineStyle(1, 0x87ceeb, 0.4);
     graphics.strokeRoundedRect(6, 6, width - 12, height - 12, 8);
   }
@@ -354,14 +335,12 @@ export class BattleScene extends Phaser.Scene {
   createModernHPBar(x, y, maxWidth) {
     const container = this.add.container(x, y);
     
-    // Fond moderne
     const background = this.add.graphics();
     background.fillStyle(0x000000, 0.4);
     background.fillRoundedRect(0, 0, maxWidth, 14, 4);
     background.lineStyle(2, 0x4a90e2, 0.6);
     background.strokeRoundedRect(0, 0, maxWidth, 14, 4);
     
-    // Barre HP principale
     const hpBar = this.add.graphics();
     
     container.add([background, hpBar]);
@@ -378,14 +357,12 @@ export class BattleScene extends Phaser.Scene {
   createModernExpBar(x, y, maxWidth) {
     const container = this.add.container(x, y);
     
-    // Fond EXP moderne
     const background = this.add.graphics();
     background.fillStyle(0x000000, 0.3);
     background.fillRoundedRect(0, 0, maxWidth, 10, 3);
     background.lineStyle(1, 0x4a90e2, 0.5);
     background.strokeRoundedRect(0, 0, maxWidth, 10, 3);
     
-    // Barre EXP
     const expBar = this.add.graphics();
     
     container.add([background, expBar]);
@@ -408,7 +385,6 @@ export class BattleScene extends Phaser.Scene {
     
     if (percentage <= 0) return;
     
-    // Couleurs modernes selon le pourcentage HP
     let primaryColor, secondaryColor;
     if (percentage > 0.6) {
       primaryColor = 0x4caf50;
@@ -423,22 +399,19 @@ export class BattleScene extends Phaser.Scene {
     
     const currentWidth = Math.floor(maxWidth * percentage);
     
-    // Barre avec dégradé moderne
     hpBar.fillGradientStyle(primaryColor, primaryColor, secondaryColor, secondaryColor);
     hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
     
-    // Effet de brillance moderne
     hpBar.fillStyle(0xffffff, 0.3);
     hpBar.fillRoundedRect(2, 2, Math.max(0, currentWidth - 4), 3, 2);
     
-    // Bordure intérieure
     hpBar.lineStyle(1, 0xffffff, 0.2);
     hpBar.strokeRoundedRect(2, 2, currentWidth - 4, 10, 3);
     
     hpBarContainer.currentPercentage = percentage;
   }
 
-  // === INTERFACE D'ACTIONS MODERNE ===
+  // === INTERFACE D'ACTIONS ===
 
   createModernActionInterface() {
     const { width, height } = this.cameras.main;
@@ -501,7 +474,6 @@ export class BattleScene extends Phaser.Scene {
     
     const panelY = mode === 'narrative' ? 10 : 0;
     
-    // Style moderne harmonisé avec l'inventaire
     this.mainPanel.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
     this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 15);
     
@@ -538,7 +510,6 @@ export class BattleScene extends Phaser.Scene {
       { key: 'run', text: t('battle.ui.actions.run'), color: 0x607d8b, icon: '🏃' }
     ];
     
-    // Centrage parfait horizontal et vertical
     const totalPadding = 70;
     const availableWidth = width - totalPadding;
     const buttonWidth = (availableWidth - 20) / 2;
@@ -546,12 +517,11 @@ export class BattleScene extends Phaser.Scene {
     const gapX = 20;
     const gapY = 8;
     
-    // Centrage vertical parfait dans le panel de 110px
-    const totalButtonsHeight = (buttonHeight * 2) + gapY; // 2 rangées + gap
-    const verticalPadding = (110 - totalButtonsHeight) / 2; // Panel height - buttons height, divisé par 2
+    const totalButtonsHeight = (buttonHeight * 2) + gapY;
+    const verticalPadding = (110 - totalButtonsHeight) / 2;
     
     const startX = totalPadding / 2;
-    const startY = verticalPadding; // Centrage vertical parfait
+    const startY = verticalPadding;
     
     actions.forEach((action, index) => {
       const x = startX + (index % 2) * (buttonWidth + gapX);
@@ -567,19 +537,15 @@ export class BattleScene extends Phaser.Scene {
     const buttonContainer = this.add.container(x, y);
     
     const bg = this.add.graphics();
-    // Style bouton moderne avec dégradé subtil et uniforme
     bg.fillStyle(action.color, 0.9);
     bg.fillRoundedRect(0, 0, width, height, 8);
     
-    // Bordure principale
     bg.lineStyle(2, 0xffffff, 0.6);
     bg.strokeRoundedRect(0, 0, width, height, 8);
     
-    // Effet de profondeur subtil
     bg.lineStyle(1, action.color, 0.8);
     bg.strokeRoundedRect(1, 1, width - 2, height - 2, 7);
     
-    // Effet de brillance en haut
     bg.fillStyle(0xffffff, 0.15);
     bg.fillRoundedRect(2, 2, width - 4, height / 3, 6);
     
@@ -605,16 +571,13 @@ export class BattleScene extends Phaser.Scene {
     
     buttonContainer.on('pointerover', () => {
       bg.clear();
-      // Hover avec couleur plus vive et effet lumineux
       const hoverColor = this.brightenColor(action.color, 0.3);
       bg.fillStyle(hoverColor, 1);
       bg.fillRoundedRect(0, 0, width, height, 8);
       
-      // Bordure dorée au hover
       bg.lineStyle(3, 0x87ceeb, 1);
       bg.strokeRoundedRect(0, 0, width, height, 8);
       
-      // Effet de brillance renforcé au hover
       bg.fillStyle(0xffffff, 0.25);
       bg.fillRoundedRect(2, 2, width - 4, height / 2, 6);
       
@@ -628,7 +591,6 @@ export class BattleScene extends Phaser.Scene {
     
     buttonContainer.on('pointerout', () => {
       bg.clear();
-      // Retour à l'état normal
       bg.fillStyle(action.color, 0.9);
       bg.fillRoundedRect(0, 0, width, height, 8);
       
@@ -656,7 +618,6 @@ export class BattleScene extends Phaser.Scene {
     return buttonContainer;
   }
 
-  // Fonction utilitaire pour éclaircir une couleur
   brightenColor(color, factor) {
     const r = Math.min(255, Math.floor(((color >> 16) & 0xFF) * (1 + factor)));
     const g = Math.min(255, Math.floor(((color >> 8) & 0xFF) * (1 + factor)));
@@ -664,7 +625,7 @@ export class BattleScene extends Phaser.Scene {
     return (r << 16) | (g << 8) | b;
   }
 
-  // === DIALOGUE MODERNE ===
+  // === DIALOGUE ===
 
   createModernBattleDialog() {
     const { width, height } = this.cameras.main;
@@ -775,7 +736,6 @@ export class BattleScene extends Phaser.Scene {
     }
     this.moveButtons = [];
     
-    // Même centrage que les boutons d'action (horizontal et vertical)
     const totalPadding = 70;
     const availableWidth = width - totalPadding;
     const buttonWidth = (availableWidth - 20) / 2;
@@ -783,12 +743,11 @@ export class BattleScene extends Phaser.Scene {
     const gapX = 20;
     const gapY = 8;
     
-    // Centrage vertical parfait dans le panel de 110px
     const totalButtonsHeight = (buttonHeight * 2) + gapY;
     const verticalPadding = (110 - totalButtonsHeight) / 2;
     
     const startX = totalPadding / 2;
-    const startY = verticalPadding; // Centrage vertical parfait
+    const startY = verticalPadding;
     
     const moveTypeColors = {
       'normal': 0xa8a8a8, 'fire': 0xff4444, 'water': 0x4488ff,
@@ -799,7 +758,6 @@ export class BattleScene extends Phaser.Scene {
       'dark': 0x775544, 'steel': 0xaaaaaa, 'fairy': 0xffaaee
     };
     
-    // Créer 4 boutons d'attaques
     for (let i = 0; i < 4; i++) {
       const x = startX + (i % 2) * (buttonWidth + gapX);
       const y = startY + Math.floor(i / 2) * (buttonHeight + gapY);
@@ -846,7 +804,6 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     
-    // Bouton X de fermeture moderne
     this.createModernCloseButton(width);
   }
 
@@ -938,148 +895,86 @@ export class BattleScene extends Phaser.Scene {
     this.showActionButtons();
   }
 
-handleMoveButton(move) {
-  const pokemonName = this.currentPlayerPokemon?.name || t('battle.ui.your_pokemon');
-  this.showActionMessage(t('battle.ui.messages.pokemon_uses_move')
-    .replace('{pokemon}', pokemonName)
-    .replace('{move}', move.name));
-  
-  this.hideMoveButtons();
-  
-  // ✅ CORRECTION 1: Vérifier que this.events existe (et non this.scene.events)
-  try {
-    if (this.events && typeof this.events.emit === 'function') {
-      this.events.emit('battleActionSelected', {
-        type: 'move',
-        moveId: move.id,
-        moveName: move.name,
-        moveData: move
-      });
-      console.log('📡 [BattleScene] Événement battleActionSelected émis via this.events');
-    } else {
-      console.warn('⚠️ [BattleScene] this.events non disponible, émission ignorée');
-    }
-  } catch (eventError) {
-    console.error('❌ [BattleScene] Erreur émission événement:', eventError);
-  }
-  
-  // ✅ CORRECTION 2: Vérification robuste du NetworkHandler avant envoi
-  if (this.battleNetworkHandler) {
+  handleMoveButton(move) {
+    const pokemonName = this.currentPlayerPokemon?.name || t('battle.ui.your_pokemon');
+    this.showActionMessage(t('battle.ui.messages.pokemon_uses_move')
+      .replace('{pokemon}', pokemonName)
+      .replace('{move}', move.name));
+    
+    this.hideMoveButtons();
+    
     try {
-      // ✅ Debug complet de l'envoi
-      console.log('📤 [BattleScene] Envoi de l\'attaque au serveur:');
-      console.log('   🎯 moveId:', move.id);
-      console.log('   📝 moveName:', move.name);
-      console.log('   📊 moveData complet:', move);
-      console.log('   🌐 NetworkHandler disponible:', !!this.battleNetworkHandler);
-      
-      // ✅ CORRECTION 3: Essayer plusieurs méthodes d'envoi avec gestion d'erreurs
-      let sendSuccess = false;
-      
-      if (typeof this.battleNetworkHandler.selectMove === 'function') {
-        console.log('📤 [BattleScene] Utilisation de selectMove()');
-        try {
-          const result = this.battleNetworkHandler.selectMove(move.id, move);
-          console.log('📥 [BattleScene] Résultat selectMove():', result);
-          sendSuccess = true;
-        } catch (error) {
-          console.error('❌ [BattleScene] Erreur selectMove():', error);
-        }
+      if (this.events && typeof this.events.emit === 'function') {
+        this.events.emit('battleActionSelected', {
+          type: 'move',
+          moveId: move.id,
+          moveName: move.name,
+          moveData: move
+        });
       }
-      
-      if (!sendSuccess && typeof this.battleNetworkHandler.performBattleAction === 'function') {
-        console.log('📤 [BattleScene] Utilisation de performBattleAction()');
-        try {
+    } catch (eventError) {
+      console.error('Erreur émission événement:', eventError);
+    }
+    
+    if (this.battleNetworkHandler) {
+      try {
+        let sendSuccess = false;
+        
+        if (typeof this.battleNetworkHandler.selectMove === 'function') {
+          const result = this.battleNetworkHandler.selectMove(move.id, move);
+          sendSuccess = true;
+        } else if (typeof this.battleNetworkHandler.performBattleAction === 'function') {
           const result = this.battleNetworkHandler.performBattleAction('attack', {
             moveId: move.id,
             moveName: move.name
           });
-          console.log('📥 [BattleScene] Résultat performBattleAction():', result);
           sendSuccess = true;
-        } catch (error) {
-          console.error('❌ [BattleScene] Erreur performBattleAction():', error);
-        }
-      }
-      
-      if (!sendSuccess && typeof this.battleNetworkHandler.sendToBattle === 'function') {
-        console.log('📤 [BattleScene] Utilisation de sendToBattle()');
-        try {
+        } else if (typeof this.battleNetworkHandler.sendToBattle === 'function') {
           const result = this.battleNetworkHandler.sendToBattle('battleAction', {
             type: 'attack',
             moveId: move.id,
             moveName: move.name
           });
-          console.log('📥 [BattleScene] Résultat sendToBattle():', result);
           sendSuccess = true;
-        } catch (error) {
-          console.error('❌ [BattleScene] Erreur sendToBattle():', error);
         }
+        
+        if (!sendSuccess) {
+          throw new Error('Aucune méthode d\'envoi disponible');
+        }
+        
+        const timeoutId = setTimeout(() => {
+          if (this.interfaceMode === 'message') {
+            this.showActionMessage('Timeout - pas de réponse du serveur');
+            setTimeout(() => {
+              this.showActionButtons();
+            }, 2000);
+          }
+        }, 10000);
+        
+        const originalHandleBattleEvent = this.handleBattleEvent.bind(this);
+        this.handleBattleEvent = (eventType, data) => {
+          if (['moveUsed', 'damageDealt', 'battleEnd', 'yourTurn', 'opponentTurn'].includes(eventType)) {
+            clearTimeout(timeoutId);
+            this.handleBattleEvent = originalHandleBattleEvent;
+          }
+          return originalHandleBattleEvent(eventType, data);
+        };
+        
+      } catch (error) {
+        console.error('Erreur lors de l\'envoi de l\'attaque:', error);
+        this.showActionMessage('Erreur lors de l\'envoi de l\'attaque');
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
       }
-      
-      if (!sendSuccess && typeof this.battleNetworkHandler.send === 'function') {
-        console.log('📤 [BattleScene] Utilisation de send()');
-        try {
-          const result = this.battleNetworkHandler.send('battleAction', {
-            type: 'attack',
-            moveId: move.id,
-            moveName: move.name
-          });
-          console.log('📥 [BattleScene] Résultat send():', result);
-          sendSuccess = true;
-        } catch (error) {
-          console.error('❌ [BattleScene] Erreur send():', error);
-        }
-      }
-      
-      if (!sendSuccess) {
-        throw new Error('Aucune méthode d\'envoi disponible ou toutes ont échoué');
-      }
-      
-      // ✅ CORRECTION 4: Timeout de sécurité amélioré
-      const timeoutId = setTimeout(() => {
-        if (this.interfaceMode === 'message') {
-          console.warn('⏰ [BattleScene] Timeout - pas de réponse après envoi d\'attaque');
-          this.showActionMessage('Timeout - pas de réponse du serveur');
-          setTimeout(() => {
-            this.showActionButtons();
-          }, 2000);
-        }
-      }, 10000); // 10 secondes
-      
-      // Nettoyer le timeout si on reçoit une réponse
-      const originalHandleBattleEvent = this.handleBattleEvent.bind(this);
-      this.handleBattleEvent = (eventType, data) => {
-        if (['moveUsed', 'damageDealt', 'battleEnd', 'yourTurn', 'opponentTurn'].includes(eventType)) {
-          clearTimeout(timeoutId);
-          this.handleBattleEvent = originalHandleBattleEvent; // Restaurer la méthode originale
-        }
-        return originalHandleBattleEvent(eventType, data);
-      };
-      
-    } catch (error) {
-      console.error('❌ [BattleScene] Erreur lors de l\'envoi de l\'attaque:', error);
-      console.error('🔍 [BattleScene] Stack trace:', error.stack);
-      this.showActionMessage('Erreur lors de l\'envoi de l\'attaque');
+    } else {
+      console.error('NetworkHandler manquant');
+      this.showActionMessage('Erreur : connexion au serveur manquante');
       setTimeout(() => {
         this.showActionButtons();
       }, 2000);
     }
-  } else {
-    console.error('❌ [BattleScene] NetworkHandler manquant');
-    console.log('🔍 [BattleScene] Debug NetworkHandler:');
-    console.log('   battleNetworkHandler:', !!this.battleNetworkHandler);
-    console.log('   Type:', typeof this.battleNetworkHandler);
-    
-    if (this.battleNetworkHandler) {
-      console.log('   Keys:', Object.keys(this.battleNetworkHandler).slice(0, 10));
-    }
-    
-    this.showActionMessage('Erreur : connexion au serveur manquante');
-    setTimeout(() => {
-      this.showActionButtons();
-    }, 2000);
   }
-}
 
   getMoveIcon(moveType) {
     const typeIcons = {
@@ -1199,12 +1094,9 @@ handleMoveButton(move) {
     
     switch (actionKey) {
       case 'attack':
-        // ✅ NOUVEAU : Plus de fallback - récupération obligatoire depuis le serveur
         if (this.currentPlayerMoves.length > 0) {
-          console.log('⚔️ [BattleScene] Utilisation des moves du serveur:', this.currentPlayerMoves);
           this.showMoveButtons(this.currentPlayerMoves);
         } else {
-          console.error('❌ [BattleScene] Aucune move disponible - demande au serveur...');
           this.requestMovesFromServer();
         }
         break;
@@ -1223,7 +1115,7 @@ handleMoveButton(move) {
             setTimeout(() => this.showActionButtons(), 2000);
           }
         } catch (error) {
-          console.error('[BattleScene] Erreur inventaire:', error);
+          console.error('Erreur inventaire:', error);
           this.showActionMessage(t('battle.ui.messages.inventory_error'));
           setTimeout(() => this.showActionButtons(), 2000);
         }
@@ -1245,7 +1137,7 @@ handleMoveButton(move) {
         try {
           this.battleNetworkHandler.attemptRun();
         } catch (error) {
-          console.error('[BattleScene] Erreur fuite:', error);
+          console.error('Erreur fuite:', error);
           this.showActionMessage(t('battle.ui.messages.run_error'));
           setTimeout(() => this.showActionButtons(), 2000);
         }
@@ -1253,56 +1145,43 @@ handleMoveButton(move) {
     }
   }
 
-  // ✅ NOUVEAU : Demander explicitement les moves au serveur
   requestMovesFromServer() {
-    console.log('📡 [BattleScene] Demande des attaques au serveur...');
-    
     this.showActionMessage('Récupération des attaques...');
     
     if (!this.battleNetworkHandler) {
-      console.error('❌ [BattleScene] Pas de NetworkHandler pour demander les moves');
       this.showActionMessage('Erreur : connexion manquante');
       setTimeout(() => this.showActionButtons(), 2000);
       return;
     }
     
     try {
-      // Essayer plusieurs méthodes pour demander les moves
       if (typeof this.battleNetworkHandler.requestMoves === 'function') {
-        console.log('📤 [BattleScene] Utilisation de requestMoves()');
         this.battleNetworkHandler.requestMoves();
       } else if (typeof this.battleNetworkHandler.sendToBattle === 'function') {
-        console.log('📤 [BattleScene] Utilisation de sendToBattle("requestMoves")');
         this.battleNetworkHandler.sendToBattle('requestMoves');
       } else if (typeof this.battleNetworkHandler.send === 'function') {
-        console.log('📤 [BattleScene] Utilisation de send("requestMoves")');
         this.battleNetworkHandler.send('requestMoves');
       } else {
-        console.error('❌ [BattleScene] Aucune méthode pour envoyer requestMoves');
         this.showActionMessage('Erreur : méthode d\'envoi manquante');
         setTimeout(() => this.showActionButtons(), 2000);
         return;
       }
       
-      // Timeout de sécurité
       setTimeout(() => {
         if (this.currentPlayerMoves.length === 0) {
-          console.error('⏰ [BattleScene] Timeout - pas de réponse du serveur');
           this.showActionMessage('Timeout : pas de réponse du serveur');
           setTimeout(() => this.showActionButtons(), 2000);
         }
       }, 5000);
       
     } catch (error) {
-      console.error('❌ [BattleScene] Erreur lors de la demande des moves:', error);
+      console.error('Erreur lors de la demande des moves:', error);
       this.showActionMessage('Erreur lors de la demande des attaques');
       setTimeout(() => this.showActionButtons(), 2000);
     }
   }
 
-  // ✅ SUPPRIMÉ : Plus de méthode fallback getTestMoves()
-
-  // === AFFICHAGE POKÉMON (inchangé mais avec effets modernes) ===
+  // === AFFICHAGE POKÉMON ===
 
   async displayPlayerPokemon(pokemonData) {
     if (!pokemonData) return;
@@ -1333,7 +1212,7 @@ handleMoveButton(move) {
       }, 500);
       
     } catch (error) {
-      console.error('[BattleScene] Erreur Pokémon joueur:', error);
+      console.error('Erreur Pokémon joueur:', error);
       this.createModernPokemonPlaceholder('player', pokemonData);
     }
   }
@@ -1375,7 +1254,7 @@ handleMoveButton(move) {
       }, 800);
       
     } catch (error) {
-      console.error('[BattleScene] Erreur Pokémon adversaire:', error);
+      console.error('Erreur Pokémon adversaire:', error);
       this.createModernPokemonPlaceholder('opponent', pokemonData);
     }
   }
@@ -1570,33 +1449,13 @@ handleMoveButton(move) {
     return colors[type.toLowerCase()] || 0xa8a8a8;
   }
 
-  // === MESSAGES MODERNES ===
-
-  showBattleMessage(message, duration = 0) {
-    this.showNarrativeMessage(message, duration === 0);
-    
-    if (duration > 0) {
-      setTimeout(() => {
-        this.hideNarrativeMode();
-      }, duration);
-    }
-  }
-
-  hideBattleMessage() {
-    this.hideNarrativeMode();
-  }
+  // === MISE À JOUR BARRES DE VIE ===
 
   updateModernHealthBar(type, pokemonData) {
     const healthBar = this.modernHealthBars[type];
-    if (!healthBar) {
-      console.error('[BattleScene] Barre de vie non trouvée:', type);
-      return;
-    }
+    if (!healthBar) return;
     
-    if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) {
-      console.warn(`[BattleScene] HP manquants pour ${type}`);
-      return;
-    }
+    if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) return;
     
     const displayName = pokemonData.name ? pokemonData.name.toUpperCase() : 'POKÉMON';
     const nameKey = healthBar.config.isPlayer ? 'battle.ui.your_pokemon_name' : 'battle.ui.wild_pokemon_name';
@@ -1662,7 +1521,7 @@ handleMoveButton(move) {
     }
   }
 
-  // === CHARGEMENT SPRITES (inchangé) ===
+  // === CHARGEMENT SPRITES ===
   
   async loadPokemonSpritesheets() {
     if (!this.cache.json.has('pokemonSpriteConfig')) {
@@ -1790,7 +1649,6 @@ handleMoveButton(move) {
       canvas.height = 96;
       const ctx = canvas.getContext('2d');
       
-      // Dégradé moderne
       const gradient = ctx.createRadialGradient(48, 48, 0, 48, 48, 48);
       gradient.addColorStop(0, view === 'front' ? '#4a90e2' : '#87ceeb');
       gradient.addColorStop(0.7, view === 'front' ? '#357abd' : '#4a90e2');
@@ -1801,7 +1659,6 @@ handleMoveButton(move) {
       ctx.arc(48, 48, 40, 0, Math.PI * 2);
       ctx.fill();
       
-      // Bordures modernes
       ctx.strokeStyle = '#87ceeb';
       ctx.lineWidth = 3;
       ctx.stroke();
@@ -1812,7 +1669,6 @@ handleMoveButton(move) {
       ctx.arc(48, 48, 37, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Point d'interrogation moderne
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'center';
@@ -1823,6 +1679,152 @@ handleMoveButton(move) {
     }
     
     return fallbackKey;
+  }
+
+  // === ÉVÉNEMENTS RÉSEAU ===
+
+  setupBattleNetworkEvents() {
+    if (!this.battleNetworkHandler) return;
+    
+    this.battleNetworkHandler.on('actionResult', (data) => {
+      if (data.success && data.battleEvents && data.battleEvents.length > 0) {
+        this.processBattleEventsServerDriven(data.battleEvents);
+      }
+      
+      if (!data.success) {
+        this.showActionMessage(t('battle.ui.messages.error_prefix') + data.error);
+      }
+    });
+
+    this.battleNetworkHandler.on('moveUsed', (data) => {
+      const message = t('battle.ui.messages.pokemon_uses_move')
+        .replace('{pokemon}', data.attackerName)
+        .replace('{move}', data.moveName);
+      this.showActionMessage(message);
+      
+      if (data.attackerRole === 'player1') {
+        this.createModernAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      } else {
+        this.createModernAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
+      }
+    });
+
+    this.battleNetworkHandler.on('damageDealt', (data) => {
+      const pokemonData = {
+        name: data.targetName || 'Pokémon',
+        currentHp: data.newHp,
+        maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
+        level: this.getCurrentLevel(data.targetRole)
+      };
+      
+      if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
+        this.currentPlayerPokemon.currentHp = data.newHp;
+        this.currentPlayerPokemon.maxHp = data.maxHp || this.currentPlayerPokemon.maxHp;
+      } else if (data.targetRole === 'player2' && this.currentOpponentPokemon) {
+        this.currentOpponentPokemon.currentHp = data.newHp;
+        this.currentOpponentPokemon.maxHp = data.maxHp || this.currentOpponentPokemon.maxHp;
+      }
+      
+      this.updateModernHealthBar(data.targetRole, pokemonData);
+      this.createModernDamageEffectForRole(data.targetRole, data.damage);
+    });
+
+    // Événement K.O. géré par KOManager
+    this.battleNetworkHandler.on('pokemonFainted', (data) => {
+      this.koManager.handlePokemonFainted(data);
+    });
+
+    this.battleNetworkHandler.on('battleEnd', (data) => {
+      this.koManager.handleBattleEnd(data);
+    });
+    
+    this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
+      setTimeout(() => {
+        this.endBattle({ result: 'disconnected' });
+      }, 1000);
+    });
+
+    this.battleNetworkHandler.on('narrativeStart', (data) => {
+      if (this.scene.isSleeping()) {
+        this.scene.wake();
+      }
+      this.scene.setVisible(true);
+      this.scene.bringToTop();
+      
+      if (data.playerPokemon) {
+        this.displayPlayerPokemon(data.playerPokemon);
+      }
+      
+      if (data.opponentPokemon) {
+        this.displayOpponentPokemon(data.opponentPokemon);
+        this.handleBattleEvent('wildPokemonAppears', { 
+          pokemonName: data.opponentPokemon.name 
+        });
+      }
+      
+      this.activateBattleUI();
+      this.isVisible = true;
+    });
+    
+    this.battleNetworkHandler.on('narrativeEnd', (data) => {
+      this.handleBattleEvent('battleStart', data);
+    });
+    
+    this.battleNetworkHandler.on('battleJoined', (data) => {
+      this.playerRole = data.yourRole;
+      this.battleTranslator = new BattleTranslator(this.playerRole);
+    });
+    
+    this.battleNetworkHandler.on('battleStart', (data) => {
+      this.handleNetworkBattleStart(data);
+    });
+
+    this.battleNetworkHandler.on('actionSelectionStart', (data) => {
+      this.handleBattleEvent('actionSelectionStart', data);
+    });
+
+    this.battleNetworkHandler.on('yourTurn', (data) => {
+      this.handleBattleEvent('yourTurn', data);
+    });
+  }
+
+  processBattleEventsServerDriven(battleEvents) {
+    battleEvents.forEach((event, index) => {
+      if (event.type === 'moveUsed') {
+        return;
+      }
+      
+      this.handleBattleEvent(event.type, event.data);
+    });
+  }
+
+  handleNetworkBattleStart(data) {
+    if (data.isNarrative || data.duration) {
+      return;
+    }
+    
+    const playerPokemon = data.playerPokemon;
+    const opponentPokemon = data.opponentPokemon;
+    
+    if (playerPokemon) {
+      this.displayPlayerPokemon(playerPokemon);
+    }
+    
+    if (opponentPokemon) {
+      this.displayOpponentPokemon(opponentPokemon);
+    }
+    
+    this.activateBattleUI();
+    this.isVisible = true;
+    this.startBattleIntroSequence(opponentPokemon);
+  }
+
+  startBattleIntroSequence(opponentPokemon) {
+    setTimeout(() => {
+      this.handleBattleEvent('wildPokemonAppears', { 
+        pokemonName: opponentPokemon?.name || 'Pokémon' 
+      });
+    }, 2000);
   }
 
   // === GESTION DES ÉVÉNEMENTS ===
@@ -1841,18 +1843,8 @@ handleMoveButton(move) {
       return;
     }
 
-    // ✅ NOUVEAU : Gestion de actionSelectionStart pour récupérer les moves
     if (eventType === 'actionSelectionStart') {
       this.handleActionSelectionStart(data);
-      return;
-    }
-
-    if (eventType === 'battleEnd') {
-      this.hideActionButtons();
-      
-      setTimeout(() => {
-        this.endBattle({ result: 'ended' });
-      }, 3000);
       return;
     }
     
@@ -1880,81 +1872,43 @@ handleMoveButton(move) {
     }
   }
 
-  // ✅ CORRIGÉ : Gestion spécifique de actionSelectionStart avec bonne structure
   handleActionSelectionStart(data) {
-    console.log('🎯 [BattleScene] actionSelectionStart reçu:', data);
-    
-    // Debug complet de la structure reçue
-    console.log('🔍 [BattleScene] Structure complète data:', JSON.stringify(data, null, 2));
-    
-    // ✅ CORRECTION : Utiliser la vraie structure serveur
     if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
       const playerPokemon = data.gameState.player1.pokemon;
-      console.log('🐾 [BattleScene] PlayerPokemon trouvé:', playerPokemon);
       
       if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
-        console.log('⚔️ [BattleScene] Moves reçues du serveur:', playerPokemon.moves);
-        
-        // ✅ NOUVEAU : Transformer les moves serveur en format interface
         this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
         
-        // Mettre à jour les données du Pokémon actuel
         if (this.currentPlayerPokemon) {
           this.currentPlayerPokemon.moves = this.currentPlayerMoves;
         }
-        
-        console.log('✅ [BattleScene] Moves transformées:', this.currentPlayerMoves);
       } else {
-        console.error('❌ [BattleScene] Pas de moves dans playerPokemon');
-        console.log('🔍 [BattleScene] playerPokemon.moves:', playerPokemon.moves);
         this.currentPlayerMoves = [];
       }
     } else {
-      console.error('❌ [BattleScene] Structure gameState invalide');
-      console.log('🔍 [BattleScene] data.gameState:', data.gameState);
-      if (data.gameState) {
-        console.log('🔍 [BattleScene] data.gameState.player1:', data.gameState.player1);
-        if (data.gameState.player1) {
-          console.log('🔍 [BattleScene] data.gameState.player1.pokemon:', data.gameState.player1.pokemon);
-        }
-      }
       this.currentPlayerMoves = [];
     }
     
-    // Afficher les boutons d'action maintenant qu'on a traité les moves
     this.showActionButtons();
-    
-    // Notification à l'utilisateur
-    if (this.currentPlayerMoves.length > 0) {
-      console.log(`✅ [BattleScene] ${this.currentPlayerMoves.length} attaques chargées depuis le serveur`);
-    } else {
-      console.error(`❌ [BattleScene] Aucune attaque reçue du serveur - interface limitée`);
-    }
   }
 
-  // ✅ NOUVEAU : Transformer les moves serveur en format interface
   transformServerMoves(serverMoves, pokemonData) {
-    console.log('🔄 [BattleScene] Transformation des moves serveur:', serverMoves);
-    
     return serverMoves.map((moveId, index) => {
-      // Base move data
       const move = {
         id: moveId,
         name: this.getMoveName(moveId),
         type: this.getMoveType(moveId),
         power: this.getMovePower(moveId),
-        pp: this.getMoveMaxPP(moveId), // Pour l'instant, PP max
+        pp: this.getMoveMaxPP(moveId),
         maxPp: this.getMoveMaxPP(moveId),
         accuracy: this.getMoveAccuracy(moveId),
         description: this.getMoveDescription(moveId)
       };
       
-      console.log(`📝 [BattleScene] Move ${index + 1}: ${move.name} (${move.type})`);
       return move;
     });
   }
 
-  // ✅ NOUVEAU : Base de données des moves (à étendre selon les besoins)
   getMoveName(moveId) {
     const moveNames = {
       'tackle': 'Charge',
@@ -2051,7 +2005,151 @@ handleMoveButton(move) {
     return moveDescriptions[moveId] || 'Attaque Pokémon.';
   }
 
-  // === GESTION UI ===
+  // === EFFETS VISUELS ===
+
+  createModernAttackEffect(attacker, target) {
+    if (!attacker || !target) return;
+    
+    const originalX = attacker.x;
+    
+    this.tweens.add({
+      targets: attacker,
+      x: originalX + (target.x > attacker.x ? 60 : -60),
+      scaleX: attacker.scaleX * 1.1,
+      scaleY: attacker.scaleY * 1.1,
+      duration: 250,
+      ease: 'Power2.easeOut',
+      yoyo: true,
+      onYoyo: () => {
+        this.createModernImpactEffect(target.x, target.y);
+        this.tweens.add({
+          targets: target,
+          x: target.x + 15,
+          scaleX: target.scaleX * 0.95,
+          scaleY: target.scaleY * 0.95,
+          duration: 80,
+          yoyo: true,
+          repeat: 4
+        });
+      }
+    });
+  }
+
+  createModernImpactEffect(x, y) {
+    for (let i = 0; i < 4; i++) {
+      const impact = this.add.graphics();
+      impact.setPosition(x, y);
+      impact.setDepth(50);
+      
+      const colors = [0xffffff, 0x87ceeb, 0x4a90e2, 0x357abd];
+      impact.fillGradientStyle(colors[i], colors[i], colors[i] * 0.7, colors[i] * 0.7, 0.9 - i * 0.15);
+      impact.fillCircle(0, 0, 10 + i * 5);
+      
+      this.tweens.add({
+        targets: impact,
+        scaleX: 3.5 + i,
+        scaleY: 3.5 + i,
+        alpha: 0,
+        duration: 450 + i * 100,
+        ease: 'Power2.easeOut',
+        onComplete: () => impact.destroy()
+      });
+    }
+    
+    for (let j = 0; j < 6; j++) {
+      const particle = this.add.text(
+        x + (Math.random() - 0.5) * 50,
+        y + (Math.random() - 0.5) * 50,
+        '✧',
+        {
+          fontSize: '20px',
+          fontFamily: "'Segoe UI', Arial, sans-serif",
+          color: '#87ceeb'
+        }
+      );
+      particle.setDepth(55);
+      
+      this.tweens.add({
+        targets: particle,
+        alpha: 0,
+        scaleX: 2.2,
+        scaleY: 2.2,
+        x: particle.x + (Math.random() - 0.5) * 30,
+        y: particle.y + (Math.random() - 0.5) * 30,
+        duration: 700,
+        ease: 'Power2.easeOut',
+        onComplete: () => particle.destroy()
+      });
+    }
+  }
+
+  createModernDamageEffectForRole(targetRole, damage) {
+    let targetSprite = null;
+    
+    if (targetRole === 'player1') {
+      targetSprite = this.playerPokemonSprite;
+      if (this.currentPlayerPokemon) {
+        this.currentPlayerPokemon.currentHp = Math.max(0, this.currentPlayerPokemon.currentHp - damage);
+      }
+    } else if (targetRole === 'player2') {
+      targetSprite = this.opponentPokemonSprite;
+      if (this.currentOpponentPokemon) {
+        this.currentOpponentPokemon.currentHp = Math.max(0, this.currentOpponentPokemon.currentHp - damage);
+      }
+    }
+    
+    if (targetSprite && damage > 0) {
+      this.createModernDamageEffect(targetSprite, damage);
+    }
+  }
+
+  createModernDamageEffect(sprite, damage) {
+    if (!sprite) return;
+    
+    const damageText = this.add.text(sprite.x, sprite.y - 70, `-${damage}`, {
+      fontSize: '32px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ff4444',
+      fontWeight: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+    damageText.setOrigin(0.5);
+    damageText.setDepth(60);
+    
+    this.tweens.add({
+      targets: damageText,
+      y: damageText.y - 50,
+      alpha: 0,
+      scaleX: 2.0,
+      scaleY: 2.0,
+      duration: 1400,
+      ease: 'Power2.easeOut',
+      onComplete: () => damageText.destroy()
+    });
+    
+    const originalX = sprite.x;
+    this.tweens.add({
+      targets: sprite,
+      x: originalX + 15,
+      duration: 70,
+      yoyo: true,
+      repeat: 5,
+      onComplete: () => sprite.setX(originalX)
+    });
+    
+    const originalTint = sprite.tint;
+    sprite.setTint(0xff6b6b);
+    
+    this.tweens.add({
+      targets: sprite,
+      tint: originalTint,
+      duration: 350,
+      ease: 'Power2.easeOut'
+    });
+  }
+
+  // === UI MANAGEMENT ===
 
   createBattleInventoryUI() {
     const gameRoom = this.gameManager?.gameRoom || 
@@ -2086,292 +2184,6 @@ handleMoveButton(move) {
     );
   }
 
-  // === ÉVÉNEMENTS RÉSEAU ===
-
-  setupBattleNetworkEvents() {
-    if (!this.battleNetworkHandler) return;
-    
-    this.battleNetworkHandler.on('actionResult', (data) => {
-      if (data.success && data.battleEvents && data.battleEvents.length > 0) {
-        this.processBattleEventsServerDriven(data.battleEvents);
-      }
-      
-      if (!data.success) {
-        this.showActionMessage(t('battle.ui.messages.error_prefix') + data.error);
-      }
-    });
-
-    this.battleNetworkHandler.on('moveUsed', (data) => {
-      const message = t('battle.ui.messages.pokemon_uses_move')
-        .replace('{pokemon}', data.attackerName)
-        .replace('{move}', data.moveName);
-      this.showActionMessage(message);
-      
-      if (data.attackerRole === 'player1') {
-        this.createModernAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-      } else {
-        this.createModernAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
-      }
-    });
-
-    this.battleNetworkHandler.on('damageDealt', (data) => {
-      const pokemonData = {
-        name: data.targetName || 'Pokémon',
-        currentHp: data.newHp,
-        maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
-        level: this.getCurrentLevel(data.targetRole)
-      };
-      
-      if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
-        this.currentPlayerPokemon.currentHp = data.newHp;
-        this.currentPlayerPokemon.maxHp = data.maxHp || this.currentPlayerPokemon.maxHp;
-      } else if (data.targetRole === 'player2' && this.currentOpponentPokemon) {
-        this.currentOpponentPokemon.currentHp = data.newHp;
-        this.currentOpponentPokemon.maxHp = data.maxHp || this.currentOpponentPokemon.maxHp;
-      }
-      
-      this.updateModernHealthBar(data.targetRole, pokemonData);
-      this.createModernDamageEffectForRole(data.targetRole, data.damage);
-    });
-    
-    this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
-      setTimeout(() => {
-        this.endBattle({ result: 'disconnected' });
-      }, 1000);
-    });
-
-    this.battleNetworkHandler.on('narrativeStart', (data) => {
-      if (this.scene.isSleeping()) {
-        this.scene.wake();
-      }
-      this.scene.setVisible(true);
-      this.scene.bringToTop();
-      
-      if (data.playerPokemon) {
-        this.displayPlayerPokemon(data.playerPokemon);
-      }
-      
-      if (data.opponentPokemon) {
-        this.displayOpponentPokemon(data.opponentPokemon);
-        this.handleBattleEvent('wildPokemonAppears', { 
-          pokemonName: data.opponentPokemon.name 
-        });
-      }
-      
-      this.activateBattleUI();
-      this.isVisible = true;
-    });
-    
-    this.battleNetworkHandler.on('narrativeEnd', (data) => {
-      this.handleBattleEvent('battleStart', data);
-    });
-    
-    this.battleNetworkHandler.on('battleJoined', (data) => {
-      this.playerRole = data.yourRole;
-      this.battleTranslator = new BattleTranslator(this.playerRole);
-    });
-    
-    this.battleNetworkHandler.on('battleStart', (data) => {
-      this.handleNetworkBattleStart(data);
-    });
-
-    // ✅ NOUVEAU : Écouter actionSelectionStart pour récupérer les moves
-    this.battleNetworkHandler.on('actionSelectionStart', (data) => {
-      console.log('🎯 [BattleScene] actionSelectionStart reçu via network:', data);
-      this.handleBattleEvent('actionSelectionStart', data);
-    });
-
-    this.battleNetworkHandler.on('koMessage', (data) => {
-      this.showActionMessage(data.message);
-      
-      if (data.playerRole === 'player1') {
-        this.showPlayerPokemonFaint();
-      } else {
-        this.showEnemyPokemonFaint();
-      }
-    });
-    
-    this.battleNetworkHandler.on('winnerAnnounce', (data) => {
-      setTimeout(() => {
-        this.transitionToEndBattle(data);
-      }, 1500);
-    });
-
-    this.battleNetworkHandler.on('yourTurn', (data) => {
-      this.handleBattleEvent('yourTurn', data);
-    });
-  }
-
-  processBattleEventsServerDriven(battleEvents) {
-    battleEvents.forEach((event, index) => {
-      if (event.type === 'moveUsed') {
-        return;
-      }
-      
-      this.handleBattleEvent(event.type, event.data);
-    });
-  }
-
-  handleNetworkBattleStart(data) {
-    if (data.isNarrative || data.duration) {
-      return;
-    }
-    
-    const playerPokemon = data.playerPokemon;
-    const opponentPokemon = data.opponentPokemon;
-    
-    if (playerPokemon) {
-      this.displayPlayerPokemon(playerPokemon);
-    }
-    
-    if (opponentPokemon) {
-      this.displayOpponentPokemon(opponentPokemon);
-    }
-    
-    this.activateBattleUI();
-    this.isVisible = true;
-    this.startBattleIntroSequence(opponentPokemon);
-  }
-
-  startBattleIntroSequence(opponentPokemon) {
-    setTimeout(() => {
-      this.handleBattleEvent('wildPokemonAppears', { 
-        pokemonName: opponentPokemon?.name || 'Pokémon' 
-      });
-    }, 2000);
-  }
-
-  // === EFFETS VISUELS MODERNES ===
-
-  createModernAttackEffect(attacker, target) {
-    if (!attacker || !target) return;
-    
-    const originalX = attacker.x;
-    
-    this.tweens.add({
-      targets: attacker,
-      x: originalX + (target.x > attacker.x ? 60 : -60),
-      scaleX: attacker.scaleX * 1.1,
-      scaleY: attacker.scaleY * 1.1,
-      duration: 250,
-      ease: 'Power2.easeOut',
-      yoyo: true,
-      onYoyo: () => {
-        this.createModernImpactEffect(target.x, target.y);
-        this.tweens.add({
-          targets: target,
-          x: target.x + 15,
-          scaleX: target.scaleX * 0.95,
-          scaleY: target.scaleY * 0.95,
-          duration: 80,
-          yoyo: true,
-          repeat: 4
-        });
-      }
-    });
-  }
-
-  createModernImpactEffect(x, y) {
-    // Effet d'impact moderne avec style harmonisé
-    for (let i = 0; i < 4; i++) {
-      const impact = this.add.graphics();
-      impact.setPosition(x, y);
-      impact.setDepth(50);
-      
-      const colors = [0xffffff, 0x87ceeb, 0x4a90e2, 0x357abd];
-      impact.fillGradientStyle(colors[i], colors[i], colors[i] * 0.7, colors[i] * 0.7, 0.9 - i * 0.15);
-      impact.fillCircle(0, 0, 10 + i * 5);
-      
-      this.tweens.add({
-        targets: impact,
-        scaleX: 3.5 + i,
-        scaleY: 3.5 + i,
-        alpha: 0,
-        duration: 450 + i * 100,
-        ease: 'Power2.easeOut',
-        onComplete: () => impact.destroy()
-      });
-    }
-    
-    // Particules modernes
-    for (let j = 0; j < 6; j++) {
-      const particle = this.add.text(
-        x + (Math.random() - 0.5) * 50,
-        y + (Math.random() - 0.5) * 50,
-        '✧',
-        {
-          fontSize: '20px',
-          fontFamily: "'Segoe UI', Arial, sans-serif",
-          color: '#87ceeb'
-        }
-      );
-      particle.setDepth(55);
-      
-      this.tweens.add({
-        targets: particle,
-        alpha: 0,
-        scaleX: 2.2,
-        scaleY: 2.2,
-        x: particle.x + (Math.random() - 0.5) * 30,
-        y: particle.y + (Math.random() - 0.5) * 30,
-        duration: 700,
-        ease: 'Power2.easeOut',
-        onComplete: () => particle.destroy()
-      });
-    }
-  }
-
-  createModernDamageEffect(sprite, damage) {
-    if (!sprite) return;
-    
-    // Texte de dégâts moderne
-    const damageText = this.add.text(sprite.x, sprite.y - 70, `-${damage}`, {
-      fontSize: '32px',
-      fontFamily: "'Segoe UI', Arial, sans-serif",
-      color: '#ff4444',
-      fontWeight: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4
-    });
-    damageText.setOrigin(0.5);
-    damageText.setDepth(60);
-    
-    this.tweens.add({
-      targets: damageText,
-      y: damageText.y - 50,
-      alpha: 0,
-      scaleX: 2.0,
-      scaleY: 2.0,
-      duration: 1400,
-      ease: 'Power2.easeOut',
-      onComplete: () => damageText.destroy()
-    });
-    
-    // Effet de tremblement moderne
-    const originalX = sprite.x;
-    this.tweens.add({
-      targets: sprite,
-      x: originalX + 15,
-      duration: 70,
-      yoyo: true,
-      repeat: 5,
-      onComplete: () => sprite.setX(originalX)
-    });
-    
-    // Effet de flash moderne avec les couleurs de l'interface
-    const originalTint = sprite.tint;
-    sprite.setTint(0xff6b6b);
-    
-    this.tweens.add({
-      targets: sprite,
-      tint: originalTint,
-      duration: 350,
-      ease: 'Power2.easeOut'
-    });
-  }
-
-  // === UI MANAGEMENT ===
-
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
       try {
@@ -2385,7 +2197,7 @@ handleMoveButton(move) {
           force: true
         });
       } catch (error) {
-        console.error('[BattleScene] Erreur UIManager:', error);
+        console.error('Erreur UIManager:', error);
         return this.fallbackHideUI();
       }
     }
@@ -2406,7 +2218,7 @@ handleMoveButton(move) {
           return true;
         }
       } catch (error) {
-        console.error('[BattleScene] Erreur restauration UIManager:', error);
+        console.error('Erreur restauration UIManager:', error);
       }
     }
     
@@ -2448,11 +2260,33 @@ handleMoveButton(move) {
     return restoredCount > 0;
   }
 
+  // === UTILITAIRES ===
+
+  getCurrentMaxHp(targetRole) {
+    if (targetRole === 'player1' && this.currentPlayerPokemon) {
+      return this.currentPlayerPokemon.maxHp;
+    }
+    if (targetRole === 'player2' && this.currentOpponentPokemon) {
+      return this.currentOpponentPokemon.maxHp;
+    }
+    return 100;
+  }
+
+  getCurrentLevel(targetRole) {
+    if (targetRole === 'player1' && this.currentPlayerPokemon) {
+      return this.currentPlayerPokemon.level;
+    }
+    if (targetRole === 'player2' && this.currentOpponentPokemon) {
+      return this.currentOpponentPokemon.level;
+    }
+    return 5;
+  }
+
   // === CONTRÔLES PUBLICS ===
 
   startBattle(battleData) {
     if (!this.isActive) {
-      console.error('[BattleScene] Scène non active');
+      console.error('Scène non active');
       return;
     }
 
@@ -2463,7 +2297,7 @@ handleMoveButton(move) {
         window.uiManager.setGameState('battle', { animated: true });
       }
     } catch (error) {
-      console.error('[BattleScene] Erreur notification UIManager:', error);
+      console.error('Erreur notification UIManager:', error);
     }
     
     this.handleNetworkBattleStart(battleData);
@@ -2483,12 +2317,62 @@ handleMoveButton(move) {
       this.isVisible = true;
       return true;
     } catch (error) {
-      console.error('[BattleScene] Erreur activation:', error);
+      console.error('Erreur activation:', error);
       return false;
     }
   }
 
-  // === NETTOYAGE ===
+  endBattle(battleResult = {}) {
+    try {
+      if (this.battleNetworkHandler?.sendToWorld) {
+        this.battleNetworkHandler.sendToWorld('battleFinished', {
+          battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
+          timestamp: Date.now()
+        });
+      } else if (window.currentGameRoom) {
+        window.currentGameRoom.send('battleFinished', {
+          battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
+          timestamp: Date.now()
+        });
+      }
+    } catch (error) {
+      console.error('Erreur envoi battleFinished:', error);
+    }
+    
+    setTimeout(() => {
+      this.completeBattleCleanup(battleResult);
+    }, 500);
+  }
+
+  completeBattleCleanup(battleResult) {
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.disconnectFromBattleRoom();
+    }
+    
+    if (window.battleSystem) {
+      window.battleSystem.isInBattle = false;
+      window.battleSystem.isTransitioning = false;
+      window.battleSystem.currentBattleRoom = null;
+      window.battleSystem.currentBattleData = null;
+      window.battleSystem.selectedPokemon = null;
+    }
+    
+    if (this.gameManager?.battleState) {
+      this.gameManager.battleState = 'none';
+      this.gameManager.inBattle = false;
+    }
+    
+    this.clearAllPokemonSprites();
+    this.hideBattle();
+    
+    if (window.pokemonUISystem?.setGameState) {
+      try {
+        window.pokemonUISystem.setGameState('exploration', { force: true });
+      } catch (error) {
+        console.warn('Erreur reset UI:', error);
+      }
+    }
+  }
 
   clearAllPokemonSprites() {
     if (this.playerPokemonSprite) {
@@ -2547,332 +2431,16 @@ handleMoveButton(move) {
     }
   }
 
-  // === FONCTIONS HELPER ===
-
-  getCurrentMaxHp(targetRole) {
-    if (targetRole === 'player1' && this.currentPlayerPokemon) {
-      return this.currentPlayerPokemon.maxHp;
-    }
-    if (targetRole === 'player2' && this.currentOpponentPokemon) {
-      return this.currentOpponentPokemon.maxHp;
-    }
-    return 100;
-  }
-
-  getCurrentLevel(targetRole) {
-    if (targetRole === 'player1' && this.currentPlayerPokemon) {
-      return this.currentPlayerPokemon.level;
-    }
-    if (targetRole === 'player2' && this.currentOpponentPokemon) {
-      return this.currentOpponentPokemon.level;
-    }
-    return 5;
-  }
-
-  createModernDamageEffectForRole(targetRole, damage) {
-    let targetSprite = null;
-    
-    if (targetRole === 'player1') {
-      targetSprite = this.playerPokemonSprite;
-      if (this.currentPlayerPokemon) {
-        this.currentPlayerPokemon.currentHp = Math.max(0, this.currentPlayerPokemon.currentHp - damage);
-      }
-    } else if (targetRole === 'player2') {
-      targetSprite = this.opponentPokemonSprite;
-      if (this.currentOpponentPokemon) {
-        this.currentOpponentPokemon.currentHp = Math.max(0, this.currentOpponentPokemon.currentHp - damage);
-      }
-    }
-    
-    if (targetSprite && damage > 0) {
-      this.createModernDamageEffect(targetSprite, damage);
-    }
-  }
-
-  endBattle(battleResult = {}) {
-    try {
-      if (this.battleNetworkHandler?.sendToWorld) {
-        this.battleNetworkHandler.sendToWorld('battleFinished', {
-          battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
-          timestamp: Date.now()
-        });
-      } else if (window.currentGameRoom) {
-        window.currentGameRoom.send('battleFinished', {
-          battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
-          timestamp: Date.now()
-        });
-      }
-    } catch (error) {
-      console.error('[BattleScene] Erreur envoi battleFinished:', error);
-    }
-    
-    setTimeout(() => {
-      this.completeBattleCleanup(battleResult);
-    }, 500);
-  }
-
-  completeBattleCleanup(battleResult) {
-    if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.disconnectFromBattleRoom();
-    }
-    
-    if (window.battleSystem) {
-      window.battleSystem.isInBattle = false;
-      window.battleSystem.isTransitioning = false;
-      window.battleSystem.currentBattleRoom = null;
-      window.battleSystem.currentBattleData = null;
-      window.battleSystem.selectedPokemon = null;
-    }
-    
-    if (this.gameManager?.battleState) {
-      this.gameManager.battleState = 'none';
-      this.gameManager.inBattle = false;
-    }
-    
-    this.clearAllPokemonSprites();
-    this.hideBattle();
-    
-    if (window.pokemonUISystem?.setGameState) {
-      try {
-        window.pokemonUISystem.setGameState('exploration', { force: true });
-      } catch (error) {
-        console.warn('[BattleScene] Erreur reset UI:', error);
-      }
-    }
-  }
-
-  // === ANIMATIONS K.O. MODERNES ===
-
-  showPlayerPokemonFaint() {
-    if (!this.playerPokemonSprite) return;
-    
-    this.tweens.add({
-      targets: this.playerPokemonSprite,
-      y: this.playerPokemonSprite.y + 40,
-      alpha: 0.2,
-      angle: -45,
-      scaleX: this.playerPokemonSprite.scaleX * 0.8,
-      scaleY: this.playerPokemonSprite.scaleY * 0.8,
-      duration: 2000,
-      ease: 'Power2.easeIn'
-    });
-    
-    this.createModernKOEffect(this.playerPokemonSprite);
-  }
-
-  showEnemyPokemonFaint() {
-    if (!this.opponentPokemonSprite) return;
-    
-    this.tweens.add({
-      targets: this.opponentPokemonSprite,
-      y: this.opponentPokemonSprite.y + 40,
-      alpha: 0.2,
-      angle: 45,
-      scaleX: this.opponentPokemonSprite.scaleX * 0.8,
-      scaleY: this.opponentPokemonSprite.scaleY * 0.8,
-      duration: 2000,
-      ease: 'Power2.easeIn'
-    });
-    
-    this.createModernKOEffect(this.opponentPokemonSprite);
-  }
-
-  createModernKOEffect(sprite) {
-    if (!sprite) return;
-    
-    // Spirales K.O. modernes avec couleurs harmonisées
-    const spirals = [];
-    for (let i = 0; i < 5; i++) {
-      const spiral = this.add.text(
-        sprite.x + (Math.random() - 0.5) * 70,
-        sprite.y - 30,
-        '@',
-        {
-          fontSize: `${22 + i * 4}px`,
-          fontFamily: "'Segoe UI', Arial, sans-serif",
-          color: i % 2 === 0 ? '#87ceeb' : '#4a90e2',
-          fontWeight: 'bold'
-        }
-      );
-      spiral.setDepth(60);
-      spirals.push(spiral);
-      
-      this.tweens.add({
-        targets: spiral,
-        y: spiral.y - 90,
-        x: spiral.x + (Math.random() - 0.5) * 50,
-        alpha: 0,
-        rotation: Math.PI * 8,
-        scaleX: 2.5,
-        scaleY: 2.5,
-        duration: 2800,
-        delay: i * 350,
-        ease: 'Power2.easeOut',
-        onComplete: () => spiral.destroy()
-      });
-    }
-  }
-
-  transitionToEndBattle(winnerData) {
-    if (!this.battleNetworkHandler?.isConnectedToBattle || this.interfaceMode === 'ended') {
-      return;
-    }
-    
-    this.interfaceMode = 'ended';
-    this.hideActionButtons();
-    
-    this.showModernBattleEndMessage(winnerData);
-    
-    setTimeout(() => {
-      this.endBattle({ result: 'completed', winner: winnerData.winner });
-    }, 4000);
-  }
-
-  showModernBattleEndMessage(winnerData) {
-    let fullMessage = winnerData.message;
-    
-    if (winnerData.winner === 'player1') {
-      const rewards = this.calculateBattleRewards();
-      
-      fullMessage += '\n\n' + t('battle.ui.rewards.title') + ' :';
-      
-      if (rewards.experience > 0) {
-        fullMessage += `\n⭐ +${rewards.experience} ${t('battle.ui.rewards.exp_points')}`;
-      }
-      
-      if (rewards.money > 0) {
-        fullMessage += `\n💰 +${rewards.money} ${t('battle.ui.rewards.pokedollars')}`;
-      }
-      
-      if (rewards.items && rewards.items.length > 0) {
-        rewards.items.forEach(item => {
-          fullMessage += `\n📦 ${item.name.toUpperCase()} x${item.quantity}`;
-        });
-      }
-    }
-    
-    this.showActionMessage(fullMessage);
-    
-    if (winnerData.winner === 'player1') {
-      this.createModernVictoryEffect();
-    }
-  }
-
-  calculateBattleRewards() {
-    const opponentLevel = this.currentOpponentPokemon?.level || 5;
-    
-    return {
-      experience: Math.floor(opponentLevel * 10 + Math.random() * 20),
-      money: Math.floor(opponentLevel * 15 + Math.random() * 50),
-      items: Math.random() > 0.7 ? [
-        { name: t('items.potion.name'), quantity: 1 }
-      ] : []
-    };
-  }
-
-  createModernVictoryEffect() {
-    const { width, height } = this.cameras.main;
-    
-    // Confettis modernes avec couleurs harmonisées
-    for (let i = 0; i < 15; i++) {
-      setTimeout(() => {
-        const confetti = this.add.text(
-          Math.random() * width, 
-          -20, 
-          ['✦', '◆', '▲', '●', '★'][Math.floor(Math.random() * 5)], 
-          { 
-            fontSize: '22px',
-            fontFamily: "'Segoe UI', Arial, sans-serif",
-            color: ['#87ceeb', '#4a90e2', '#357abd', '#2a3f5f', '#ffffff'][Math.floor(Math.random() * 5)],
-            fontWeight: 'bold'
-          }
-        );
-        confetti.setDepth(200);
-        
-        this.tweens.add({
-          targets: confetti,
-          y: height + 50,
-          x: confetti.x + (Math.random() - 0.5) * 140,
-          rotation: Math.PI * 8,
-          alpha: 0,
-          scaleX: 2.0,
-          scaleY: 2.0,
-          duration: 4500,
-          ease: 'Power2.easeIn',
-          onComplete: () => confetti.destroy()
-        });
-      }, i * 250);
-    }
-  }
-
-  // === TEST ===
-
-  testModernBattleDisplay() {
-    this.activateBattleUI();
-    
-    const testPlayerPokemon = {
-      pokemonId: 1,
-      name: 'Bulbizarre',
-      level: 12,
-      currentHp: 35,
-      maxHp: 42,
-      currentExp: 156,
-      expToNext: 250,
-      statusCondition: 'normal',
-      types: ['grass', 'poison']
-    };
-    
-    const testOpponentPokemon = {
-      pokemonId: 25,
-      name: 'Pikachu',
-      level: 10,
-      currentHp: 28,
-      maxHp: 32,
-      statusCondition: 'normal',
-      types: ['electric'],
-      shiny: true
-    };
-    
-    setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
-    setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
-    
-    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.wild_pokemon_appears').replace('{name}', 'PIKACHU CHROMATIQUE'), true), 2000);
-    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.go_pokemon').replace('{name}', 'BULBIZARRE'), true), 4000);
-    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.what_will_you_do'), true), 6000);
-    setTimeout(() => this.showActionButtons(), 8000);
-  }
-
-  // === SIMULATION ===
-
-  simulatePlayerDamage(damage) {
-    if (!this.currentPlayerPokemon) return 0;
-    
-    this.currentPlayerPokemon.currentHp = Math.max(0, 
-      this.currentPlayerPokemon.currentHp - damage);
-    
-    this.updateModernHealthBar('player1', this.currentPlayerPokemon);
-    this.createModernDamageEffect(this.playerPokemonSprite, damage);
-    
-    return this.currentPlayerPokemon.currentHp;
-  }
-
-  simulateOpponentDamage(damage) {
-    if (!this.currentOpponentPokemon) return 0;
-    
-    this.currentOpponentPokemon.currentHp = Math.max(0, 
-      this.currentOpponentPokemon.currentHp - damage);
-    
-    this.updateModernHealthBar('player2', this.currentOpponentPokemon);
-    this.createModernDamageEffect(this.opponentPokemonSprite, damage);
-    
-    return this.currentOpponentPokemon.currentHp;
-  }
-
   // === DESTRUCTION ===
 
   destroy() {
     this.deactivateBattleUI();
     this.clearAllPokemonSprites();
+
+    if (this.koManager) {
+      this.koManager.destroy();
+      this.koManager = null;
+    }
 
     if (this.actionInterface) {
       this.actionInterface.destroy();
@@ -2908,21 +2476,3 @@ handleMoveButton(move) {
     super.destroy();
   }
 }
-
-// === FONCTIONS GLOBALES DE TEST ===
-
-window.testModernBattle = function() {
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  if (!window.game.scene.isActive('BattleScene')) {
-    window.game.scene.wake('BattleScene');
-    battleScene.scene.setVisible(true);
-  }
-  
-  battleScene.testModernBattleDisplay();
-  console.log('🎮 Interface moderne harmonisée activée !');
-};
