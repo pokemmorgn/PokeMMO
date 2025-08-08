@@ -211,111 +211,90 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
 router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
   try {
     const { mapId } = req.params;
-    console.log(`🗺️ [Maps API] Loading gameobjects and NPCs from MongoDB for zone: ${mapId}`);
+    console.log(`🗺️ [Maps API] Loading gameobjects and NPCs with GLOBAL IDs for zone: ${mapId}`);
     
     // Récupérer les gameobjects et NPCs en parallèle
     const [gameObjects, npcs] = await Promise.all([
       GameObjectData.findByZone(mapId),
-      NpcData.findByZone(mapId)
+      NpcData.findByZone(mapId) // Utilise déjà les IDs globaux
     ]);
-    
-    // ✅ LOG 1 - Données brutes de la DB
-    console.log('🔍 [DEBUG] Raw NPCs from DB:', npcs.map(npc => ({
-      id: npc.npcId,
-      name: npc.name,
-      position: npc.position,
-      type: npc.type,
-      zone: npc.zone
-    })));
     
     console.log(`✅ [Maps API] Found ${gameObjects.length} gameobjects and ${npcs.length} NPCs for ${mapId}`);
     
-    // Convertir les gameobjects au format attendu
+    // Convertir les gameobjects au format attendu (inchangé)
     const formattedObjects = gameObjects.map(obj => obj.toObjectFormat());
     
-   // Convertir les NPCs au format attendu par l'éditeur
-const formattedNPCs = npcs.map((npc: any) => ({
-  id: npc.npcId,
-  type: 'npc',
-  name: npc.name,
-  // ✅ CORRECTION : Garder les coordonnées en pixels ET ajouter tiles
-  x: npc.position.x,  // Coordonnées en pixels pour compatibilité
-  y: npc.position.y,  // Coordonnées en pixels pour compatibilité
-  position: {         // Position en pixels (format standard)
-    x: npc.position.x,
-    y: npc.position.y
-  },
-  sprite: npc.sprite,
-  direction: npc.direction,
-  npcType: npc.type,
-  
-  // Propriétés comportementales
-  interactionRadius: npc.interactionRadius,
-  canWalkAway: npc.canWalkAway,
-  autoFacePlayer: npc.autoFacePlayer,
-  repeatable: npc.repeatable,
-  cooldownSeconds: npc.cooldownSeconds,
-  
-  // Données spécifiques du type
-  npcData: npc.npcData,
-  
-  // Système de quêtes
-  questsToGive: npc.questsToGive,
-  questsToEnd: npc.questsToEnd,
-  questRequirements: npc.questRequirements,
-  questDialogueIds: npc.questDialogueIds,
-  
-  // Conditions de spawn
-  spawnConditions: npc.spawnConditions,
-  
-  customProperties: {
-    originalNPCType: npc.type,
-    mongoId: npc._id?.toString(),
-    isNPC: true,
-    version: npc.version
-  }
-}));
-    
-    // ✅ LOG 2 - NPCs après conversion
-    console.log('🔍 [DEBUG] Formatted NPCs:', formattedNPCs.map(npc => ({
-      id: npc.id,
-      type: npc.type,
+    // ✅ CONVERTIR NPCs avec IDs GLOBAUX pour MapEditor
+    const formattedNPCs = npcs.map((npc: any) => ({
+      id: npc.npcId,              // ✅ ID GLOBAL comme identifiant principal
+      globalId: npc.npcId,        // ✅ Aussi en globalId pour clarté
+      type: 'npc',
       name: npc.name,
-      x: npc.x,
-      y: npc.y,
-      sprite: npc.sprite
-    })));
-    
+      
+      // ✅ Coordonnées en PIXELS (pas tiles) pour MapEditor
+      x: npc.position.x,
+      y: npc.position.y,
+      position: {
+        x: npc.position.x,
+        y: npc.position.y
+      },
+      
+      // Propriétés NPC
+      sprite: npc.sprite,
+      direction: npc.direction,
+      npcType: npc.type,
+      
+      // Comportement
+      interactionRadius: npc.interactionRadius,
+      canWalkAway: npc.canWalkAway,
+      autoFacePlayer: npc.autoFacePlayer,
+      repeatable: npc.repeatable,
+      cooldownSeconds: npc.cooldownSeconds,
+      
+      // Système de quêtes
+      questsToGive: npc.questsToGive,
+      questsToEnd: npc.questsToEnd,
+      questRequirements: npc.questRequirements,
+      questDialogueIds: npc.questDialogueIds,
+      
+      // Conditions de spawn
+      spawnConditions: npc.spawnConditions,
+      
+      // Données spécifiques
+      npcData: npc.npcData,
+      
+      // Shop/Combat
+      shopId: npc.shopId,
+      battleConfig: npc.battleConfig,
+      visionConfig: npc.visionConfig,
+      trainerRuntime: npc.trainerRuntime,
+      
+      // Métadonnées
+      zone: npc.zone,
+      isActive: npc.isActive,
+      version: npc.version,
+      
+      customProperties: {
+        originalNPCType: npc.type,
+        mongoId: npc._id?.toString(),
+        isNPC: true,
+        globalIdSystem: true,
+        version: npc.version
+      }
+    }));
     
     // Combiner objets et NPCs
     const allObjects = [...formattedObjects, ...formattedNPCs];
     
-    // ✅ LOG 3 - Objets finaux envoyés au client
-    console.log('🔍 [DEBUG] All objects sent to client:', {
-      totalObjects: allObjects.length,
-      gameObjects: formattedObjects.length,
-      npcs: formattedNPCs.length,
-      testNPC: 1,
-      byType: allObjects.reduce((acc, obj) => {
-        acc[obj.type] = (acc[obj.type] || 0) + 1;
-        return acc;
-      }, {}),
-      sampleObjects: allObjects.slice(0, 3).map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        name: obj.name,
-        x: obj.x,
-        y: obj.y
-      }))
-    });
+    console.log(`🔍 [Maps API] Sending ${allObjects.length} total objects (${formattedObjects.length} gameobjects, ${formattedNPCs.length} NPCs with global IDs)`);
     
     res.json({
       success: true,
       data: {
         zone: mapId,
-        version: "2.0.0",
+        version: "3.0.0", // Version avec IDs globaux
         lastUpdated: new Date().toISOString(),
-        description: `${mapId} - Objects and NPCs from MongoDB`,
+        description: `${mapId} - Objects and NPCs with Global IDs from MongoDB`,
         defaultRequirements: {
           ground: { minLevel: 1 },
           hidden: { minLevel: 1 }
@@ -328,14 +307,15 @@ const formattedNPCs = npcs.map((npc: any) => ({
       mapId,
       objectCount: gameObjects.length,
       npcCount: npcs.length,
-      totalCount: allObjects.length
+      totalCount: allObjects.length,
+      systemVersion: "global_ids_v3"
     });
     
   } catch (error) {
-    console.error('❌ [Maps API] Error loading gameobjects and NPCs from MongoDB:', error);
+    console.error('❌ [Maps API] Error loading objects with global IDs:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors du chargement des objets et NPCs depuis la base de données'
+      error: 'Erreur lors du chargement des objets avec IDs globaux'
     });
   }
 });
@@ -2421,36 +2401,33 @@ function formatMapName(mapId: string): string {
 router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId } = req.params;
-    console.log(`🧑‍🤝‍🧑 [NPCs API] Loading ALL NPC data for zone: ${zoneId} from MongoDB`);
+    console.log(`🧑‍🤝‍🧑 [NPCs API] Loading ALL NPC data for zone: ${zoneId} with GLOBAL IDs`);
     
-    // ✅ CORRECTION: Récupérer TOUS les champs sans restriction avec casting TypeScript
+    // ✅ RECHERCHE PAR ZONE (npcId est maintenant global unique)
     const npcs = await NpcData.find({ zone: zoneId, isActive: true })
-      .sort({ npcId: 1 })
-      .lean(); // Utiliser lean() pour récupérer les objets JS bruts
+      .sort({ npcId: 1 }) // Tri par ID global
+      .lean();
     
     console.log(`✅ [NPCs API] Found ${npcs.length} NPCs for ${zoneId} in MongoDB`);
-    console.log(`🔍 [NPCs API] First NPC raw data:`, npcs[0] ? Object.keys(npcs[0]) : 'No NPCs');
     
-    // ✅ CORRECTION: Conversion COMPLÈTE au format éditeur avec casting TypeScript
     const formattedNPCs = npcs.map((npcRaw: any) => {
-      console.log(`🔄 [NPCs API] Converting NPC ${npcRaw.npcId} with ALL fields`);
-      
-      // ✅ SOLUTION: Caster en 'any' pour éviter les erreurs TypeScript
       const npc = npcRaw as any;
       
-      // Commencer par tous les champs de base
-      const convertedNPC: any = {
-        // Champs de base OBLIGATOIRES
-        id: npc.npcId,
+      return {
+        // ✅ ID GLOBAL comme identifiant principal
+        id: npc.npcId,           // ID global unique
+        globalId: npc.npcId,     // Aussi comme globalId pour clarté
         name: npc.name,
         type: npc.type,
         sprite: npc.sprite,
         direction: npc.direction,
         
-        // Position STRICTE
+        // ✅ Position pour MapEditor (coordonnées pixels)
+        x: npc.position?.x || 0,
+        y: npc.position?.y || 0,
         position: {
-          x: Number(npc.position?.x) || 0,
-          y: Number(npc.position?.y) || 0
+          x: npc.position?.x || 0,
+          y: npc.position?.y || 0
         },
         
         // Comportement
@@ -2466,125 +2443,44 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         questRequirements: npc.questRequirements || {},
         questDialogueIds: npc.questDialogueIds || {},
         
-        // Conditions de spawn
-        spawnConditions: npc.spawnConditions || {},
+        // Données spécifiques du type (tous les champs)
+        ...npc.npcData,
         
-        // ✅ CORRECTION SIMPLE: Copier TOUS les champs depuis npcData avec casting
-        // Dialogues (tous types)
-        dialogueIds: npc.dialogueIds || npc.npcData?.dialogueIds || [],
-        dialogueId: npc.dialogueId || npc.npcData?.dialogueId || '',
-        conditionalDialogueIds: npc.conditionalDialogueIds || npc.npcData?.conditionalDialogueIds || {},
-        zoneInfo: npc.zoneInfo || npc.npcData?.zoneInfo || {},
+        // Shop simplifié
+        shopId: npc.shopId,
         
-        // Merchant
-        shopId: npc.shopId || npc.npcData?.shopId || '',
+        // Combat/Trainer
+        battleConfig: npc.battleConfig,
+        visionConfig: npc.visionConfig,
+        trainerRuntime: npc.trainerRuntime,
         
-        // Trainer
-        trainerId: npc.trainerId || npc.npcData?.trainerId || '',
-        trainerClass: npc.trainerClass || npc.npcData?.trainerClass || '',
-        trainerRank: npc.trainerRank || npc.npcData?.trainerRank || 1,
-        trainerTitle: npc.trainerTitle || npc.npcData?.trainerTitle || '',
-        battleConfig: npc.battleConfig || npc.npcData?.battleConfig || {},
-        battleDialogueIds: npc.battleDialogueIds || npc.npcData?.battleDialogueIds || {},
-        rewards: npc.rewards || npc.npcData?.rewards || {},
-        rebattle: npc.rebattle || npc.npcData?.rebattle || {},
-        visionConfig: npc.visionConfig || npc.npcData?.visionConfig || {},
-        battleConditions: npc.battleConditions || npc.npcData?.battleConditions || {},
-        progressionFlags: npc.progressionFlags || npc.npcData?.progressionFlags || {},
-        
-        // Healer
-        healerConfig: npc.healerConfig || npc.npcData?.healerConfig || {},
-        healerDialogueIds: npc.healerDialogueIds || npc.npcData?.healerDialogueIds || {},
-        additionalServices: npc.additionalServices || npc.npcData?.additionalServices || {},
-        serviceRestrictions: npc.serviceRestrictions || npc.npcData?.serviceRestrictions || {},
-        
-        // Gym Leader
-        gymConfig: npc.gymConfig || npc.npcData?.gymConfig || {},
-        gymDialogueIds: npc.gymDialogueIds || npc.npcData?.gymDialogueIds || {},
-        challengeConditions: npc.challengeConditions || npc.npcData?.challengeConditions || {},
-        gymRewards: npc.gymRewards || npc.npcData?.gymRewards || {},
-        rematchConfig: npc.rematchConfig || npc.npcData?.rematchConfig || {},
-        
-        // Transport
-        transportConfig: npc.transportConfig || npc.npcData?.transportConfig || {},
-        destinations: npc.destinations || npc.npcData?.destinations || [],
-        schedules: npc.schedules || npc.npcData?.schedules || [],
-        transportDialogueIds: npc.transportDialogueIds || npc.npcData?.transportDialogueIds || {},
-        weatherRestrictions: npc.weatherRestrictions || npc.npcData?.weatherRestrictions || {},
-        
-        // Service
-        serviceConfig: npc.serviceConfig || npc.npcData?.serviceConfig || {},
-        availableServices: npc.availableServices || npc.npcData?.availableServices || [],
-        serviceDialogueIds: npc.serviceDialogueIds || npc.npcData?.serviceDialogueIds || {},
-        
-        // Minigame
-        minigameConfig: npc.minigameConfig || npc.npcData?.minigameConfig || {},
-        contestCategories: npc.contestCategories || npc.npcData?.contestCategories || [],
-        contestRewards: npc.contestRewards || npc.npcData?.contestRewards || {},
-        contestDialogueIds: npc.contestDialogueIds || npc.npcData?.contestDialogueIds || {},
-        contestSchedule: npc.contestSchedule || npc.npcData?.contestSchedule || {},
-        
-        // Researcher
-        researchConfig: npc.researchConfig || npc.npcData?.researchConfig || {},
-        researchServices: npc.researchServices || npc.npcData?.researchServices || [],
-        acceptedPokemon: npc.acceptedPokemon || npc.npcData?.acceptedPokemon || [],
-        researchDialogueIds: npc.researchDialogueIds || npc.npcData?.researchDialogueIds || {},
-        researchRewards: npc.researchRewards || npc.npcData?.researchRewards || {},
-        
-        // Guild
-        guildConfig: npc.guildConfig || npc.npcData?.guildConfig || {},
-        recruitmentRequirements: npc.recruitmentRequirements || npc.npcData?.recruitmentRequirements || {},
-        guildServices: npc.guildServices || npc.npcData?.guildServices || [],
-        guildDialogueIds: npc.guildDialogueIds || npc.npcData?.guildDialogueIds || {},
-        rankSystem: npc.rankSystem || npc.npcData?.rankSystem || {},
-        
-        // Event
-        eventConfig: npc.eventConfig || npc.npcData?.eventConfig || {},
-        eventPeriod: npc.eventPeriod || npc.npcData?.eventPeriod || {},
-        eventActivities: npc.eventActivities || npc.npcData?.eventActivities || [],
-        eventDialogueIds: npc.eventDialogueIds || npc.npcData?.eventDialogueIds || {},
-        globalProgress: npc.globalProgress || npc.npcData?.globalProgress || {},
-        
-        // Quest Master
-        questMasterConfig: npc.questMasterConfig || npc.npcData?.questMasterConfig || {},
-        questMasterDialogueIds: npc.questMasterDialogueIds || npc.npcData?.questMasterDialogueIds || {},
-        questRankSystem: npc.questRankSystem || npc.npcData?.questRankSystem || {},
-        epicRewards: npc.epicRewards || npc.npcData?.epicRewards || {},
-        specialConditions: npc.specialConditions || npc.npcData?.specialConditions || {}
+        // Métadonnées
+        zone: npc.zone,
+        isActive: npc.isActive,
+        version: npc.version,
+        lastUpdated: npc.lastUpdated
       };
-      
-      // ✅ CORRECTION CRITIQUE: Copier TOUS les champs restants depuis npcData avec casting
-      if (npc.npcData && typeof npc.npcData === 'object') {
-        Object.keys(npc.npcData).forEach((key: string) => {
-          if (!(key in convertedNPC)) {
-            convertedNPC[key] = npc.npcData[key];
-          }
-        });
-      }
-      
-      console.log(`✅ [NPCs API] NPC ${npc.npcId} converted with ${Object.keys(convertedNPC).length} fields`);
-      return convertedNPC;
     });
     
     res.json({
       success: true,
       data: {
         zone: zoneId,
-        version: "2.0.0",
+        version: "3.0.0", // Version avec IDs globaux
         lastUpdated: new Date().toISOString(),
-        description: `NPCs for zone ${zoneId} - Complete data from MongoDB`,
+        description: `NPCs for zone ${zoneId} - Global IDs from MongoDB`,
         npcs: formattedNPCs
       },
       zoneId,
       npcCount: npcs.length,
-      source: 'mongodb'
+      source: 'mongodb_global_ids'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error loading complete NPCs from MongoDB:', error);
+    console.error('❌ [NPCs API] Error loading NPCs with global IDs:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors du chargement complet des NPCs depuis MongoDB'
+      error: 'Erreur lors du chargement des NPCs avec IDs globaux'
     });
   }
 });
@@ -2747,14 +2643,7 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
     const { zoneId } = req.params;
     const npcJson = req.body;
     
-    console.log(`➕ [NPCs API] Adding single NPC to zone: ${zoneId}`);
-    console.log(`📋 [NPCs API] NPC data received:`, {
-      name: npcJson.name,
-      type: npcJson.type,
-      position: npcJson.position,
-      sprite: npcJson.sprite,
-      hasId: !!(npcJson.id || npcJson.npcId)
-    });
+    console.log(`➕ [NPCs API] Adding NPC to zone: ${zoneId} with auto global ID`);
     
     // Validation du NPC
     if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
@@ -2764,66 +2653,69 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
       });
     }
     
-    // ✅ CORRECTION: Vérifier/obtenir l'ID global AVANT createFromJson
-    let globalNpcId = npcJson.id || npcJson.npcId;
-    
-    if (!globalNpcId) {
-      // Obtenir le prochain ID global disponible
-      globalNpcId = await NpcData.getNextGlobalNpcId();
-      console.log(`🆔 [NPCs API] ID global automatique attribué: ${globalNpcId}`);
-    } else {
-      // Vérifier que l'ID est disponible
-      const isAvailable = await NpcData.isGlobalNpcIdAvailable(globalNpcId);
-      if (!isAvailable) {
-        console.log(`⚠️ [NPCs API] ID ${globalNpcId} déjà utilisé, attribution automatique`);
-        globalNpcId = await NpcData.getNextGlobalNpcId();
-        console.log(`🆔 [NPCs API] Nouvel ID global attribué: ${globalNpcId}`);
-      }
-    }
-    
-    // ✅ CORRECTION: Ajouter l'ID au JSON avant createFromJson
-    const npcJsonWithId = {
-      ...npcJson,
-      id: globalNpcId,
-      npcId: globalNpcId
+    // ✅ NE PAS PASSER D'ID - Laisser le modèle attribuer l'ID global
+    const npcDataForCreation = {
+      // PAS d'id ni npcId - sera attribué automatiquement
+      name: npcJson.name,
+      type: npcJson.type,
+      position: {
+        x: Number(npcJson.position?.x) || 0,
+        y: Number(npcJson.position?.y) || 0
+      },
+      sprite: npcJson.sprite,
+      direction: npcJson.direction || 'south',
+      interactionRadius: npcJson.interactionRadius || 32,
+      canWalkAway: npcJson.canWalkAway !== false,
+      autoFacePlayer: npcJson.autoFacePlayer !== false,
+      repeatable: npc.repeatable !== false,
+      cooldownSeconds: npcJson.cooldownSeconds || 0,
+      
+      // Données spécifiques
+      questsToGive: npcJson.questsToGive || [],
+      questsToEnd: npcJson.questsToEnd || [],
+      questRequirements: npcJson.questRequirements,
+      questDialogueIds: npcJson.questDialogueIds,
+      spawnConditions: npcJson.spawnConditions,
+      
+      // Shop/Combat/etc
+      shopId: npcJson.shopId,
+      battleConfig: npcJson.battleConfig,
+      visionConfig: npcJson.visionConfig,
+      
+      // Métadonnées
+      isActive: true,
+      version: '3.0.0',
+      sourceFile: `admin_map_editor_${req.user.username}`
     };
     
-    console.log(`💾 [NPCs API] Creating NPC with guaranteed ID: ${globalNpcId}`);
+    console.log(`💾 [NPCs API] Creating NPC with automatic global ID assignment...`);
     
-    // Créer le NPC avec l'ID garanti
-    const newNpc = await NpcData.createFromJson(npcJsonWithId, zoneId);
+    // ✅ UTILISER createFromJson SANS ID (le modèle gère l'attribution)
+    const newNpc = await NpcData.createFromJson(npcDataForCreation, zoneId);
     
-    console.log(`✅ [NPCs API] Single NPC "${newNpc.name}" (ID: ${newNpc.npcId}) added to ${zoneId} by ${req.user.username}`);
+    console.log(`✅ [NPCs API] NPC "${newNpc.name}" created with global ID: ${newNpc.npcId} by ${req.user.username}`);
     
     res.json({
       success: true,
       message: `NPC "${newNpc.name}" ajouté à la zone ${zoneId}`,
       npc: newNpc.toNpcFormat(),
-      globalId: newNpc.npcId, // ✅ Retourner l'ID global attribué
+      globalId: newNpc.npcId, // ✅ RETOURNER L'ID GLOBAL ATTRIBUÉ
       zoneId,
       addedBy: req.user.username,
-      source: 'mongodb'
+      source: 'mongodb_global_auto'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error adding single NPC to MongoDB:', error);
-    
-    // ✅ MEILLEUR DEBUG
-    if (error instanceof Error) {
-      console.error('❌ [NPCs API] Error details:', {
-        message: error.message,
-        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
-        npcData: req.body
-      });
-    }
+    console.error('❌ [NPCs API] Error adding NPC with global ID:', error);
     
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de l\'ajout du NPC dans MongoDB',
+      error: 'Erreur lors de l\'ajout du NPC avec ID global',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
+
 
 // ✅ ROUTE ALTERNATIVE: Créer un NPC directement avec new + save (pour debug)
 router.post('/zones/:zoneId/npcs/add-direct', requireMacAndDev, async (req: any, res) => {
@@ -2896,11 +2788,18 @@ router.post('/zones/:zoneId/npcs/add-direct', requireMacAndDev, async (req: any,
 router.put('/zones/:zoneId/npcs/:npcId/update-single', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId, npcId } = req.params;
-    const npcJson = req.body;
+    const { npcData } = req.body;
     
-    console.log(`🔄 [NPCs API] Updating single NPC ${npcId} in zone ${zoneId}`);
+    console.log(`🔄 [NPCs API] Updating NPC with GLOBAL ID ${npcId} in zone ${zoneId}`);
     
-    // Trouver le NPC par ID GLOBAL (pas par zone)
+    if (!npcData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Données NPC manquantes'
+      });
+    }
+    
+    // ✅ RECHERCHE PAR ID GLOBAL (pas par zone + id local)
     const existingNpc = await NpcData.findOne({ npcId: parseInt(npcId) });
     
     if (!existingNpc) {
@@ -2910,35 +2809,36 @@ router.put('/zones/:zoneId/npcs/:npcId/update-single', requireMacAndDev, async (
       });
     }
     
-    // Vérifier que le NPC est bien dans la zone attendue (optionnel)
+    // ✅ VÉRIFICATION ZONE (optionnelle mais recommandée)
     if (existingNpc.zone !== zoneId) {
       console.warn(`⚠️ [NPCs API] NPC ${npcId} est dans la zone ${existingNpc.zone}, pas ${zoneId}`);
     }
     
-    // Mettre à jour le NPC
-    await existingNpc.updateFromJson(npcJson);
+    // ✅ MISE À JOUR COMPLÈTE avec TOUS les champs
+    await existingNpc.updateFromJson(npcData);
     
-    console.log(`✅ [NPCs API] Single NPC ${npcId} "${existingNpc.name}" updated by ${req.user.username}`);
+    console.log(`✅ [NPCs API] NPC ${npcId} "${existingNpc.name}" updated by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: `NPC "${existingNpc.name}" (ID: ${npcId}) mis à jour`,
+      message: `NPC "${existingNpc.name}" (Global ID: ${npcId}) mis à jour`,
       npc: existingNpc.toNpcFormat(),
       globalId: existingNpc.npcId,
       originalZone: existingNpc.zone,
       updatedBy: req.user.username,
-      source: 'mongodb'
+      source: 'mongodb_global_update'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error updating single NPC:', error);
+    console.error('❌ [NPCs API] Error updating NPC by global ID:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la mise à jour du NPC',
+      error: 'Erreur lors de la mise à jour du NPC par ID global',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
+
 
 // ✅ ROUTE: Supprimer tous les NPCs d'une zone dans MongoDB
 router.delete('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
@@ -4990,47 +4890,49 @@ router.get('/zones/:zoneId/npcs/:npcId/edit', requireMacAndDev, async (req: any,
   try {
     const { zoneId, npcId } = req.params;
     
-    console.log(`✏️ [NPCs API] Loading NPC ${npcId} from zone ${zoneId} for map editor`);
+    console.log(`✏️ [NPCs API] Loading NPC with GLOBAL ID ${npcId} for map editor`);
     
-    let npc = null;
+    let parsedNpcId: number;
     
-    // ✅ CORRECTION: Essayer d'abord avec l'ID numérique
-    if (!isNaN(parseInt(npcId))) {
-      // Si c'est un nombre, chercher par npcId
-      npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
+    // ✅ GESTION FLEXIBLE DES IDs
+    if (npcId.startsWith('npc_')) {
+      parsedNpcId = parseInt(npcId.replace('npc_', ''));
+    } else {
+      parsedNpcId = parseInt(npcId);
     }
     
-    // ✅ Si pas trouvé et que l'ID commence par "npc_", extraire le nombre
-    if (!npc && npcId.startsWith('npc_')) {
-      const numericId = npcId.replace('npc_', '');
-      if (!isNaN(parseInt(numericId))) {
-        npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(numericId) });
-      }
+    if (isNaN(parsedNpcId) || parsedNpcId < 1) {
+      return res.status(400).json({
+        success: false,
+        error: `ID global invalide: ${npcId}`
+      });
     }
     
-    // ✅ Dernier recours: chercher par ObjectId si c'est un ID MongoDB valide
-    if (!npc && npcId.length === 24) {
-      try {
-        npc = await NpcData.findOne({ zone: zoneId, _id: npcId });
-      } catch (error) {
-        // Ignore si ce n'est pas un ObjectId valide
-      }
-    }
+    // ✅ RECHERCHE PAR ID GLOBAL
+    const npc = await NpcData.findOne({ npcId: parsedNpcId });
     
     if (!npc) {
-      console.error(`❌ [NPCs API] NPC not found: ${npcId} in zone ${zoneId}`);
+      console.error(`❌ [NPCs API] NPC with global ID ${parsedNpcId} not found`);
       
-      // Debug: lister tous les NPCs de la zone
-      const allNpcs = await NpcData.find({ zone: zoneId }).select('npcId name _id');
-      console.log(`🔍 [NPCs API] Available NPCs in ${zoneId}:`, 
-        allNpcs.map(n => ({ npcId: n.npcId, name: n.name, _id: n._id.toString() }))
+      // Debug: lister NPCs disponibles
+      const allNpcs = await NpcData.find({ zone: zoneId }).select('npcId name zone').lean();
+      console.log(`🔍 [NPCs API] Available NPCs in zone ${zoneId}:`, 
+        allNpcs.map(n => ({ globalId: n.npcId, name: n.name, zone: n.zone }))
       );
       
       return res.status(404).json({
         success: false,
-        error: `NPC non trouvé: ${npcId} dans la zone ${zoneId}`,
-        availableNPCs: allNpcs.map(n => ({ npcId: n.npcId, name: n.name }))
+        error: `NPC avec ID global ${parsedNpcId} non trouvé`,
+        availableNPCs: allNpcs.map(n => ({ 
+          globalId: n.npcId, 
+          name: n.name 
+        }))
       });
+    }
+    
+    // ✅ VÉRIFICATION ZONE (log seulement)
+    if (npc.zone !== zoneId) {
+      console.warn(`⚠️ [NPCs API] NPC ${parsedNpcId} est dans zone ${npc.zone}, demandé depuis zone ${zoneId}`);
     }
     
     // Convertir au format éditeur
@@ -5040,12 +4942,16 @@ router.get('/zones/:zoneId/npcs/:npcId/edit', requireMacAndDev, async (req: any,
     
     res.json({
       success: true,
-      npc: npcForEditor,
-      source: 'mongodb'
+      npc: {
+        ...npcForEditor,
+        globalId: npc.npcId, // ✅ S'assurer que globalId est présent
+        zone: npc.zone
+      },
+      source: 'mongodb_global_edit'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error loading NPC for map editor:', error);
+    console.error('❌ [NPCs API] Error loading NPC by global ID for map editor:', error);
     res.status(500).json({
       success: false,
       error: `Erreur serveur: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -5105,69 +5011,184 @@ router.delete('/zones/:zoneId/npcs/:npcId/delete-from-map', requireMacAndDev, as
   try {
     const { zoneId, npcId } = req.params;
     
-    console.log(`🗑️ [NPCs API] Deleting NPC ${npcId} from zone ${zoneId} via map editor`);
+    console.log(`🗑️ [NPCs API] Deleting NPC with GLOBAL ID ${npcId} from map editor`);
     
-    let deletedNpc = null;
+    let parsedNpcId: number;
     
-    // ✅ CORRECTION: Même logique que pour l'édition
-    // Essayer d'abord avec l'ID numérique
-    if (!isNaN(parseInt(npcId))) {
-      deletedNpc = await NpcData.findOneAndDelete({ 
-        zone: zoneId, 
-        npcId: parseInt(npcId) 
+    // ✅ GESTION FLEXIBLE DES IDs (numérique ou avec préfixe)
+    if (npcId.startsWith('npc_')) {
+      parsedNpcId = parseInt(npcId.replace('npc_', ''));
+    } else {
+      parsedNpcId = parseInt(npcId);
+    }
+    
+    if (isNaN(parsedNpcId) || parsedNpcId < 1) {
+      return res.status(400).json({
+        success: false,
+        error: `ID global invalide: ${npcId}`
       });
     }
     
-    // Si pas trouvé et que l'ID commence par "npc_", extraire le nombre
-    if (!deletedNpc && npcId.startsWith('npc_')) {
-      const numericId = npcId.replace('npc_', '');
-      if (!isNaN(parseInt(numericId))) {
-        deletedNpc = await NpcData.findOneAndDelete({ 
-          zone: zoneId, 
-          npcId: parseInt(numericId) 
-        });
-      }
-    }
+    console.log(`🔍 [NPCs API] Searching for NPC with parsed global ID: ${parsedNpcId}`);
     
-    // Dernier recours: chercher par ObjectId
-    if (!deletedNpc && npcId.length === 24) {
-      try {
-        deletedNpc = await NpcData.findOneAndDelete({ zone: zoneId, _id: npcId });
-      } catch (error) {
-        // Ignore si ce n'est pas un ObjectId valide
-      }
-    }
+    // ✅ RECHERCHE PAR ID GLOBAL UNIQUEMENT
+    const deletedNpc = await NpcData.findOneAndDelete({ npcId: parsedNpcId });
     
     if (!deletedNpc) {
-      console.error(`❌ [NPCs API] NPC not found for deletion: ${npcId} in zone ${zoneId}`);
+      console.error(`❌ [NPCs API] NPC with global ID ${parsedNpcId} not found`);
       
-      // Debug: lister tous les NPCs de la zone
-      const allNpcs = await NpcData.find({ zone: zoneId }).select('npcId name _id');
-      console.log(`🔍 [NPCs API] Available NPCs in ${zoneId}:`, 
-        allNpcs.map(n => ({ npcId: n.npcId, name: n.name, _id: n._id.toString() }))
+      // ✅ DEBUG: Lister tous les NPCs de la zone pour aider au debug
+      const allZoneNpcs = await NpcData.find({ zone: zoneId }).select('npcId name zone').lean();
+      console.log(`🔍 [NPCs API] Available NPCs in zone ${zoneId}:`, 
+        allZoneNpcs.map(n => ({ globalId: n.npcId, name: n.name, zone: n.zone }))
       );
       
       return res.status(404).json({
         success: false,
-        error: `NPC non trouvé pour suppression: ${npcId} dans la zone ${zoneId}`,
-        availableNPCs: allNpcs.map(n => ({ npcId: n.npcId, name: n.name }))
+        error: `NPC avec ID global ${parsedNpcId} non trouvé`,
+        availableNPCs: allZoneNpcs.map(n => ({ 
+          globalId: n.npcId, 
+          name: n.name 
+        }))
       });
     }
     
-    console.log(`✅ [NPCs API] NPC "${deletedNpc.name}" deleted from map by ${req.user.username}`);
+    // ✅ VÉRIFICATION ZONE (log seulement)
+    if (deletedNpc.zone !== zoneId) {
+      console.warn(`⚠️ [NPCs API] NPC ${parsedNpcId} était dans zone ${deletedNpc.zone}, supprimé depuis zone ${zoneId}`);
+    }
+    
+    console.log(`✅ [NPCs API] NPC "${deletedNpc.name}" (Global ID: ${parsedNpcId}) deleted from map by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: `NPC "${deletedNpc.name}" supprimé depuis l\'éditeur de carte`,
-      deletedNPC: deletedNpc.toNpcFormat(),
-      deletedBy: req.user.username
+      message: `NPC "${deletedNpc.name}" supprimé (ID global: ${parsedNpcId})`,
+      deletedNPC: {
+        globalId: deletedNpc.npcId,
+        name: deletedNpc.name,
+        type: deletedNpc.type,
+        zone: deletedNpc.zone
+      },
+      deletedBy: req.user.username,
+      source: 'mongodb_global_delete'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error deleting NPC from map editor:', error);
+    console.error('❌ [NPCs API] Error deleting NPC by global ID:', error);
     res.status(500).json({
       success: false,
-      error: `Erreur serveur lors de la suppression: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Erreur suppression NPC par ID global: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
+  }
+});
+
+// 6. ✅ NOUVELLE ROUTE: Initialiser le compteur global (utilitaire admin)
+router.post('/npcs/initialize-global-counter', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log(`🔢 [NPCs API] Initializing global counter by ${req.user.username}`);
+    
+    const maxId = await NpcData.initializeGlobalCounter();
+    
+    console.log(`✅ [NPCs API] Global counter initialized to ${maxId}`);
+    
+    res.json({
+      success: true,
+      message: `Compteur global initialisé à ${maxId}`,
+      maxId,
+      initializedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error initializing global counter:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur initialisation compteur global'
+    });
+  }
+});
+
+// 7. ✅ NOUVELLE ROUTE: Réparer les doublons d'IDs (utilitaire admin)
+router.post('/npcs/repair-global-ids', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log(`🔧 [NPCs API] Repairing global IDs by ${req.user.username}`);
+    
+    const result = await NpcData.repairGlobalIds();
+    
+    console.log(`✅ [NPCs API] Repair completed: ${result.success} fixed, ${result.errors.length} errors`);
+    
+    res.json({
+      success: true,
+      message: `Réparation terminée: ${result.success} IDs corrigés`,
+      repaired: result.success,
+      errors: result.errors.length,
+      errorDetails: result.errors.length > 0 ? result.errors.slice(0, 10) : undefined,
+      repairedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error repairing global IDs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur réparation IDs globaux'
+    });
+  }
+});
+
+// 8. ✅ NOUVELLE ROUTE: Statistiques des IDs globaux
+router.get('/npcs/global-ids/stats', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('📊 [NPCs API] Getting global IDs statistics...');
+    
+    const [
+      totalNPCs,
+      maxNpcId,
+      currentCounter,
+      duplicates,
+      npcsByZone
+    ] = await Promise.all([
+      NpcData.countDocuments(),
+      NpcData.findOne().sort({ npcId: -1 }).select('npcId').lean(),
+      NpcData.getCurrentGlobalNpcId(),
+      NpcData.aggregate([
+        { $group: { _id: '$npcId', count: { $sum: 1 }, zones: { $push: '$zone' } } },
+        { $match: { count: { $gt: 1 } } }
+      ]),
+      NpcData.aggregate([
+        { $group: { _id: '$zone', count: { $sum: 1 }, minId: { $min: '$npcId' }, maxId: { $max: '$npcId' } } },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+    
+    const stats = {
+      totalNPCs,
+      maxNpcId: maxNpcId?.npcId || 0,
+      currentCounter,
+      duplicates: duplicates.length,
+      duplicateDetails: duplicates.map((d: any) => ({
+        npcId: d._id,
+        count: d.count,
+        zones: d.zones
+      })),
+      zoneStats: npcsByZone.map((zone: any) => ({
+        zone: zone._id,
+        count: zone.count,
+        idRange: `${zone.minId}-${zone.maxId}`
+      })),
+      isHealthy: duplicates.length === 0 && currentCounter >= (maxNpcId?.npcId || 0)
+    };
+    
+    console.log('✅ [NPCs API] Global IDs statistics generated');
+    
+    res.json({
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error getting global IDs stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur statistiques IDs globaux'
     });
   }
 });
