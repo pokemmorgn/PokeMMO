@@ -6,7 +6,15 @@ import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
 import { createKOManager, setupKOManagerEvents } from '../Battle/KOManager.js'; // ✅ NOUVEAU
-import { t } from '../managers/LocalizationManager.js';
+import { 
+  t, 
+  battleT, 
+  getMoveNameT, 
+  getTypeNameT, 
+  getBattleMessageT,
+  isBattleTranslationsReady,
+  loadBattleTranslations 
+} from '../managers/LocalizationManager.js';
 
 let pokemonSpriteConfig = null;
 
