@@ -2719,18 +2719,35 @@ export class BattleScene extends Phaser.Scene {
     this.battleInventoryUI = new BattleInventoryUI(gameRoom, battleContext);
   }
 
-    initializeCaptureManager() {
-      if (!this.battleNetworkHandler) {
-        console.warn('⚠️ [BattleScene] NetworkHandler manquant pour CaptureManager');
-        return;
-      }
-      
-      const playerRole = this.playerRole || 'player1';
-      
-      this.captureManager = createCaptureManager(this, this.battleNetworkHandler, playerRole);
-      
-      console.log('🎯 [BattleScene] CaptureManager initialisé');
-    }
+initializeCaptureManager() {
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] NetworkHandler manquant pour CaptureManager');
+    return;
+  }
+  
+  const playerRole = this.playerRole || 'player1';
+  
+  // ✅ CORRECTION 1: Vérifier que createCaptureManager existe
+  if (typeof createCaptureManager !== 'function') {
+    console.error('❌ [BattleScene] createCaptureManager non importé');
+    return;
+  }
+  
+  // ✅ CORRECTION 2: Créer et vérifier
+  this.captureManager = createCaptureManager(this, this.battleNetworkHandler, playerRole);
+  
+  // ✅ CORRECTION 3: Vérifier que les événements sont bien enregistrés
+  if (!this.captureManager) {
+    console.error('❌ [BattleScene] CaptureManager création échouée');
+    return;
+  }
+  
+  // ✅ CORRECTION 4: Debug des événements enregistrés
+  console.log('🎯 [BattleScene] CaptureManager initialisé');
+  console.log('📡 [BattleScene] NetworkHandler disponible:', !!this.battleNetworkHandler);
+  console.log('📋 [BattleScene] Événements NetworkHandler:', 
+    Object.keys(this.battleNetworkHandler.eventCallbacks || {}));
+}
 
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
