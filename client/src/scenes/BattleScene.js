@@ -35,7 +35,9 @@ export class BattleScene extends Phaser.Scene {
     this.isActive = false;
     this.isVisible = false;
     this.isReadyForActivation = false;
-    
+    // Localisation
+    this.battleLocalizationReady = false;
+    this.battleTranslator = null;    
     // Sprites Pokémon
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
@@ -115,7 +117,7 @@ export class BattleScene extends Phaser.Scene {
       this.isActive = true;
       this.isReadyForActivation = true;
       this.initializeCaptureManager();
-      
+      this.initializeBattleLocalization();
     } catch (error) {
       console.error('[BattleScene] Erreur création:', error);
     }
@@ -1848,8 +1850,29 @@ animateModernHealthBarToZero(hpBarContainer) {
     return fallbackKey;
   }
 
-  // === ✅ ÉVÉNEMENTS RÉSEAU SIMPLIFIÉS (KO GÉRÉ PAR KOMANAGER) ===
-
+  async initializeBattleLocalization() {
+    console.log('🌐 [BattleScene] Initialisation localisation battle...');
+    
+    try {
+      // Vérifier si les traductions battle sont prêtes
+      if (!isBattleTranslationsReady()) {
+        console.log('📥 [BattleScene] Chargement du module battle...');
+        await loadBattleTranslations();
+      }
+      
+      // Créer le traducteur battle avec le rôle du joueur
+      const playerRole = this.playerRole || 'player1';
+      this.battleTranslator = new BattleTranslator(playerRole);
+      
+      this.battleLocalizationReady = true;
+      console.log('✅ [BattleScene] Localisation battle initialisée');
+      
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur initialisation localisation:', error);
+      this.battleLocalizationReady = false;
+    }
+  }
+   // === ✅ ÉVÉNEMENTS RÉSEAU SIMPLIFIÉS (KO GÉRÉ PAR KOMANAGER) ===
   setupBattleNetworkEvents() {
     if (!this.battleNetworkHandler) return;
     
