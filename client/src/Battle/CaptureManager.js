@@ -1059,4 +1059,4 @@ console.log('   ✅ Handlers multiples pour tous types d\'événements serveur')
 console.log('   ✅ Flag hasReceivedServerResponse pour éviter double traitement');
 console.log('   ✅ Méthodes multiples d\'envoi pour compatibilité maximale');
 console.log('   ✅ Gestion messages génériques de battle avec contenu capture');
-console.log('🚀 Usage: const captureManager = createCaptureManager(battleScene, networkHandler);
+console.log('🚀 Usage: const captureManager = createCaptureManager(battleScene, networkHandler);');
