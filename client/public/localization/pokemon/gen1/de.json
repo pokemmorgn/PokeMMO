@@ -1,0 +1,606 @@
+{
+  "1": {
+    "name": "Bisasam",
+    "description": "Ein seltsamer Samen wurde bei der Geburt auf seinen Rücken gepflanzt. Die Pflanze sprießt und wächst mit diesem Pokémon."
+  },
+  "2": {
+    "name": "Bisaknosp",
+    "description": "Wenn die Knospe auf seinem Rücken groß wird, scheint es die Fähigkeit zu verlieren, auf seinen Hinterbeinen zu stehen."
+  },
+  "3": {
+    "name": "Bisaflor",
+    "description": "Die Pflanze blüht, wenn sie Solarenergie absorbiert. Sie bleibt in Bewegung, um Sonnenlicht zu suchen."
+  },
+  "4": {
+    "name": "Glumanda",
+    "description": "Bevorzugt offensichtlich heiße Orte. Wenn es regnet, soll Dampf aus der Spitze seines Schwanzes sprühen."
+  },
+  "5": {
+    "name": "Glutexo",
+    "description": "Wenn es seinen brennenden Schwanz schwingt, erhöht es die Temperatur auf unerträglich hohe Werte."
+  },
+  "6": {
+    "name": "Glurak",
+    "description": "Spuckt Feuer, das heiß genug ist, um Felsbrocken zu schmelzen. Bekannt dafür, unbeabsichtigt Waldbrände zu verursachen."
+  },
+  "7": {
+    "name": "Schiggy",
+    "description": "Nach der Geburt schwillt sein Rücken an und verhärtet sich zu einem Panzer. Sprüht kraftvoll Schaum aus seinem Mund."
+  },
+  "8": {
+    "name": "Schillok",
+    "description": "Versteckt sich oft im Wasser, um unvorsichtige Beute zu verfolgen. Zum schnellen Schwimmen bewegt es seine Ohren, um das Gleichgewicht zu halten."
+  },
+  "9": {
+    "name": "Turtok",
+    "description": "Ein brutales Pokémon mit druckbeaufschlagten Wasserstrahlen an seinem Panzer. Sie werden für Hochgeschwindigkeitsangriffe verwendet."
+  },
+  "10": {
+    "name": "Raupy",
+    "description": "Seine kurzen Füße haben Saugnäpfe, die es ihm ermöglichen, unermüdlich Hänge und Wände zu erklimmen."
+  },
+  "11": {
+    "name": "Safcon",
+    "description": "Dieses Pokémon ist für Angriffe verwundbar, während sein Panzer weich ist und seinen schwachen und zarten Körper freilegt."
+  },
+  "12": {
+    "name": "Smettbo",
+    "description": "Im Kampf schlägt es seine Flügel mit großer Geschwindigkeit, um hochgiftigen Staub in die Luft zu schleudern."
+  },
+  "13": {
+    "name": "Hornliu",
+    "description": "Oft in Wäldern gefunden, frisst Blätter. Es hat einen scharfen Stachel auf seinem Kopf, der Gift injiziert."
+  },
+  "14": {
+    "name": "Kokuna",
+    "description": "Fast unfähig sich zu bewegen, kann dieses Pokémon nur seinen Panzer verhärten, um sich vor Raubtieren zu schützen."
+  },
+  "15": {
+    "name": "Bibor",
+    "description": "Fliegt mit hoher Geschwindigkeit und greift mit seinen großen giftigen Stacheln an Vorderbeinen und Schwanz an."
+  },
+  "16": {
+    "name": "Taubsi",
+    "description": "Ein häufiger Anblick in Wäldern und Gehölzen. Es schlägt seine Flügel auf Bodenhöhe, um blendenden Sand aufzuwirbeln."
+  },
+  "17": {
+    "name": "Tauboga",
+    "description": "Sehr beschützend seines weitläufigen Territoriums, wird dieses Pokémon jeden Eindringling heftig anpicken."
+  },
+  "18": {
+    "name": "Tauboss",
+    "description": "Bei der Jagd streift es die Wasseroberfläche mit hoher Geschwindigkeit, um unvorsichtige Beute wie Karpador zu schnappen."
+  },
+  "19": {
+    "name": "Rattfratz",
+    "description": "Beißt alles, wenn es angreift. Klein und sehr schnell, ist es ein häufiger Anblick an vielen Orten."
+  },
+  "20": {
+    "name": "Rattikarl",
+    "description": "Seine Hinterfüße haben Schwimmhäute. Sie wirken als Flossen, sodass es in Flüssen schwimmen und Beute jagen kann."
+  },
+  "21": {
+    "name": "Habitak",
+    "description": "Frisst Käfer in grasbewachsenen Gebieten. Es muss seine kurzen Flügel mit hoher Geschwindigkeit schlagen, um in der Luft zu bleiben."
+  },
+  "22": {
+    "name": "Ibitak",
+    "description": "Mit seinen enormen und prächtigen Flügeln kann es in der Luft bleiben, ohne jemals landen zu müssen, um zu ruhen."
+  },
+  "23": {
+    "name": "Rettan",
+    "description": "Bewegt sich lautlos und verstohlen. Frisst die Eier von Vögeln wie Taubsi und Habitak ganz."
+  },
+  "24": {
+    "name": "Arbok",
+    "description": "Es wird gemunkelt, dass die wilden Warnmarkierungen auf seinem Bauch von Gebiet zu Gebiet unterschiedlich sind."
+  },
+  "25": {
+    "name": "Pikachu",
+    "description": "Wenn mehrere dieser Pokémon sich versammeln, könnte ihre Elektrizität sich aufbauen und Gewitter verursachen."
+  },
+  "26": {
+    "name": "Raichu",
+    "description": "Sein langer Schwanz dient als Erdung, um sich vor seiner eigenen Hochspannungsenergie zu schützen."
+  },
+  "27": {
+    "name": "Sandan",
+    "description": "Gräbt tief unter der Erde in trockenen Orten fern vom Wasser. Es taucht nur auf, um nach Nahrung zu jagen."
+  },
+  "28": {
+    "name": "Sandamer",
+    "description": "Rollt sich zu einem stacheligen Ball zusammen, wenn es bedroht wird. Es kann sich zusammengerollt rollen, um anzugreifen oder zu entkommen."
+  },
+  "29": {
+    "name": "Nidoran♀",
+    "description": "Obwohl klein, machen seine giftigen Widerhaken dieses Pokémon gefährlich. Das Weibchen hat kleinere Hörner."
+  },
+  "30": {
+    "name": "Nidorina",
+    "description": "Das Horn des Weibchens entwickelt sich langsam. Bevorzugt körperliche Angriffe wie Kratzen und Beißen."
+  },
+  "31": {
+    "name": "Nidoqueen",
+    "description": "Harte Schuppen bedecken den robusten Körper dieses Pokémon. Es scheint, dass die Schuppen in Zyklen wachsen."
+  },
+  "32": {
+    "name": "Nidoran♂",
+    "description": "Versteift seine Ohren, um Gefahr zu spüren. Je größer seine Hörner, desto stärker das Gift, das es absondert."
+  },
+  "33": {
+    "name": "Nidorino",
+    "description": "Ein aggressives Pokémon, das schnell angreift. Das Horn auf seinem Kopf sondert ein starkes Gift ab."
+  },
+  "34": {
+    "name": "Nidoking",
+    "description": "Verwendet seinen mächtigen Schwanz im Kampf, um zu zermalmen, einzuschnüren und dann die Knochen seiner Beute zu brechen."
+  },
+  "35": {
+    "name": "Piepi",
+    "description": "Sein magischer und niedlicher Charme hat viele Bewunderer. Es ist selten und nur in bestimmten Gebieten zu finden."
+  },
+  "36": {
+    "name": "Pixi",
+    "description": "Ein schüchternes Feen-Pokémon, das selten gesehen wird. Es wird weglaufen und sich verstecken, sobald es Menschen spürt."
+  },
+  "37": {
+    "name": "Vulpix",
+    "description": "Zum Zeitpunkt der Geburt hat es nur einen Schwanz. Der Schwanz teilt sich von seiner Spitze, während es älter wird."
+  },
+  "38": {
+    "name": "Vulnona",
+    "description": "Sehr klug und sehr rachsüchtig. Einen seiner vielen Schwänze zu greifen könnte in einem 1000-jährigen Fluch resultieren."
+  },
+  "39": {
+    "name": "Pummeluff",
+    "description": "Wenn seine riesigen Augen aufleuchten, singt es eine geheimnisvoll beruhigende Melodie, die seine Feinde einschläfert."
+  },
+  "40": {
+    "name": "Knuddeluff",
+    "description": "Der Körper ist weich und gummiartig. Wenn es wütend wird, saugt es Luft ein und bläht sich zu enormer Größe auf."
+  },
+  "41": {
+    "name": "Zubat",
+    "description": "Bildet Kolonien an ewig dunklen Orten. Verwendet Ultraschallwellen, um Ziele zu identifizieren und sich ihnen zu nähern."
+  },
+  "42": {
+    "name": "Golbat",
+    "description": "Einmal zugeschlagen, hört es nicht auf, Energie vom Opfer zu entziehen, selbst wenn es zu schwer zum Fliegen wird."
+  },
+  "43": {
+    "name": "Myrapla",
+    "description": "Tagsüber hält es sein Gesicht im Boden vergraben. Nachts wandert es umher und sät seine Samen."
+  },
+  "44": {
+    "name": "Duflor",
+    "description": "Die Flüssigkeit, die aus seinem Mund tropft, ist kein Speichel. Es ist ein Nektar, der verwendet wird, um Beute anzulocken."
+  },
+  "45": {
+    "name": "Giflor",
+    "description": "Je größer seine Blütenblätter, desto mehr giftigen Pollen enthält es. Sein großer Kopf ist schwer und schwer hochzuhalten."
+  },
+  "46": {
+    "name": "Paras",
+    "description": "Gräbt, um Baumwurzeln zu saugen. Die Pilze auf seinem Rücken wachsen, indem sie Nährstoffe vom Käferwirt ziehen."
+  },
+  "47": {
+    "name": "Parasek",
+    "description": "Ein Wirt-Parasit-Paar, bei dem der Parasitenpilz die Kontrolle über den Wirtskäfer übernommen hat. Bevorzugt feuchte Orte."
+  },
+  "48": {
+    "name": "Bluzuk",
+    "description": "Seine großen Augen fungieren als Radare. An einem hellen Ort kann man sehen, dass sie Ansammlungen vieler winziger Augen sind."
+  },
+  "49": {
+    "name": "Omot",
+    "description": "Die staubartigen Schuppen, die seine Flügel bedecken, sind farbkodiert, um die Arten von Gift anzuzeigen, die es hat."
+  },
+  "50": {
+    "name": "Digda",
+    "description": "Lebt etwa einen Meter unter der Erde, wo es sich von Pflanzenwurzeln ernährt. Es erscheint manchmal über der Erde."
+  },
+  "51": {
+    "name": "Digdri",
+    "description": "Ein Team von Digda-Drillingen. Es löst riesige Erdbeben aus, indem es 100 Kilometer unter der Erde gräbt."
+  },
+  "52": {
+    "name": "Mauzi",
+    "description": "Liebt runde Gegenstände. Wandert nachts durch die Straßen, um nach verlorenem Kleingeld zu suchen."
+  },
+  "53": {
+    "name": "Snobilikat",
+    "description": "Obwohl sein Fell viele Bewunderer hat, ist es schwer als Haustier zu halten wegen seiner launischen Gemeinheit."
+  },
+  "54": {
+    "name": "Enton",
+    "description": "Während es seine Feinde mit seinem leeren Blick einlullt, wird dieses schlaue Pokémon psychokinetische Kräfte einsetzen."
+  },
+  "55": {
+    "name": "Entoron",
+    "description": "Oft elegant schwimmend an Seeufern gesehen. Es wird oft mit dem japanischen Monster Kappa verwechselt."
+  },
+  "56": {
+    "name": "Menki",
+    "description": "Extrem schnell wütend. Es könnte einen Moment zahm sein und dann im nächsten Augenblick wild um sich schlagen."
+  },
+  "57": {
+    "name": "Rasaff",
+    "description": "Immer wütend und hartnäckig dazu. Es wird die Verfolgung seiner Beute nicht aufgeben, bis sie gefangen ist."
+  },
+  "58": {
+    "name": "Fukano",
+    "description": "Sehr beschützend seines Territoriums. Es wird bellen und beißen, um Eindringlinge aus seinem Raum zu vertreiben."
+  },
+  "59": {
+    "name": "Arkani",
+    "description": "Ein legendäres Pokémon in China. Viele Menschen sind von seiner Anmut und Schönheit beim Laufen bezaubert."
+  },
+  "60": {
+    "name": "Quapsel",
+    "description": "Seine neu gewachsenen Beine hindern es am Laufen. Es scheint Schwimmen dem Versuch zu stehen vorzuziehen."
+  },
+  "61": {
+    "name": "Quaputzi",
+    "description": "Kann im oder außerhalb des Wassers leben. Wenn außerhalb des Wassers, schwitzt es, um seinen Körper schleimig zu halten."
+  },
+  "62": {
+    "name": "Quappo",
+    "description": "Ein geschickter Schwimmer sowohl im Kraul als auch im Brustschwimmen. Überholt leicht die besten menschlichen Schwimmer."
+  },
+  "63": {
+    "name": "Abra",
+    "description": "Mit seiner Fähigkeit, Gedanken zu lesen, wird es drohende Gefahr identifizieren und sich in Sicherheit teleportieren."
+  },
+  "64": {
+    "name": "Kadabra",
+    "description": "Es sendet spezielle Alpha-Wellen von seinem Körper aus, die Kopfschmerzen verursachen, nur durch die Nähe."
+  },
+  "65": {
+    "name": "Simsala",
+    "description": "Sein Gehirn kann einen Supercomputer übertreffen. Sein Intelligenzquotient soll 5000 betragen."
+  },
+  "66": {
+    "name": "Machollo",
+    "description": "Liebt es, seine Muskeln aufzubauen. Es trainiert in allen Kampfkunststilen, um noch stärker zu werden."
+  },
+  "67": {
+    "name": "Maschock",
+    "description": "Sein muskulöser Körper ist so kraftvoll, dass es einen kraftsparenden Gürtel tragen muss, um seine Bewegungen regulieren zu können."
+  },
+  "68": {
+    "name": "Machomei",
+    "description": "Mit seinen schweren Muskeln wirft es kraftvolle Schläge, die das Opfer über den Horizont hinaus senden können."
+  },
+  "69": {
+    "name": "Knofensa",
+    "description": "Ein fleischfressendes Pokémon, das Käfer fängt und frisst. Es verwendet seine Wurzelfüße, um benötigte Feuchtigkeit aufzusaugen."
+  },
+  "70": {
+    "name": "Ultrigaria",
+    "description": "Es spuckt Giftpulver aus, um den Feind zu lähmen und beendet ihn dann mit einem Säuresprüh."
+  },
+  "71": {
+    "name": "Sarzenia",
+    "description": "Soll in riesigen Kolonien tief in Dschungeln leben, obwohl niemand jemals von dort zurückgekehrt ist."
+  },
+  "72": {
+    "name": "Tentacha",
+    "description": "Treibt in seichten Meeren. Angler, die sie versehentlich haken, werden oft von ihrer stechenden Säure bestraft."
+  },
+  "73": {
+    "name": "Tentoxa",
+    "description": "Die Tentakel werden normalerweise kurz gehalten. Bei Jagden werden sie ausgestreckt, um Beute zu umschlingen und zu lähmen."
+  },
+  "74": {
+    "name": "Kleinstein",
+    "description": "In Feldern und Bergen gefunden. Da sie mit Felsbrocken verwechselt werden, treten oder stolpern Menschen oft über sie."
+  },
+  "75": {
+    "name": "Georok",
+    "description": "Rollt Hänge hinunter, um sich zu bewegen. Es rollt über jedes Hindernis, ohne zu verlangsamen oder die Richtung zu ändern."
+  },
+  "76": {
+    "name": "Geowaz",
+    "description": "Sein felsartiger Körper ist extrem hart. Es kann Dynamitexplosionen leicht ohne Schaden widerstehen."
+  },
+  "77": {
+    "name": "Ponita",
+    "description": "Seine Hufe sind 10-mal härter als Diamanten. Es kann alles in kurzer Zeit völlig platt zertrampeln."
+  },
+  "78": {
+    "name": "Gallopa",
+    "description": "Sehr wettkampforientiert, wird dieses Pokémon alles verfolgen, was sich schnell bewegt, in der Hoffnung, mit ihm zu rennen."
+  },
+  "79": {
+    "name": "Flegmon",
+    "description": "Unglaublich langsam und träge. Es dauert fünf Sekunden, bis es Schmerz spürt, wenn es angegriffen wird."
+  },
+  "80": {
+    "name": "Lahmus",
+    "description": "Der Muschas, der an Flegmons Schwanz hängt, soll sich von den Resten des Wirts ernähren."
+  },
+  "81": {
+    "name": "Magnetilo",
+    "description": "Verwendet Anti-Schwerkraft, um in der Schwebe zu bleiben. Erscheint ohne Warnung und verwendet Donnerwelle und ähnliche Attacken."
+  },
+  "82": {
+    "name": "Magneton",
+    "description": "Gebildet durch mehrere miteinander verbundene Magnetilo. Sie erscheinen häufig, wenn Sonnenflecken auflodern."
+  },
+  "83": {
+    "name": "Porenta",
+    "description": "Der Zweig grüner Zwiebeln, den es hält, ist seine Waffe. Er wird wie ein Metallschwert verwendet."
+  },
+  "84": {
+    "name": "Dodu",
+    "description": "Ein Vogel, der sein schlechtes Fliegen durch seine schnelle Fußgeschwindigkeit wettmacht. Hinterlässt riesige Fußabdrücke."
+  },
+  "85": {
+    "name": "Dodri",
+    "description": "Verwendet seine drei Gehirne, um komplexe Pläne auszuführen. Während zwei Köpfe schlafen, bleibt ein Kopf wach."
+  },
+  "86": {
+    "name": "Jurob",
+    "description": "Das hervorstehende Horn an seinem Kopf ist sehr hart. Es wird verwendet, um durch dickes Eis zu brechen."
+  },
+  "87": {
+    "name": "Jugong",
+    "description": "Speichert thermische Energie in seinem Körper. Schwimmt mit konstanten 8 Knoten auch in intensiv kalten Gewässern."
+  },
+  "88": {
+    "name": "Sleima",
+    "description": "Erscheint in schmutzigen Gebieten. Gedeiht durch das Aufsaugen von verschmutztem Schlamm, der aus Fabriken gepumpt wird."
+  },
+  "89": {
+    "name": "Sleimok",
+    "description": "Dick bedeckt mit einem schmutzigen, widerlichen Schlamm. Es ist so giftig, dass sogar seine Fußabdrücke Gift enthalten."
+  },
+  "90": {
+    "name": "Muschas",
+    "description": "Seine harte Schale wehrt jede Art von Angriff ab. Es ist nur verwundbar, wenn seine Schale offen ist."
+  },
+  "91": {
+    "name": "Austos",
+    "description": "Wenn angegriffen, startet es seine Hörner in schnellen Salven. Sein Inneres wurde nie gesehen."
+  },
+  "92": {
+    "name": "Nebulak",
+    "description": "Fast unsichtbar, umhüllt dieses gasförmige Pokémon das Ziel und schläfert es unbemerkt ein."
+  },
+  "93": {
+    "name": "Alpollo",
+    "description": "Wegen seiner Fähigkeit, durch Blockwände zu gleiten, wird gesagt, dass es aus einer anderen Dimension stammt."
+  },
+  "94": {
+    "name": "Gengar",
+    "description": "Bei Vollmond ahmt dieses Pokémon gerne die Schatten von Menschen nach und lacht über ihre Angst."
+  },
+  "95": {
+    "name": "Onix",
+    "description": "Während es wächst, verhärten sich die Steinteile seines Körpers und werden einem Diamanten ähnlich, aber schwarz gefärbt."
+  },
+  "96": {
+    "name": "Traumato",
+    "description": "Schläfert Feinde ein und frisst dann ihre Träume. Wird gelegentlich krank vom Fressen nur schlechter Träume."
+  },
+  "97": {
+    "name": "Hypno",
+    "description": "Wenn es Augenkontakt mit einem Feind aufnimmt, wird es eine Mischung aus Psi-Attacken wie Hypnose und Konfusion verwenden."
+  },
+  "98": {
+    "name": "Krabby",
+    "description": "Seine Scheren sind nicht nur mächtige Waffen, sie werden für das Gleichgewicht beim seitlichen Gehen verwendet."
+  },
+  "99": {
+    "name": "Kingler",
+    "description": "Eine Schere wuchs massiv und ist so hart wie Stahl. Sie hat 10.000 PS Stärke. Jedoch ist sie zu schwer."
+  },
+  "100": {
+    "name": "Voltobal",
+    "description": "Normalerweise in Kraftwerken gefunden. Leicht mit einem Pokéball verwechselt, haben sie viele Menschen elektrisiert."
+  },
+  "101": {
+    "name": "Lektrobal",
+    "description": "Es speichert elektrische Energie unter sehr hohem Druck. Es explodiert oft mit wenig oder keiner Provokation."
+  },
+  "102": {
+    "name": "Owei",
+    "description": "Oft mit Eiern verwechselt. Wenn gestört, versammeln sie sich schnell und greifen in Schwärmen an."
+  },
+  "103": {
+    "name": "Kokowei",
+    "description": "Die Legende besagt, dass bei seltenen Gelegenheiten einer seiner Köpfe abfallen und als Owei weitermachen wird."
+  },
+  "104": {
+    "name": "Tragosso",
+    "description": "Da es seinen Schädelhelm nie abnimmt, hat niemand jemals das wahre Gesicht dieses Pokémon gesehen."
+  },
+  "105": {
+    "name": "Knogga",
+    "description": "Klein und schwach, ist dieses Pokémon geschickt mit seinem Knochenknüppel. Es ist über die Zeitalter bösartiger geworden."
+  },
+  "106": {
+    "name": "Kicklee",
+    "description": "Wenn es eilig hat, verlängern sich seine Beine progressiv. Es läuft glatt mit extra langen, hüpfenden Schritten."
+  },
+  "107": {
+    "name": "Nockchan",
+    "description": "Während es scheinbar nichts tut, feuert es Schläge in blitzschnellen Salven ab, die unmöglich zu sehen sind."
+  },
+  "108": {
+    "name": "Schlurp",
+    "description": "Seine Zunge kann wie die eines Chamäleons ausgestreckt werden. Sie hinterlässt ein prickelndes Gefühl, wenn sie Feinde leckt."
+  },
+  "109": {
+    "name": "Smogon",
+    "description": "Da es mehrere Arten von giftigen Gasen in seinem Körper speichert, neigt es dazu, ohne Warnung zu explodieren."
+  },
+  "110": {
+    "name": "Smogmog",
+    "description": "Wo zwei Arten von giftigen Gasen aufeinandertreffen, können zwei Smogon über viele Jahre zu einem Smogmog verschmelzen."
+  },
+  "111": {
+    "name": "Rihorn",
+    "description": "Seine massiven Knochen sind 1000-mal härter als menschliche Knochen. Es kann leicht einen Anhänger wegschleudern."
+  },
+  "112": {
+    "name": "Rizeros",
+    "description": "Geschützt durch eine rüstungsartige Haut, ist es fähig, in geschmolzener Lava von 3600 Grad zu leben."
+  },
+  "113": {
+    "name": "Chaneira",
+    "description": "Ein seltenes und schwer fassbares Pokémon, das Glück zu denen bringen soll, die es schaffen, es zu bekommen."
+  },
+  "114": {
+    "name": "Tangela",
+    "description": "Seine Identität ist durch Massen dicker blauer Ranken verdeckt. Die Ranken sollen nie aufhören zu wachsen."
+  },
+  "115": {
+    "name": "Kangama",
+    "description": "Das Jungtier wagt sich selten aus der schützenden Tasche seiner Mutter heraus, bis es 3 Jahre alt ist."
+  },
+  "116": {
+    "name": "Seeper",
+    "description": "Bekannt dafür, fliegende Käfer mit präzisen Tintenstrahlen von der Wasseroberfläche abzuschießen."
+  },
+  "117": {
+    "name": "Seemon",
+    "description": "Fähig, rückwärts zu schwimmen, indem es schnell seine flügelartigen Brustflossen und robusten Schwanz schlägt."
+  },
+  "118": {
+    "name": "Goldini",
+    "description": "Seine Schwanzflosse wogt wie ein elegantes Ballkleid und gibt ihm den Spitznamen Wasserkönigin."
+  },
+  "119": {
+    "name": "Golking",
+    "description": "In der herbstlichen Laichzeit kann man sie kraftvoll in Flüssen und Bächen hinaufschwimmen sehen."
+  },
+  "120": {
+    "name": "Sterndu",
+    "description": "Ein rätselhaftes Pokémon, das mühelos jeden Anhang regenerieren kann, den es im Kampf verliert."
+  },
+  "121": {
+    "name": "Starmie",
+    "description": "Sein zentraler Kern glüht mit den sieben Farben des Regenbogens. Manche Menschen schätzen es als Edelstein."
+  },
+  "122": {
+    "name": "Pantimos",
+    "description": "Wenn es beim Pantomimen unterbrochen wird, wird es den Störenfried mit seinen breiten Händen schlagen."
+  },
+  "123": {
+    "name": "Sichlor",
+    "description": "Mit Ninja-artiger Beweglichkeit und Geschwindigkeit kann es die Illusion erzeugen, dass es mehr als einen gibt."
+  },
+  "124": {
+    "name": "Rossana",
+    "description": "Es wiegt verführerisch seine Hüften beim Gehen. Es kann Menschen dazu bringen, im Einklang mit ihm zu tanzen."
+  },
+  "125": {
+    "name": "Elektek",
+    "description": "Normalerweise in der Nähe von Kraftwerken gefunden, können sie sich verirren und große Stromausfälle in Städten verursachen."
+  },
+  "126": {
+    "name": "Magmar",
+    "description": "Sein Körper brennt immer mit einem orangenen Glühen, das es ihm ermöglicht, sich perfekt zwischen Flammen zu verstecken."
+  },
+  "127": {
+    "name": "Pinsir",
+    "description": "Wenn es versagt, das Opfer in seinen Scheren zu zermalmen, wird es es herumschleudern und hart werfen."
+  },
+  "128": {
+    "name": "Tauros",
+    "description": "Wenn es einen Feind ins Visier nimmt, stürmt es wütend vor, während es seinen Körper mit seinen langen Schwänzen peitscht."
+  },
+  "129": {
+    "name": "Karpador",
+    "description": "In der fernen Vergangenheit war es etwas stärker als die schrecklich schwachen Nachkommen, die heute existieren."
+  },
+  "130": {
+    "name": "Garados",
+    "description": "Selten in freier Wildbahn gesehen. Riesig und bösartig, ist es fähig, ganze Städte in einem Wutanfall zu zerstören."
+  },
+  "131": {
+    "name": "Lapras",
+    "description": "Ein Pokémon, das fast bis zur Ausrottung überfischt wurde. Es kann Menschen über das Wasser transportieren."
+  },
+  "132": {
+    "name": "Ditto",
+    "description": "Fähig, den genetischen Code eines Feindes zu kopieren, um sich sofort in ein Duplikat des Feindes zu verwandeln."
+  },
+  "133": {
+    "name": "Evoli",
+    "description": "Sein genetischer Code ist unregelmäßig. Es kann mutieren, wenn es Strahlung von Elementsteinen ausgesetzt wird."
+  },
+  "134": {
+    "name": "Aquana",
+    "description": "Lebt in der Nähe von Wasser. Sein langer Schwanz ist mit einer Flosse gerippt, die oft mit der einer Meerjungfrau verwechselt wird."
+  },
+  "135": {
+    "name": "Blitza",
+    "description": "Es sammelt negative Ionen in der Atmosphäre, um 10.000-Volt-Blitze abzufeuern."
+  },
+  "136": {
+    "name": "Flamara",
+    "description": "Wenn es thermische Energie in seinem Körper speichert, könnte seine Temperatur auf über 1600 Grad steigen."
+  },
+  "137": {
+    "name": "Porygon",
+    "description": "Ein Pokémon, das vollständig aus Programmcode besteht. Fähig, sich frei im Cyberspace zu bewegen."
+  },
+  "138": {
+    "name": "Amonitas",
+    "description": "Obwohl lange ausgestorben, kann es in seltenen Fällen genetisch aus Fossilien wiederbelebt werden."
+  },
+  "139": {
+    "name": "Amoroso",
+    "description": "Seine Schale war zu groß, als dass es sich frei bewegen konnte, also starb es aus."
+  },
+  "140": {
+    "name": "Kabuto",
+    "description": "Ein Pokémon, das aus einem Fossil wiederbelebt wurde, das in dem gefunden wurde, was einst der Meeresboden war."
+  },
+  "141": {
+    "name": "Kabutops",
+    "description": "Seine schlanke Form ist perfekt zum Schwimmen. Es schneidet Beute mit seinen Klauen und entzieht die Körperflüssigkeiten."
+  },
+  "142": {
+    "name": "Aerodactyl",
+    "description": "Ein wildes, prähistorisches Pokémon, das mit seinen gezackten, sägeartigen Reißzähnen nach der Kehle des Feindes geht."
+  },
+  "143": {
+    "name": "Relaxo",
+    "description": "Sehr faul. Isst und schläft nur. Während seine runde Masse zunimmt, wird es stetig träger."
+  },
+  "144": {
+    "name": "Arktos",
+    "description": "Ein legendäres Vogel-Pokémon, das angeblich verlorenen Menschen in eisigen Bergen erscheint, die dem Untergang geweiht sind."
+  },
+  "145": {
+    "name": "Zapdos",
+    "description": "Ein legendäres Vogel-Pokémon, das angeblich aus Wolken erscheint, während es enorme Blitze fallen lässt."
+  },
+  "146": {
+    "name": "Lavados",
+    "description": "Bekannt als der legendäre Feuervogel. Jeder Flügelschlag erzeugt einen blendenden Flammenblitz."
+  },
+  "147": {
+    "name": "Dratini",
+    "description": "Lange als mythisches Pokémon betrachtet, bis kürzlich eine kleine Kolonie unter Wasser lebend gefunden wurde."
+  },
+  "148": {
+    "name": "Dragonir",
+    "description": "Ein mystisches Pokémon, das eine sanfte Aura ausstrahlt. Hat die Fähigkeit, Klimabedingungen zu ändern."
+  },
+  "149": {
+    "name": "Dragoran",
+    "description": "Ein extrem seltenes, hochintelligentes Pokémon. Fähig, die Erde in nur sechzehn Stunden zu umkreisen."
+  },
+  "150": {
+    "name": "Mewtu",
+    "description": "Es wurde von einem Wissenschaftler nach Jahren schrecklicher Genspleißing- und DNA-Technik-Experimente erschaffen."
+  },
+  "151": {
+    "name": "Mew",
+    "description": "So selten, dass es von vielen Experten immer noch als Fata Morgana bezeichnet wird. Nur wenige Menschen haben es weltweit gesehen."
+  }
+}
