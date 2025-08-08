@@ -365,6 +365,19 @@ async loadStats() {
         `).join('');
 
         console.log(`✅ [ItemEditor] ${itemsToShow.length} items affichés (page ${this.currentPage})`);
+        // --- mise à jour stats ---
+this.updateStatsHeader();
+
+// --- mise à jour pagination ---
+const totalItems = this.filteredItems.length;
+const startDisplay = startIndex + 1;
+const endDisplay = Math.min(endIndex, totalItems);
+
+document.getElementById('itemsPaginationInfo').textContent =
+    `${startDisplay}-${endDisplay} sur ${totalItems} items`;
+
+document.getElementById('itemsPageInfo').textContent =
+    `${this.currentPage} / ${Math.max(1, Math.ceil(totalItems / this.itemsPerPage))}`;
     }
 
     updatePagination() {
