@@ -834,34 +834,14 @@ async loadStats() {
 
     // --- NEW: met à jour les compteurs en haut
 updateStatsHeader() {
-  const s = this.stats || { total:0, active:0, byCategory:{} };
+    const total = this.items.length;
+    const actifs = this.items.filter(item => item.isActive).length;
+    const categories = new Set(this.items.map(item => item.category)).size;
 
-  // cibles explicites (recommandé dans ton HTML)
-  const elTotal  = document.querySelector('[data-stat="total"], .stat-total');
-  const elActive = document.querySelector('[data-stat="active"], .stat-active');
-  const elCats   = document.querySelector('[data-stat="categories"], .stat-categories');
-
-  const catsCount = Object.keys(s.byCategory || {}).length;
-
-  if (elTotal)  elTotal.textContent  = String(s.total ?? 0);
-  if (elActive) elActive.textContent = String(s.active ?? 0);
-  if (elCats)   elCats.textContent   = String(catsCount);
-
-  // fallback si pas de cibles explicites : cherche le nombre sous le libellé
-  const setBelowLabel = (label, value) => {
-    const labelEl = Array.from(document.querySelectorAll('div,span,p,h4,h5'))
-      .find(n => (n.textContent || '').trim().toLowerCase() === label);
-    if (!labelEl) return;
-    const numEl =
-      labelEl.parentElement?.querySelector('.stat-value, .value, .count, strong, b, span:not(:empty)') ||
-      labelEl.nextElementSibling;
-    if (numEl) numEl.textContent = String(value);
-  };
-  if (!elTotal)  setBelowLabel('total items', s.total ?? 0);
-  if (!elActive) setBelowLabel('actifs', s.active ?? 0);
-  if (!elCats)   setBelowLabel('catégories', catsCount);
+    document.getElementById("totalItems").textContent = total;
+    document.getElementById("activeItems").textContent = actifs;
+    document.getElementById("categoriesCount").textContent = categories;
 }
-
     
     // ===== PAGINATION =====
 
