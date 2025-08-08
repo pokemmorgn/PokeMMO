@@ -1,7 +1,3 @@
-// server/src/battle/BattleEngine.ts
-// 🚀 SYSTÈME SWITCH UNIVERSEL - TOUS TYPES DE COMBATS
-// 🎯 MODIFICATION: Support changements Pokémon wild/trainer/pvp + suppression timeouts
-
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
 import { SpeedCalculator } from './modules/SpeedCalculator';
@@ -15,6 +11,8 @@ import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFac
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 import { SwitchManager } from './modules/SwitchManager';
 import { TrainerTeamManager } from './managers/TrainerTeamManager';
+import { TrainerAI } from './modules/TrainerAI';
+import { TrainerRewardManager } from './modules/TrainerRewardManager';
 import { 
   BattleConfig, 
   BattleGameState, 
@@ -23,7 +21,6 @@ import {
   BattleModule, 
   PlayerRole, 
   Pokemon,
-  // 🆕 IMPORTS NOUVEAUX TYPES UNIVERSELS
   PokemonTeam,
   TeamConfiguration,
   SwitchAction,
@@ -47,10 +44,6 @@ import { getAINPCManager } from '../Intelligence/AINPCManager';
 import { ActionType } from '../Intelligence/Core/ActionTypes';
 import type { AINPCManager } from '../Intelligence/AINPCManager';
 
-// 🆕 IMPORT NOUVEAUX MODULES
-import { TrainerAI } from './modules/TrainerAI';
-import { TrainerRewardManager } from './modules/TrainerRewardManager';
-
 enum SubPhase {
   NONE = 'none',
   ATTACKER_1 = 'attacker_1_phase',
@@ -60,7 +53,6 @@ enum SubPhase {
 }
 
 export class BattleEngine {
-  // Core modules existants
   private phaseManager = new PhaseManager();
   private actionQueue = new ActionQueue();
   private speedCalculator = new SpeedCalculator();
@@ -71,16 +63,13 @@ export class BattleEngine {
   private koManager = new KOManager();
   private aiNPCManager = getAINPCManager();
 
-  // 🆕 MODULES UNIVERSELS (pas seulement trainer)
   private switchManager = new SwitchManager();
   private trainerAI = new TrainerAI();
   private trainerRewardManager = new TrainerRewardManager();
   
-  // 🆕 TEAM MANAGERS UNIVERSELS
   private playerTeamManager: TrainerTeamManager | null = null;
   private opponentTeamManager: TrainerTeamManager | null = null;
 
-  // State
   private gameState: BattleGameState = this.createEmptyState();
   private isInitialized = false;
   private isProcessingActions = false;
@@ -88,71 +77,46 @@ export class BattleEngine {
   private orderedActions: any[] = [];
   private currentAttackerData: any = null;
 
-  // 🆕 ÉTAT UNIVERSEL SWITCH
-  private isMultiPokemonBattle = false;        // Combat avec équipes multiples
-  private switchingEnabled = false;            // Changements autorisés
+  private isMultiPokemonBattle = false;
+  private switchingEnabled = false;
   private battleTeamConfig: TeamConfiguration | null = null;
   
-  // 🔥 ÉTAT DRESSEUR (CONSERVÉ POUR COMPATIBILITÉ)
   private isTrainerBattle = false;
   private trainerData: TrainerData | null = null;
   private pendingSwitches: Map<PlayerRole, SwitchAction> = new Map();
 
-  // Broadcast & spectators
   private broadcastManager: BroadcastManager | null = null;
   private spectatorManager: SpectatorManager | null = null;
 
-  // 🎯 TIMEOUTS RÉVISÉS - SEULEMENT TECHNIQUES
   private battleTimeoutId: NodeJS.Timeout | null = null;
   private introTimer: NodeJS.Timeout | null = null;
 
-  // Configuration optimisée
   private turnCounter = 0;
   private transitionAttempts = 0;
   private readonly MAX_TURNS = 200;
   private readonly MAX_TRANSITION_ATTEMPTS = 3;
-  private readonly BATTLE_CRASH_TIMEOUT_MS = 1800000; // 30 minutes (technique seulement)
+  private readonly BATTLE_CRASH_TIMEOUT_MS = 1800000;
 
-  // Events
   private eventListeners = new Map<string, Function[]>();
   private modules = new Map<string, BattleModule>();
 
-  // Protection
   private isManualCleanup = false;
   private battleEndHandled = false;
 
-  // === 🆕 API PRINCIPALE UNIVERSELLE ===
-
-  /**
-   * 🆕 NOUVELLE MÉTHODE : Combat universel avec détection automatique
-   */
   async startBattle(config: BattleConfig): Promise<BattleResult> {
-    console.log('🎯 [BattleEngine] Démarrage combat universel...');
-    console.log(`    Type: ${config.type}`);
-    console.log(`    Player1 team size: ${config.player1.team?.length || 1}`);
-    console.log(`    Opponent team size: ${config.opponent.team?.length || 1}`);
-    
     try {
-      this.clearAllTimers();
+      this.forceCompleteReset();
       this.validateConfig(config);
 
-      // 🆕 AUTO-DÉTECTION COMBAT DRESSEUR
       if (isTrainerBattleConfig(config)) {
-        console.log('🎯 [BattleEngine] Combat dresseur détecté, utilisation logique spécialisée...');
         return await this.startTrainerBattle(config);
       }
 
-      // 🆕 INITIALISATION UNIVERSELLE
       this.gameState = this.initializeGameState(config);
       this.isTrainerBattle = false;
       
-      // 🆕 DÉTECTION MULTI-POKÉMON & SWITCH
       this.detectMultiPokemonBattle(config);
-      
-      // 🆕 INITIALISATION ÉQUIPES UNIVERSELLES
       await this.initializeUniversalTeamManagers(config);
-      
-      // 🆕 INITIALISATION MODULES (y compris switch si nécessaire)
       this.initializeAllModules();
       this.startBattleTimeout();
       this.initializeAISystem();
@@ -161,7 +125,6 @@ export class BattleEngine {
       this.handlePokemonEncounter();
       this.scheduleIntroTransition();
 
-      // 🆕 MESSAGES ADAPTÉS
       const introMessage = this.generateIntroMessage();
       
       this.emit('battleStart', {
@@ -180,7 +143,7 @@ export class BattleEngine {
       };
       
     } catch (error) {
-      this.clearAllTimers();
+      this.forceCompleteReset();
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erreur inconnue',
@@ -190,39 +153,28 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🔥 COMBAT DRESSEUR SPÉCIALISÉ (INCHANGÉ)
-   */
   async startTrainerBattle(config: TrainerBattleConfig): Promise<BattleResult> {
     try {
-      console.log('🎯 [BattleEngine] Démarrage combat dresseur...');
-      
-      this.clearAllTimers();
+      this.forceCompleteReset();
       this.validateTrainerConfig(config);
       
-      // 🆕 INITIALISATION SPÉCIFIQUE DRESSEUR
       this.gameState = this.initializeTrainerGameState(config);
       this.isTrainerBattle = true;
-      this.isMultiPokemonBattle = true; // Toujours multi pour dresseurs
+      this.isMultiPokemonBattle = true;
       this.switchingEnabled = true;
       this.trainerData = config.trainer;
       
-      // 🆕 INITIALISATION TEAM MANAGERS
       await this.initializeTrainerTeamManagers(config);
-      
-      // 🆕 INITIALISATION MODULES ÉTENDUS
       this.initializeExtendedModules();
       this.initializeAllModules();
       this.startBattleTimeout();
       
-      // 🆕 SYSTÈME IA ÉTENDU
       await this.initializeExtendedAISystem();
       
       this.isInitialized = true;
       this.handlePokemonEncounter();
       this.scheduleIntroTransition();
 
-      // 🆕 TRACKING IA POUR COMBAT DRESSEUR
       this.trackTrainerBattleStart();
 
       this.emit('battleStart', {
@@ -244,7 +196,7 @@ export class BattleEngine {
         ]
       };
     } catch (error) {
-      this.clearAllTimers();
+      this.forceCompleteReset();
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erreur inconnue',
@@ -254,11 +206,75 @@ export class BattleEngine {
     }
   }
 
-  // === 🆕 NOUVELLES MÉTHODES UNIVERSELLES ===
+  private forceCompleteReset(): void {
+    this.clearAllTimers();
+    
+    if (this.spectatorManager) {
+      try {
+        this.spectatorManager.cleanupBattle(this.gameState?.battleId || 'unknown');
+      } catch {}
+    }
 
-  /**
-   * 🆕 Détecte si combat multi-Pokémon
-   */
+    if (this.broadcastManager) {
+      try {
+        this.broadcastManager.cleanup();
+      } catch {}
+      this.broadcastManager = null;
+    }
+
+    this.spectatorManager = null;
+
+    if (this.switchManager) {
+      try {
+        this.switchManager.reset();
+      } catch {}
+    }
+    if (this.trainerAI) {
+      try {
+        this.trainerAI.reset();
+      } catch {}
+    }
+    if (this.trainerRewardManager) {
+      try {
+        this.trainerRewardManager.reset();
+      } catch {}
+    }
+
+    this.phaseManager.reset();
+    this.actionQueue.reset();
+    this.actionProcessor.reset();
+    this.aiPlayer.reset();
+    this.battleEndManager.reset();
+    this.captureManager.reset();
+    this.koManager.reset();
+
+    this.playerTeamManager = null;
+    this.opponentTeamManager = null;
+
+    this.gameState = this.createEmptyState();
+    this.isInitialized = false;
+    this.isProcessingActions = false;
+    this.currentSubPhase = SubPhase.NONE;
+    this.orderedActions = [];
+    this.currentAttackerData = null;
+
+    this.isMultiPokemonBattle = false;
+    this.switchingEnabled = false;
+    this.battleTeamConfig = null;
+    
+    this.isTrainerBattle = false;
+    this.trainerData = null;
+    this.pendingSwitches.clear();
+
+    this.turnCounter = 0;
+    this.transitionAttempts = 0;
+    this.isManualCleanup = false;
+    this.battleEndHandled = false;
+
+    this.eventListeners.clear();
+    this.modules.clear();
+  }
+
   private detectMultiPokemonBattle(config: BattleConfig): void {
     const hasPlayerTeam = config.player1.team && config.player1.team.length > 1;
     const hasOpponentTeam = config.opponent.team && config.opponent.team.length > 1;
@@ -266,79 +282,45 @@ export class BattleEngine {
     this.isMultiPokemonBattle = hasPlayerTeam || hasOpponentTeam;
     this.switchingEnabled = supportsSwitching(config) && this.isMultiPokemonBattle;
     this.battleTeamConfig = this.isMultiPokemonBattle ? getDefaultTeamConfig(config.type) : null;
-    
-    console.log(`🔍 [BattleEngine] Détection combat:`);
-    console.log(`    Multi-Pokémon: ${this.isMultiPokemonBattle}`);
-    console.log(`    Changements: ${this.switchingEnabled}`);
-    console.log(`    Player team: ${hasPlayerTeam ? config.player1.team!.length : 1}`);
-    console.log(`    Opponent team: ${hasOpponentTeam ? config.opponent.team!.length : 1}`);
   }
 
-  /**
-   * 🆕 Initialisation équipes UNIVERSELLES (tous types combats)
-   */
   private async initializeUniversalTeamManagers(config: BattleConfig): Promise<void> {
-    console.log('🎮 [BattleEngine] Initialisation Team Managers universels...');
-    
     try {
-      // === PLAYER TEAM ===
       if (config.player1.team && config.player1.team.length > 1) {
-        console.log(`👤 [BattleEngine] Création équipe joueur: ${config.player1.team.length} Pokémon`);
         this.playerTeamManager = new TrainerTeamManager(config.player1.sessionId);
         this.playerTeamManager.initializeWithPokemon(config.player1.team);
       } else {
-        console.log('👤 [BattleEngine] Joueur combat 1v1 - pas de TeamManager');
         this.playerTeamManager = null;
       }
       
-      // === OPPONENT TEAM ===
       if (config.opponent.team && config.opponent.team.length > 1) {
-        console.log(`🤖 [BattleEngine] Création équipe adversaire: ${config.opponent.team.length} Pokémon`);
         this.opponentTeamManager = new TrainerTeamManager(config.opponent.sessionId || 'opponent');
         this.opponentTeamManager.initializeWithPokemon(config.opponent.team);
       } else if (config.type === 'wild' && this.switchingEnabled) {
-        // 🆕 CAS SPÉCIAL: Combat sauvage avec switch côté joueur
-        console.log('🌿 [BattleEngine] Combat sauvage - équipe artificielle adversaire pour compatibilité switch');
         this.opponentTeamManager = new TrainerTeamManager('wild_opponent');
         this.opponentTeamManager.initializeWithPokemon([config.opponent.pokemon]);
       } else {
-        console.log('🤖 [BattleEngine] Adversaire combat 1v1 - pas de TeamManager');
         this.opponentTeamManager = null;
       }
       
-      console.log(`✅ [BattleEngine] Team Managers créés - Player: ${this.playerTeamManager ? 'OUI' : 'NON'}, Opponent: ${this.opponentTeamManager ? 'OUI' : 'NON'}`);
-      
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur Team Managers universels:', error);
       throw error;
     }
   }
 
-  /**
-   * 🆕 Initialisation modules universels (switch si nécessaire)
-   */
   private initializeUniversalModules(): void {
-    console.log('🔧 [BattleEngine] Initialisation modules universels...');
-    
     try {
-      // 🆕 SWITCH MANAGER - pour tous types si équipes multiples
       if (this.isMultiPokemonBattle && this.switchingEnabled) {
         this.switchManager.initialize(
           this.gameState,
           this.playerTeamManager,
           this.opponentTeamManager,
-          this.getTrainerBattleRules() // 🔧 CORRECTION: Utiliser la méthode de conversion
+          this.getTrainerBattleRules()
         );
         
-        // Configuration switch selon type combat
         this.configureUniversalSwitchBehavior();
-        
-        console.log('✅ [BattleEngine] SwitchManager initialisé pour combat multi-Pokémon');
-      } else {
-        console.log('ℹ️ [BattleEngine] SwitchManager non requis (combat 1v1)');
       }
       
-      // 🆕 ACTION QUEUE - configuration selon capacités switch
       this.actionQueue.configureSwitchBehavior(
         this.switchingEnabled,
         this.battleTeamConfig?.maxSwitchesPerTurn || 1,
@@ -346,35 +328,21 @@ export class BattleEngine {
       );
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur modules universels:', error);
       throw error;
     }
   }
 
-  /**
-   * 🆕 Configuration switch selon type combat
-   */
   private configureUniversalSwitchBehavior(): void {
     if (!this.battleTeamConfig) return;
-    
-    console.log(`🔧 [BattleEngine] Configuration switch pour combat ${this.gameState.type}:`);
-    console.log(`    Max switches/tour: ${this.battleTeamConfig.maxSwitchesPerTurn}`);
-    console.log(`    Cooldown: ${this.battleTeamConfig.switchCooldown}`);
-    console.log(`    Force switch: ${this.battleTeamConfig.forceSwitch}`);
   }
 
-  /**
-   * 🔧 CORRECTION: Convertit TeamConfiguration vers TrainerBattleRules si nécessaire
-   */
   private getTrainerBattleRules(): any {
     if (!this.battleTeamConfig) return null;
     
-    // Si c'est déjà TrainerBattleRules, retourner tel quel
     if ('itemsAllowed' in this.battleTeamConfig) {
       return this.battleTeamConfig;
     }
     
-    // Sinon, convertir TeamConfiguration vers TrainerBattleRules
     return {
       ...this.battleTeamConfig,
       itemsAllowed: false,
@@ -382,15 +350,7 @@ export class BattleEngine {
     };
   }
 
-  /**
-   * 🆕 SOUMISSION ACTION UNIVERSELLE avec support switch
-   */
   async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-    console.log('🚨 [BattleEngine] submitAction() ENTRY:');
-    console.log(`    action.playerId: "${action.playerId}"`);
-    console.log(`    action.type: "${action.type}"`);
-    console.log(`    switching enabled: ${this.switchingEnabled}`);
-
     if (!this.isInitialized || this.gameState.isEnded) {
       return this.createErrorResult('Combat non disponible');
     }
@@ -406,7 +366,6 @@ export class BattleEngine {
     }
 
     try {
-      // 🆕 TRAITEMENT CHANGEMENT UNIVERSEL
       if (action.type === 'switch' && this.switchingEnabled) {
         return await this.handleUniversalSwitchAction(action as SwitchAction, playerRole);
       }
@@ -415,7 +374,6 @@ export class BattleEngine {
         return await this.handleCaptureAction(action, teamManager);
       }
 
-      // 🔥 TRAITEMENT ACTION NORMALE
       const pokemon = playerRole === 'player1' ? 
         this.gameState.player1.pokemon! : 
         this.gameState.player2.pokemon!;
@@ -425,7 +383,6 @@ export class BattleEngine {
         return this.createErrorResult('Erreur ajout action');
       }
 
-      // 🆕 TRACKING IA POUR ACTIONS
       this.trackPlayerActionInBattle(action.playerId, action.type, action.data);
 
       this.emit('actionQueued', {
@@ -436,11 +393,9 @@ export class BattleEngine {
         isMultiPokemonBattle: this.isMultiPokemonBattle
       });
 
-      // 🔥 VÉRIFICATION ACTIONS PRÊTES
       if (this.actionQueue.areAllActionsReady()) {
         const transitionSuccess = this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
         if (!transitionSuccess) {
-          console.error('❌ [BattleEngine] Échec transition vers résolution');
           this.forceActionResolution();
         }
       }
@@ -456,22 +411,14 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🆕 Traitement changements universels (tous types combats)
-   */
   private async handleUniversalSwitchAction(switchAction: SwitchAction, playerRole: PlayerRole): Promise<BattleResult> {
-    console.log(`🔄 [BattleEngine] Traitement changement universel: ${playerRole} (type: ${this.gameState.type})`);
-    
     if (!this.switchManager.isReady()) {
       return this.createErrorResult('SwitchManager non initialisé');
     }
 
-    // Déterminer le bon TeamManager
     const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.opponentTeamManager;
     
     if (!teamManager) {
-      // 🆕 CAS SPÉCIAL: Combat 1v1 avec tentative switch
-      console.log(`⚠️ [BattleEngine] Tentative switch sans équipe (${playerRole}) - ${this.gameState.type}`);
       return this.createErrorResult(
         this.gameState.type === 'wild' ? 
           'Vous ne pouvez pas changer de Pokémon dans un combat sauvage 1v1' :
@@ -509,9 +456,6 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🆕 Génération messages intro adaptés
-   */
   private generateIntroMessage(): string {
     if (this.isTrainerBattle && this.trainerData) {
       return `Le dresseur ${this.trainerData.name} vous défie !`;
@@ -526,14 +470,7 @@ export class BattleEngine {
     }
   }
 
-  // === 🔥 MÉTHODES DRESSEUR SPÉCIALISÉES (INCHANGÉES) ===
-
-  /**
-   * 🔥 Initialise les gestionnaires d'équipes DRESSEUR (spécialisé)
-   */
   private async initializeTrainerTeamManagers(config: TrainerBattleConfig): Promise<void> {
-    console.log('🎮 [BattleEngine] Initialisation Team Managers DRESSEUR...');
-    
     try {
       this.playerTeamManager = new TrainerTeamManager(config.player1.sessionId);
       this.playerTeamManager.initializeWithPokemon(config.playerTeam);
@@ -541,20 +478,12 @@ export class BattleEngine {
       this.opponentTeamManager = new TrainerTeamManager('ai');
       this.opponentTeamManager.initializeWithPokemon(config.trainer.pokemon);
       
-      console.log(`✅ [BattleEngine] Team Managers dresseur créés - Joueur: ${config.playerTeam.length} Pokémon, Dresseur: ${config.trainer.pokemon.length} Pokémon`);
-      
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur Team Managers dresseur:', error);
       throw error;
     }
   }
 
-  /**
-   * 🔥 Initialise les modules étendus DRESSEUR (spécialisé)
-   */
   private initializeExtendedModules(): void {
-    console.log('🔧 [BattleEngine] Initialisation modules étendus dresseur...');
-    
     try {
       if (this.playerTeamManager && this.opponentTeamManager) {
         this.switchManager.initialize(
@@ -563,7 +492,6 @@ export class BattleEngine {
           this.opponentTeamManager,
           this.trainerData?.specialRules
         );
-        console.log('✅ [BattleEngine] SwitchManager dresseur initialisé');
       }
       
       if (this.trainerData) {
@@ -572,27 +500,20 @@ export class BattleEngine {
           this.aiNPCManager,
           this.opponentTeamManager
         );
-        console.log('✅ [BattleEngine] TrainerAI initialisé');
       }
       
       this.trainerRewardManager.initialize(this.gameState);
-      console.log('✅ [BattleEngine] TrainerRewardManager initialisé');
-      
       this.actionQueue.configureSwitchBehavior(true, 2, 'priority');
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur modules étendus dresseur:', error);
       throw error;
     }
   }
-
-  // === 🔥 GESTION PHASES UNIVERSELLE ===
 
   private handleActionSelectionPhase(): void {
     this.actionQueue.clear();
     this.resetSubPhaseState();
 
-    // 🆕 RESET COMPTEURS SWITCH POUR NOUVEAU TOUR
     if (this.switchingEnabled && this.switchManager.isReady()) {
       this.switchManager.resetTurnCounters(this.gameState.turnNumber);
     }
@@ -604,14 +525,12 @@ export class BattleEngine {
       isTrainerBattle: this.isTrainerBattle,
       isMultiPokemonBattle: this.isMultiPokemonBattle,
       switchingEnabled: this.switchingEnabled,
-      // 🆕 OPTIONS SWITCH UNIVERSELLES
       canSwitch: this.canPlayerSwitch('player1'),
       availableSwitches: this.getAvailableSwitches('player1'),
       noTimeLimit: true,
       message: "Prenez tout le temps nécessaire pour choisir votre action"
     });
 
-    // 🆕 IA ADAPTÉE AU TYPE DE COMBAT
     if (this.isTrainerBattle) {
       this.scheduleTrainerAIAction();
     } else {
@@ -619,9 +538,6 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🆕 Vérifie si un joueur peut changer de Pokémon
-   */
   private canPlayerSwitch(playerRole: PlayerRole): boolean {
     if (!this.switchingEnabled) return false;
     
@@ -632,9 +548,6 @@ export class BattleEngine {
     return analysis.alivePokemon > 1;
   }
 
-  /**
-   * 🆕 Récupère options de changement disponibles
-   */
   private getAvailableSwitches(playerRole: PlayerRole): number[] {
     if (!this.switchingEnabled) return [];
     
@@ -644,8 +557,6 @@ export class BattleEngine {
     const analysis = this.switchManager.analyzeSwitchOptions(playerRole);
     return analysis.availablePokemon;
   }
-
-  // === 🔥 GESTION KO UNIVERSELLE ===
 
   private async performKOCheckPhase(): Promise<void> {
     this.currentSubPhase = SubPhase.KO_CHECK;
@@ -662,15 +573,11 @@ export class BattleEngine {
     const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
 
     if (player1KO.isKO || player2KO.isKO) {
-      console.log(`💀 [BattleEngine] KO détecté - P1: ${player1KO.isKO}, P2: ${player2KO.isKO}`);
-      
-      // 🆕 GESTION KO UNIVERSELLE
       if (this.isMultiPokemonBattle && this.switchingEnabled) {
         await this.handleUniversalKO(player1KO, player2KO);
         return;
       }
       
-      // 🔥 GESTION KO CLASSIQUE 1v1
       if (this.broadcastManager) {
         if (player1KO.isKO) {
           this.broadcastManager.emit('pokemonFainted', {
@@ -696,12 +603,7 @@ export class BattleEngine {
     await this.completeActionResolution();
   }
 
-  /**
-   * 🆕 Gestion KO universelle (tous types combats avec équipes)
-   */
   private async handleUniversalKO(player1KO: any, player2KO: any): Promise<void> {
-    console.log('💀 [BattleEngine] Gestion KO universelle...');
-    
     try {
       if (player1KO.isKO && this.playerTeamManager) {
         await this.handlePlayerKO('player1');
@@ -716,14 +618,10 @@ export class BattleEngine {
       }
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur gestion KO universelle:', error);
       await this.completeActionResolution();
     }
   }
 
-  /**
-   * 🆕 Gestion KO adversaire (wild/pvp)
-   */
   private async handleOpponentKO(playerRole: PlayerRole): Promise<void> {
     const teamManager = this.opponentTeamManager;
     if (!teamManager) return;
@@ -731,7 +629,6 @@ export class BattleEngine {
     const analysis = teamManager.analyzeTeam();
     
     if (!analysis.battleReady) {
-      console.log(`💀 [BattleEngine] Équipe ${playerRole} vaincue !`);
       const winner = 'player1';
       
       await this.handleBattleEnd({
@@ -745,9 +642,6 @@ export class BattleEngine {
       return;
     }
 
-    // 🆕 CHANGEMENT FORCÉ POUR ADVERSAIRE (si équipe multiple)
-    console.log(`🔄 [BattleEngine] Changement forcé adversaire ${playerRole}`);
-    
     const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
     
     if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
@@ -772,9 +666,6 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🔥 Gestion KO joueur avec changement forcé (universel)
-   */
   private async handlePlayerKO(playerRole: PlayerRole): Promise<void> {
     const teamManager = this.playerTeamManager;
     if (!teamManager) return;
@@ -782,7 +673,6 @@ export class BattleEngine {
     const analysis = teamManager.analyzeTeam();
     
     if (!analysis.battleReady) {
-      console.log(`💀 [BattleEngine] Équipe ${playerRole} vaincue !`);
       const winner = 'player2';
       
       if (this.isTrainerBattle) {
@@ -798,8 +688,6 @@ export class BattleEngine {
       return;
     }
 
-    console.log(`🔄 [BattleEngine] Changement forcé requis pour ${playerRole}`);
-    
     const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
     
     if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
@@ -828,9 +716,6 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 🆕 Met à jour le GameState après changement (universel)
-   */
   private updateGameStateAfterSwitch(playerRole: PlayerRole, switchResult: BattleResult): void {
     if (!switchResult.data) return;
 
@@ -844,16 +729,9 @@ export class BattleEngine {
       } else {
         this.gameState.player2.pokemon = newActivePokemon;
       }
-      
-      console.log(`✅ [BattleEngine] GameState mis à jour: ${playerRole} → ${newActivePokemon.name}`);
     }
   }
 
-  // === 🔥 MÉTHODES DRESSEUR (CONSERVÉES POUR COMPATIBILITÉ) ===
-
-  /**
-   * 🔥 IA Dresseur intelligente (SANS timeout)
-   */
   private scheduleTrainerAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
     
@@ -868,9 +746,6 @@ export class BattleEngine {
     }, thinkingDelay);
   }
 
-  /**
-   * 🔥 Exécute action IA dresseur
-   */
   private executeTrainerAIAction(): void {
     try {
       if (!this.trainerAI.isReady()) {
@@ -885,8 +760,6 @@ export class BattleEngine {
       );
 
       if (aiDecision.success && aiDecision.action) {
-        console.log(`🧠 [BattleEngine] IA dresseur: ${aiDecision.action.type} (stratégie: ${aiDecision.strategy})`);
-        
         this.trackAIDecision(aiDecision);
         this.submitAction(aiDecision.action);
       } else {
@@ -894,24 +767,15 @@ export class BattleEngine {
       }
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur IA dresseur:', error);
       this.executeAIAction();
     }
   }
 
-  /**
-   * 🔥 Gestion KO dresseur (identique logique)
-   */
   private async handleTrainerKO(playerRole: PlayerRole): Promise<void> {
     await this.handlePlayerKO(playerRole);
   }
 
-  /**
-   * 🔥 Fin spécifique combat dresseur
-   */
   private async handleTrainerBattleEnd(winner: PlayerRole, reason: string): Promise<void> {
-    console.log(`🏆 [BattleEngine] Fin combat dresseur - Vainqueur: ${winner}`);
-    
     this.gameState.isEnded = true;
     this.gameState.winner = winner;
     
@@ -923,14 +787,13 @@ export class BattleEngine {
           this.gameState.turnNumber
         );
         
-        console.log(`🎁 [BattleEngine] Récompenses: ${rewards.money} pièces, ${rewards.totalExpGained} EXP`);
         this.emit('rewardsEarned', rewards);
       }
       
       this.trackTrainerBattleEnd(winner, reason);
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur fin combat dresseur:', error);
+      // Continue
     }
     
     this.emit('battleEnd', {
@@ -944,11 +807,7 @@ export class BattleEngine {
     this.transitionToPhase(InternalBattlePhase.ENDED, reason);
   }
 
-  // === 🔥 MÉTHODES EXISTANTES PRÉSERVÉES (AVEC EXTENSIONS) ===
-
   private async handleBattleEnd(battleEndCheck: any): Promise<void> {
-    console.log(`🏆 [BattleEngine] Combat terminé - Vainqueur: ${battleEndCheck.winner}`);
-    
     this.gameState.isEnded = true;
     this.gameState.winner = battleEndCheck.winner;
     
@@ -964,9 +823,6 @@ export class BattleEngine {
     this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
   }
 
-  /**
-   * 🔥 Initialise tous les modules (version étendue)
-   */
   private initializeAllModules(): void {
     this.phaseManager.initialize(this.gameState);
     this.actionProcessor.initialize(this.gameState);
@@ -975,13 +831,9 @@ export class BattleEngine {
     this.captureManager.initialize(this.gameState);
     this.koManager.initialize(this.gameState);
     
-    // 🆕 INITIALISER MODULES UNIVERSELS SI NÉCESSAIRE
     this.initializeUniversalModules();
-    
     this.configureBroadcastSystem();
   }
-
-  // === 🔥 MÉTHODES UTILITAIRES CONSERVÉES ===
 
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
@@ -998,7 +850,6 @@ export class BattleEngine {
     try {
       const aiAction = this.aiPlayer.generateAction();
       if (aiAction) {
-        console.log(`🤖 [BattleEngine] IA soumet action: ${aiAction.type}`);
         this.submitAction(aiAction);
       } else {
         const fallbackAction: BattleAction = {
@@ -1011,7 +862,6 @@ export class BattleEngine {
         this.submitAction(fallbackAction);
       }
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur IA:', error);
       const emergencyAction: BattleAction = {
         actionId: `ai_emergency_${Date.now()}`,
         playerId: 'ai',
@@ -1022,8 +872,6 @@ export class BattleEngine {
       this.submitAction(emergencyAction);
     }
   }
-
-  // === API PUBLIQUE (CONSERVÉE) ===
 
   async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     return await this.submitAction(action, teamManager);
@@ -1082,10 +930,7 @@ export class BattleEngine {
     return this.phaseManager.getPhaseState();
   }
 
-  // === MÉTHODES DE TRAITEMENT (CONSERVÉES) ===
-
   private forceActionResolution(): void {
-    console.log('🚨 [BattleEngine] Force résolution des actions');
     this.phaseManager.forceTransition(InternalBattlePhase.ACTION_RESOLUTION, 'force_resolution');
     setTimeout(() => {
       this.handleActionResolutionPhase();
@@ -1097,15 +942,12 @@ export class BattleEngine {
 
     this.transitionAttempts++;
     if (this.transitionAttempts > this.MAX_TRANSITION_ATTEMPTS) {
-      console.error('🚨 [BattleEngine] Trop de tentatives de transition, force battle end');
       this.forceBattleEnd('transition_loop', 'Boucle de transition détectée');
       return false;
     }
 
     const success = this.phaseManager.setPhase(newPhase, trigger);
     if (!success) {
-      console.error(`❌ [BattleEngine] Échec transition ${this.phaseManager.getCurrentPhase()} → ${newPhase}`);
-      
       if (this.transitionAttempts <= 2) {
         this.phaseManager.forceTransition(newPhase, `force_${trigger}`);
         return true;
@@ -1152,14 +994,12 @@ export class BattleEngine {
         return;
       }
 
-      console.log(`⚔️ [BattleEngine] Traitement ${allActions.length} actions`);
       this.orderedActions = this.actionQueue.getActionsBySpeed();
       this.emit('resolutionStart', { actionCount: this.orderedActions.length });
       
       await this.processAllActionsRapidly();
       
     } catch (error) {
-      console.error('❌ [BattleEngine] Erreur résolution:', error);
       this.isProcessingActions = false;
       this.forceResolutionComplete();
     }
@@ -1214,7 +1054,6 @@ export class BattleEngine {
           }
         }
       } catch (error) {
-        console.error(`❌ [BattleEngine] Erreur action ${i + 1}:`, error);
         continue;
       }
       
@@ -1256,13 +1095,10 @@ export class BattleEngine {
     }
   }
 
-  // === MÉTHODES HELPERS ÉTENDUES ===
-
   private startBattleTimeout(): void {
     this.clearBattleTimeout();
     this.battleTimeoutId = setTimeout(() => {
       if (!this.battleEndHandled) {
-        console.log('🧹 [BattleEngine] Timeout technique - Nettoyage après 30 minutes');
         this.forceBattleEnd('technical_timeout', 'Nettoyage technique automatique');
       }
     }, this.BATTLE_CRASH_TIMEOUT_MS);
@@ -1270,8 +1106,6 @@ export class BattleEngine {
 
   private forceBattleEnd(reason: string, message: string): void {
     if (this.battleEndHandled) return;
-    
-    console.log(`🚨 [BattleEngine] Force fin combat: ${reason}`);
     
     this.battleEndHandled = true;
     this.gameState.isEnded = true;
@@ -1327,10 +1161,8 @@ export class BattleEngine {
         await this.registerTrainerAsNPC();
       }
       
-      console.log('✅ [BattleEngine] Système IA étendu initialisé');
-      
     } catch (error) {
-      console.warn('⚠️ [BattleEngine] Erreur IA étendue (continue sans):', error);
+      // Continue sans IA
     }
   }
 
@@ -1348,7 +1180,7 @@ export class BattleEngine {
         });
       }
     } catch (error) {
-      // Continue sans enregistrement IA
+      // Continue
     }
   }
 
@@ -1371,10 +1203,9 @@ export class BattleEngine {
       };
       
       await this.aiNPCManager.registerNPCs([trainerAsNPC]);
-      console.log(`✅ [BattleEngine] Dresseur ${this.trainerData.name} enregistré comme NPC intelligent`);
       
     } catch (error) {
-      console.warn('⚠️ [BattleEngine] Erreur enregistrement dresseur NPC:', error);
+      // Continue
     }
   }
 
@@ -1391,7 +1222,6 @@ export class BattleEngine {
           }
         }
       } catch (error) {
-        console.error('❌ [BattleEngine] Erreur transition intro:', error);
         this.forceBattleEnd('intro_transition_failed', 'Impossible de progresser au-delà de la phase intro');
       }
     }, INTRO_DELAY);
@@ -1454,8 +1284,6 @@ export class BattleEngine {
     return result;
   }
 
-  // === TRACKING ET IA ===
-
   private trackTrainerBattleStart(): void {
     if (!this.trainerData) return;
     
@@ -1480,7 +1308,7 @@ export class BattleEngine {
         }
       );
     } catch (error) {
-      // Silencieux
+      // Continue
     }
   }
 
@@ -1502,7 +1330,7 @@ export class BattleEngine {
         }
       );
     } catch (error) {
-      // Silencieux
+      // Continue
     }
   }
 
@@ -1524,7 +1352,7 @@ export class BattleEngine {
         }
       );
     } catch (error) {
-      // Silencieux
+      // Continue
     }
   }
 
@@ -1542,11 +1370,9 @@ export class BattleEngine {
         }
       );
     } catch (error) {
-      // Silencieux
+      // Continue
     }
   }
-
-  // === UTILITAIRES ===
 
   private getPlayerName(playerId: string): string {
     if (playerId === this.gameState.player1.sessionId) {
@@ -1609,8 +1435,6 @@ export class BattleEngine {
     };
   }
 
-  // === VALIDATION ===
-
   private validateTrainerConfig(config: TrainerBattleConfig): void {
     if (!config.player1?.name || !config.playerTeam?.length) {
       throw new Error('Configuration joueur invalide');
@@ -1635,8 +1459,6 @@ export class BattleEngine {
     }
   }
 
-  // === INITIALISATION ÉTATS ===
-
   private initializeTrainerGameState(config: TrainerBattleConfig): BattleGameState {
     return {
       battleId: `trainer_battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1648,7 +1470,6 @@ export class BattleEngine {
         sessionId: config.player1.sessionId,
         name: config.player1.name,
         pokemon: config.playerTeam[0],
-        // 🆕 ÉQUIPE UNIVERSELLE
         team: createPokemonTeam(config.playerTeam, 0, 'player'),
         teamConfig: getDefaultTeamConfig('trainer')
       },
@@ -1657,13 +1478,11 @@ export class BattleEngine {
         name: config.trainer.name,
         pokemon: config.trainer.pokemon[0],
         isAI: true,
-        // 🆕 ÉQUIPE UNIVERSELLE
         team: createPokemonTeam(config.trainer.pokemon, 0, 'trainer'),
         teamConfig: getDefaultTeamConfig('trainer')
       },
       isEnded: false,
       winner: null,
-      // 🆕 PROPRIÉTÉS UNIVERSELLES
       isMultiPokemonBattle: true,
       switchRulesActive: getDefaultTeamConfig('trainer')
     };
@@ -1684,7 +1503,6 @@ export class BattleEngine {
         sessionId: config.player1.sessionId,
         name: config.player1.name,
         pokemon: { ...config.player1.pokemon },
-        // 🆕 ÉQUIPE UNIVERSELLE SI FOURNIE
         team: hasPlayerTeam ? createPokemonTeam(config.player1.team!, 0, 'player') : undefined,
         teamConfig: hasPlayerTeam ? getDefaultTeamConfig(config.type) : undefined
       },
@@ -1692,19 +1510,15 @@ export class BattleEngine {
         sessionId: config.opponent.sessionId || 'ai',
         name: config.opponent.name || 'Pokémon Sauvage',
         pokemon: { ...config.opponent.pokemon },
-        // 🆕 ÉQUIPE UNIVERSELLE SI FOURNIE
         team: hasOpponentTeam ? createPokemonTeam(config.opponent.team!, 0, 'wild') : undefined,
         teamConfig: hasOpponentTeam ? getDefaultTeamConfig(config.type) : undefined
       },
       isEnded: false,
       winner: null,
-      // 🆕 PROPRIÉTÉS UNIVERSELLES
       isMultiPokemonBattle: isMultiPokemon,
       switchRulesActive: isMultiPokemon ? getDefaultTeamConfig(config.type) : undefined
     };
   }
-
-  // === NETTOYAGE ===
 
   private clearAllTimers(): void {
     this.clearIntroTimer();
@@ -1732,8 +1546,6 @@ export class BattleEngine {
   }
 
   private forceResolutionComplete(): void {
-    console.log('🔧 [BattleEngine] Force fin résolution (urgence seulement)');
-    
     this.isProcessingActions = false;
     this.resetSubPhaseState();
     this.gameState.turnNumber++;
@@ -1765,13 +1577,12 @@ export class BattleEngine {
         this.emit('saveError', { error: result.error });
       }
     } catch (error) {
-      // Continue sur erreur
+      // Continue
     }
   }
 
   private handleEndedPhase(): void {
     if (this.battleEndHandled) {
-      console.log('⚠️ [BattleEngine] Battle end déjà traité');
       return;
     }
     
@@ -1793,8 +1604,6 @@ export class BattleEngine {
       this.broadcastManager = null;
     }
   }
-
-  // === SPECTATEUR MANAGEMENT ===
 
   setBattleWorldPosition(battleRoomId: string, worldPosition: { x: number; y: number; mapId: string }): void {
     if (this.spectatorManager) {
@@ -1826,8 +1635,6 @@ export class BattleEngine {
     return { removed: false, shouldLeaveBattleRoom: false };
   }
 
-  // === SYSTÈME MODULES ===
-
   addModule(name: string, module: BattleModule): void {
     this.modules.set(name, module);
     module.initialize(this);
@@ -1846,162 +1653,19 @@ export class BattleEngine {
       try {
         listener(data);
       } catch (error) {
-        // Continue sur erreur
+        // Continue
       }
     });
   }
 
-  // === NETTOYAGE COMPLET ===
-
   cleanup(): void {
-    if (!this.isManualCleanup && !this.gameState.isEnded) {
-      return;
-    }
-
-    this.clearAllTimers();
-    
-    if (this.spectatorManager) {
-      this.spectatorManager.cleanupBattle(this.gameState.battleId);
-    }
-
-    if (this.broadcastManager) {
-      this.broadcastManager.cleanup();
-      this.broadcastManager = null;
-    }
-
-    // 🆕 NETTOYAGE MODULES UNIVERSELS
-    if (this.switchManager) {
-      this.switchManager.reset();
-    }
-    if (this.trainerAI) {
-      this.trainerAI.reset();
-    }
-    if (this.trainerRewardManager) {
-      this.trainerRewardManager.reset();
-    }
-
-    // 🔥 NETTOYAGE EXISTANT
-    this.phaseManager.reset();
-    this.actionQueue.reset();
-    this.actionProcessor.reset();
-    this.aiPlayer.reset();
-    this.battleEndManager.reset();
-    this.captureManager.reset();
-    this.koManager.reset();
-
-    this.resetSubPhaseState();
-    this.isInitialized = false;
-    this.isProcessingActions = false;
-    this.turnCounter = 0;
-    this.transitionAttempts = 0;
-    this.isManualCleanup = false;
-    this.battleEndHandled = false;
-
-    // 🆕 RESET ÉTAT UNIVERSEL
-    this.isMultiPokemonBattle = false;
-    this.switchingEnabled = false;
-    this.battleTeamConfig = null;
-    this.playerTeamManager = null;
-    this.opponentTeamManager = null;
-    
-    // 🔥 RESET ÉTAT DRESSEUR
-    this.isTrainerBattle = false;
-    this.trainerData = null;
-    this.pendingSwitches.clear();
+    this.forceCompleteReset();
   }
 
-  // === DIAGNOSTICS ÉTENDUS ===
-
-  getSystemState(): any {
-    return {
-      version: 'battle_engine_universal_switch_v3_complete',
-      isInitialized: this.isInitialized,
-      isProcessingActions: this.isProcessingActions,
-      currentSubPhase: this.currentSubPhase,
-      turnCounter: this.turnCounter,
-      transitionAttempts: this.transitionAttempts,
-      isManualCleanup: this.isManualCleanup,
-      battleEndHandled: this.battleEndHandled,
-      
-      // 🆕 ÉTAT UNIVERSEL
-      battleType: this.gameState.type,
-      isMultiPokemonBattle: this.isMultiPokemonBattle,
-      switchingEnabled: this.switchingEnabled,
-      teamManagersActive: {
-        player: this.playerTeamManager !== null,
-        opponent: this.opponentTeamManager !== null
-      },
-      
-      // 🔥 ÉTAT DRESSEUR (CONSERVÉ)
-      isTrainerBattle: this.isTrainerBattle,
-      
-      timeouts: {
-        battleCrashTimeout: this.battleTimeoutId !== null,
-      },
-      phaseState: this.phaseManager.getPhaseState(),
-      actionQueueState: this.actionQueue.getQueueState(),
-      gameState: {
-        battleId: this.gameState.battleId,
-        type: this.gameState.type,
-        phase: this.gameState.phase,
-        isEnded: this.gameState.isEnded,
-        winner: this.gameState.winner,
-        turnNumber: this.gameState.turnNumber
-      },
-      
-      // 🆕 INFORMATIONS ÉQUIPES UNIVERSELLES
-      teamInfo: {
-        player1TeamSize: this.playerTeamManager?.getAllPokemon().length || 1,
-        player2TeamSize: this.opponentTeamManager?.getAllPokemon().length || 1,
-        switchManagerReady: this.switchManager?.isReady() || false,
-        battleTeamConfig: this.battleTeamConfig
-      },
-      
-      // 🔥 ÉTAT DRESSEUR SPÉCIALISÉ (SI APPLICABLE)
-      trainerBattleState: this.isTrainerBattle ? {
-        trainerId: this.trainerData?.trainerId,
-        trainerName: this.trainerData?.name,
-        trainerClass: this.trainerData?.trainerClass,
-        trainerAIReady: this.trainerAI?.isReady(),
-        rewardManagerReady: this.trainerRewardManager?.isReady(),
-        pendingSwitches: this.pendingSwitches.size
-      } : null,
-      
-      pokemonExperience: {
-        noTimeLimit: true,
-        maxTurns: this.MAX_TURNS,
-        technicalTimeoutOnly: this.BATTLE_CRASH_TIMEOUT_MS,
-        message: "Prenez tout le temps nécessaire - Expérience Pokémon authentique"
-      },
-      
-      // 🆕 NOUVELLES FONCTIONNALITÉS
-      newFeaturesUniversal: [
-        'universal_switch_support',           // Support changements tous combats
-        'multi_pokemon_wild_battles',        // Combats sauvages multi-Pokémon  
-        'team_configuration_per_battle_type', // Config par type combat
-        'automatic_battle_type_detection',   // Détection automatique type
-        'backward_compatibility_preserved',  // Compatibilité préservée
-        'enhanced_team_managers',            // Gestionnaires équipes étendus
-        'universal_ko_handling',            // Gestion KO universelle
-        'switch_options_in_action_selection', // Options changement en sélection
-        'natural_pokemon_experience',       // Expérience Pokémon authentique
-        'technical_cleanup_only_timeout'    // Timeout technique seulement
-      ]
-    };
-  }
-
-  // 🆕 NOUVELLES MÉTHODES API
-
-  /**
-   * 🆕 Vérifie si le combat supporte les changements
-   */
   supportsSwitching(): boolean {
     return this.switchingEnabled;
   }
 
-  /**
-   * 🆕 Récupère les options de changement pour un joueur
-   */
   getSwitchOptions(playerRole: PlayerRole): {
     canSwitch: boolean;
     availableOptions: number[];
@@ -2015,19 +1679,15 @@ export class BattleEngine {
       };
     }
 
-    // 🔧 CORRECTION: Mapping correct des propriétés
     const switchAnalysis = this.switchManager.analyzeSwitchOptions(playerRole);
     
     return {
       canSwitch: switchAnalysis.canSwitch,
-      availableOptions: switchAnalysis.availablePokemon, // 🔧 Mapping correct
+      availableOptions: switchAnalysis.availablePokemon,
       restrictions: switchAnalysis.restrictions
     };
   }
 
-  /**
-   * 🆕 Crée une action de changement pour le joueur
-   */
   createSwitchActionForPlayer(
     playerId: string,
     fromIndex: number,
@@ -2041,9 +1701,6 @@ export class BattleEngine {
     return createSwitchAction(playerId, fromIndex, toIndex, isForced, this.gameState.type);
   }
 
-  /**
-   * 🆕 Informations sur l'état des équipes
-   */
   getTeamsInfo(): {
     player1: { size: number; alive: number; canSwitch: boolean };
     player2: { size: number; alive: number; canSwitch: boolean };
@@ -2075,6 +1732,75 @@ export class BattleEngine {
       player1: player1Info,
       player2: player2Info,
       battleSupportsTeams: this.isMultiPokemonBattle
+    };
+  }
+
+  getSystemState(): any {
+    return {
+      version: 'battle_engine_universal_switch_v4_complete_cleanup',
+      isInitialized: this.isInitialized,
+      isProcessingActions: this.isProcessingActions,
+      currentSubPhase: this.currentSubPhase,
+      turnCounter: this.turnCounter,
+      transitionAttempts: this.transitionAttempts,
+      isManualCleanup: this.isManualCleanup,
+      battleEndHandled: this.battleEndHandled,
+      
+      battleType: this.gameState.type,
+      isMultiPokemonBattle: this.isMultiPokemonBattle,
+      switchingEnabled: this.switchingEnabled,
+      teamManagersActive: {
+        player: this.playerTeamManager !== null,
+        opponent: this.opponentTeamManager !== null
+      },
+      
+      isTrainerBattle: this.isTrainerBattle,
+      
+      timeouts: {
+        battleCrashTimeout: this.battleTimeoutId !== null,
+      },
+      phaseState: this.phaseManager.getPhaseState(),
+      actionQueueState: this.actionQueue.getQueueState(),
+      gameState: {
+        battleId: this.gameState.battleId,
+        type: this.gameState.type,
+        phase: this.gameState.phase,
+        isEnded: this.gameState.isEnded,
+        winner: this.gameState.winner,
+        turnNumber: this.gameState.turnNumber
+      },
+      
+      teamInfo: {
+        player1TeamSize: this.playerTeamManager?.getAllPokemon().length || 1,
+        player2TeamSize: this.opponentTeamManager?.getAllPokemon().length || 1,
+        switchManagerReady: this.switchManager?.isReady() || false,
+        battleTeamConfig: this.battleTeamConfig
+      },
+      
+      trainerBattleState: this.isTrainerBattle ? {
+        trainerId: this.trainerData?.trainerId,
+        trainerName: this.trainerData?.name,
+        trainerClass: this.trainerData?.trainerClass,
+        trainerAIReady: this.trainerAI?.isReady(),
+        rewardManagerReady: this.trainerRewardManager?.isReady(),
+        pendingSwitches: this.pendingSwitches.size
+      } : null,
+      
+      pokemonExperience: {
+        noTimeLimit: true,
+        maxTurns: this.MAX_TURNS,
+        technicalTimeoutOnly: this.BATTLE_CRASH_TIMEOUT_MS,
+        message: "Expérience Pokémon authentique avec nettoyage complet"
+      },
+      
+      newFeaturesV4: [
+        'complete_battle_cleanup',
+        'force_reset_between_battles',
+        'memory_leak_prevention',
+        'proper_state_isolation',
+        'enhanced_error_recovery',
+        'battle_instance_independence'
+      ]
     };
   }
 }
