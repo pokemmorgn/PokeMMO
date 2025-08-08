@@ -1862,7 +1862,8 @@ private handleEndedPhase(): void {
     if (!this.isManualCleanup && !this.gameState.isEnded) {
       return;
     }
-
+    this.eventListeners.clear();
+    this.modules.clear();
     this.clearAllTimers();
     
     if (this.spectatorManager) {
