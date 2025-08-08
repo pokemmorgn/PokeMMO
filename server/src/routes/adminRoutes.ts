@@ -423,7 +423,7 @@ if (npcs.length > 0) {
         interactionRadius: npc.interactionRadius || 32,
         canWalkAway: npc.canWalkAway || false,
         autoFacePlayer: npc.autoFacePlayer !== false,
-repeatable: npcJson.repeatable !== false,
+repeatable: npc.repeatable !== false,
         cooldownSeconds: npc.cooldownSeconds || 0,
         
         // Données spécifiques du type
@@ -2434,7 +2434,7 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         interactionRadius: npc.interactionRadius || 32,
         canWalkAway: npc.canWalkAway !== false,
         autoFacePlayer: npc.autoFacePlayer !== false,
-repeatable: npcJson.repeatable !== false,
+repeatable: npcData.repeatable !== false,
         cooldownSeconds: npc.cooldownSeconds || 0,
         
         // Système de quêtes
@@ -2667,7 +2667,7 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
       interactionRadius: npcJson.interactionRadius || 32,
       canWalkAway: npcJson.canWalkAway !== false,
       autoFacePlayer: npcJson.autoFacePlayer !== false,
-      repeatable: npc.repeatable !== false,
+repeatable: npcJson.repeatable !== false,
       cooldownSeconds: npcJson.cooldownSeconds || 0,
       
       // Données spécifiques
