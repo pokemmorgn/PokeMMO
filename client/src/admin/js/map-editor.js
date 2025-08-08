@@ -1854,24 +1854,101 @@ async loadAvailableMaps() {
 }
 
 // 2. ✅ NOUVELLE MÉTHODE - Charger UNIQUEMENT depuis MongoDB
+// ✅ Dans map-editor.js, remplace loadObjectsFromDatabaseOnly() par :
+
 async loadObjectsFromDatabaseOnly(mapId) {
     try {
-        console.log(`📦 [MapEditor] Loading objects from MongoDB ONLY for zone: ${mapId}`)
+        console.log(`📦 [MapEditor] Loading objects for zone: ${mapId}`)
         
-        const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
+        // ✅ CHARGER LES NPCs DEPUIS LA BONNE ROUTE
+        const npcsResponse = await this.adminPanel.apiCall(`/zones/${mapId}/npcs`)
         
-        if (response.success && response.data && response.data.objects) {
-            const allObjects = response.data.objects
-            console.log(`📦 [MapEditor] Found ${allObjects.length} objects in MongoDB`)
+        console.log('🔍 [DEBUG] NPCs response:', npcsResponse)
+        
+        if (npcsResponse.success && npcsResponse.data && npcsResponse.data.npcs) {
+            const npcs = npcsResponse.data.npcs
             
-            const gameObjects = allObjects.filter(obj => obj.type !== 'npc')
-            const npcs = allObjects.filter(obj => obj.type === 'npc')
+            console.log(`👤 [MapEditor] Found ${npcs.length} NPCs in zone ${mapId}`)
             
-            console.log(`📊 [MapEditor] GameObjects: ${gameObjects.length}, NPCs: ${npcs.length}`)
+            npcs.forEach((npc, index) => {
+                console.log(`🔍 [DEBUG] Loading NPC ${index}:`, {
+                    id: npc.id,
+                    globalId: npc.globalId,
+                    name: npc.name,
+                    x: npc.x,
+                    y: npc.y,
+                    position: npc.position
+                })
+                
+                // ✅ CONVERSION COORDONNÉES : De pixels vers tiles
+                let tileX, tileY
+                
+                if (npc.position && typeof npc.position.x === 'number') {
+                    // Format: { position: { x: pixels, y: pixels } }
+                    tileX = Math.floor(npc.position.x / this.currentMapData.tilewidth)
+                    tileY = Math.floor(npc.position.y / this.currentMapData.tileheight)
+                } else if (typeof npc.x === 'number') {
+                    // Format direct: { x: pixels, y: pixels }
+                    tileX = Math.floor(npc.x / this.currentMapData.tilewidth)
+                    tileY = Math.floor(npc.y / this.currentMapData.tileheight)
+                } else {
+                    console.error(`❌ [MapEditor] NPC ${npc.name} has invalid coordinates`)
+                    return
+                }
+                
+                console.log(`📍 [DEBUG] Coordinate conversion: pixels(${npc.position?.x || npc.x}, ${npc.position?.y || npc.y}) → tiles(${tileX}, ${tileY})`)
+                
+                const editorNPC = {
+                    id: npc.id || npc.globalId,
+                    globalId: npc.id || npc.globalId,
+                    type: 'npc',
+                    x: tileX,
+                    y: tileY,
+                    name: npc.name,
+                    sprite: npc.sprite || 'npc_default',
+                    direction: npc.direction || 'south',
+                    npcType: npc.type || 'dialogue',
+                    isFromMap: false,
+                    
+                    // ✅ MARQUER COMME DÉJÀ SAUVEGARDÉ
+                    isSavedInDB: true,
+                    
+                    // Propriétés complètes pour édition
+                    interactionRadius: npc.interactionRadius || 32,
+                    canWalkAway: npc.canWalkAway !== false,
+                    autoFacePlayer: npc.autoFacePlayer !== false,
+                    repeatable: npc.repeatable !== false,
+                    cooldownSeconds: npc.cooldownSeconds || 0,
+                    questsToGive: npc.questsToGive || [],
+                    questsToEnd: npc.questsToEnd || [],
+                    questRequirements: npc.questRequirements,
+                    questDialogueIds: npc.questDialogueIds,
+                    spawnConditions: npc.spawnConditions,
+                    shopId: npc.shopId,
+                    battleConfig: npc.battleConfig,
+                    visionConfig: npc.visionConfig,
+                    customProperties: npc.customProperties || {}
+                }
+                
+                console.log(`✅ [MapEditor] Loaded NPC: ${editorNPC.name} (ID: ${editorNPC.globalId}) at tiles (${editorNPC.x}, ${editorNPC.y})`)
+                this.placedObjects.push(editorNPC)
+            })
             
-            // GameObjects (inchangé)
-            gameObjects.forEach(obj => {
-                if (obj.position || (obj.x !== undefined && obj.y !== undefined)) {
+            console.log(`✅ [MapEditor] Total ${this.placedObjects.length} NPCs loaded and ready`)
+            
+        } else {
+            console.log(`📝 [MapEditor] No NPCs found for ${mapId}`)
+            console.log('🔍 [DEBUG] Response details:', npcsResponse)
+        }
+        
+        // ✅ CHARGER AUSSI LES GAMEOBJECTS SI TU EN AS (optionnel)
+        try {
+            const gameObjectsResponse = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
+            if (gameObjectsResponse.success && gameObjectsResponse.data?.objects) {
+                const gameObjects = gameObjectsResponse.data.objects.filter(obj => obj.type !== 'npc')
+                console.log(`📦 [MapEditor] Also loaded ${gameObjects.length} gameobjects`)
+                
+                gameObjects.forEach(obj => {
                     const editorObject = {
                         id: `gameobject_${obj.id}`,
                         type: obj.type || 'ground',
@@ -1880,67 +1957,20 @@ async loadObjectsFromDatabaseOnly(mapId) {
                         name: obj.itemId || obj.name || `object_${obj.id}`,
                         itemId: obj.itemId,
                         quantity: obj.quantity || 1,
-                        cooldown: obj.cooldown || 24,
-                        rarity: obj.rarity || 'common',
-                        sprite: obj.sprite,
                         isFromMap: false
                     }
                     this.placedObjects.push(editorObject)
-                }
-            })
-            
-            // ✅ NPCs avec flag isSavedInDB
-            npcs.forEach(npc => {
-                if (npc.x !== undefined && npc.y !== undefined) {
-                    const editorNPC = {
-                        id: npc.id || npc.globalId,
-                        globalId: npc.id || npc.globalId,
-                        type: 'npc',
-                        x: Math.floor(npc.x / this.currentMapData.tilewidth),
-                        y: Math.floor(npc.y / this.currentMapData.tileheight),
-                        name: npc.name || `NPC_${npc.id}`,
-                        sprite: npc.sprite || 'npc_default',
-                        direction: npc.direction || 'south',
-                        npcType: npc.npcType || 'dialogue',
-                        isFromMap: false,
-                        
-                        // ✅ MARQUER COMME DÉJÀ EN BASE
-                        isSavedInDB: true,
-                        
-                        // Propriétés pour édition
-                        interactionRadius: npc.interactionRadius || 32,
-                        canWalkAway: npc.canWalkAway !== false,
-                        autoFacePlayer: npc.autoFacePlayer !== false,
-                        repeatable: npc.repeatable !== false,
-                        cooldownSeconds: npc.cooldownSeconds || 0,
-                        questsToGive: npc.questsToGive || [],
-                        questsToEnd: npc.questsToEnd || [],
-                        questRequirements: npc.questRequirements,
-                        questDialogueIds: npc.questDialogueIds,
-                        spawnConditions: npc.spawnConditions,
-                        shopId: npc.shopId,
-                        battleConfig: npc.battleConfig,
-                        visionConfig: npc.visionConfig,
-                        customProperties: npc.customProperties || {}
-                    }
-                    
-                    console.log(`👤 [MapEditor] Loaded existing NPC: ${editorNPC.name} (GlobalID: ${editorNPC.globalId}) - marked as saved`)
-                    this.placedObjects.push(editorNPC)
-                }
-            })
-            
-            console.log(`✅ [MapEditor] Loaded ${this.placedObjects.length} objects from MongoDB`)
-            
-        } else {
-            console.log(`📝 [MapEditor] No objects found in MongoDB for ${mapId}`)
+                })
+            }
+        } catch (error) {
+            console.log('📦 [MapEditor] No gameobjects to load (normal)')
         }
         
     } catch (error) {
-        console.error(`❌ [MapEditor] Error loading objects from MongoDB:`, error)
-        this.adminPanel.showNotification(`Erreur chargement objets: ${error.message}`, 'error')
+        console.error(`❌ [MapEditor] Error loading NPCs:`, error)
+        this.adminPanel.showNotification(`Erreur chargement NPCs: ${error.message}`, 'error')
     }
 }
-
 // 3. ✅ NOUVELLE MÉTHODE - Charger objets TMJ pour affichage uniquement
 loadTMJObjectsForDisplay() {
     if (!this.currentMapData || !this.currentMapData.layers) {
