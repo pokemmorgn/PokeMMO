@@ -16,7 +16,7 @@ import {
   loadBattleTranslations 
 } from '../managers/LocalizationManager.js';
 import { createPokemonTeamSwitchUI, setupTeamSwitchEvents } from '../Battle/PokemonTeamSwitchUI.js';
-import { createCaptureManager } from '../managers/Battle/CaptureManager.js';
+import { createCaptureManager } from '../Battle/CaptureManager.js';
 
 let pokemonSpriteConfig = null;
 
