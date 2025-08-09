@@ -809,6 +809,69 @@ checkItemEditorElements() {
     this.setupEffectButtonListeners(container);
 }
 
+    populateObtainMethods(methods) {
+    const container = document.getElementById('itemObtainMethodsList');
+    if (!container) {
+        console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
+        return;
+    }
+
+    if (methods.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #666;">
+                <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>Aucune méthode définie</p>
+                <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                    <i class="fas fa-plus"></i> Ajouter une méthode
+                </button>
+            </div>
+        `;
+        
+        const addBtn = container.querySelector('.add-method-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 [ItemEditor] Bouton Ajouter méthode cliqué');
+                this.addObtainMethod();
+                return false;
+            });
+        }
+        return;
+    }
+
+    container.innerHTML = methods.map((method, index) => `
+        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${this.formatMethodName(method.method)}</strong>
+                    ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
+                </div>
+                <div>
+                    <button type="button" class="edit-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="remove-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
+                ${method.chance ? `Chance: ${method.chance}% | ` : ''}
+                ${method.cost ? `Coût: ${method.cost} ${method.currency || 'money'} | ` : ''}
+                ${method.npc ? `NPC: ${method.npc}` : ''}
+            </div>
+        </div>
+    `).join('') + `
+        <div style="text-align: center; margin: 1rem 0;">
+            <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <i class="fas fa-plus"></i> Ajouter une méthode
+            </button>
+        </div>
+    `;
+
+    this.setupMethodButtonListeners(container);
+}
 // Nouvelle méthode pour configurer les event listeners
 setupEffectButtonListeners(container) {
     // Bouton "Ajouter effet"
