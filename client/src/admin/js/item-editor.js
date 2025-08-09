@@ -1517,7 +1517,9 @@ diagnoseInterface() {
     }
 }
 
-// ===== FONCTIONS GLOBALES =====
+// CORRIGER les fonctions globales à la fin de item-editor.js
+
+// ===== FONCTIONS GLOBALES CORRIGÉES =====
 
 window.itemEditorSelectItem = (itemId) => {
     window.adminPanel?.itemEditor?.selectItem(itemId);
@@ -1528,7 +1530,7 @@ window.itemEditorCreateNew = () => {
 };
 
 window.itemEditorSave = () => {
-    const result = window.adminPanel?.itemEditor?.saveItem();
+    window.adminPanel?.itemEditor?.saveItem();
     return false; // Toujours prévenir le comportement par défaut
 };
 
@@ -1540,8 +1542,16 @@ window.itemEditorDelete = () => {
     window.adminPanel?.itemEditor?.deleteItem();
 };
 
+window.itemEditorCancel = () => {
+    window.adminPanel?.itemEditor?.cancelEdit();
+};
+
 window.itemEditorRefresh = () => {
     window.adminPanel?.itemEditor?.refreshItems();
+};
+
+window.itemEditorExport = () => {
+    window.adminPanel?.itemEditor?.exportItems();
 };
 
 window.itemEditorClearFilters = () => {
@@ -1561,29 +1571,8 @@ window.itemEditorAddEffect = () => {
 };
 
 window.itemEditorEditEffect = (index) => {
-    console.log(`✏️ [ItemEditor] Édition effet ${index}`);
-    
-    const itemEditor = window.adminPanel?.itemEditor;
-    if (!itemEditor || !itemEditor.currentItem) {
-        console.error('❌ [ItemEditor] Pas d\'item sélectionné');
-        return false;
-    }
-
-    const effect = itemEditor.currentItem.effects?.[index];
-    if (!effect) {
-        console.error('❌ [ItemEditor] Effet non trouvé à l\'index', index);
-        return false;
-    }
-
-    // Pour l'instant, ouvrir une boîte de dialogue simple
-    const newName = prompt('Nom de l\'effet:', effect.name || effect.id || '');
-    if (newName !== null && newName.trim()) {
-        effect.name = newName.trim();
-        itemEditor.populateEffects(itemEditor.currentItem.effects);
-        itemEditor.unsavedChanges = true;
-        console.log(`✅ [ItemEditor] Effet ${index} modifié`);
-    }
-    
+    console.log(`✏️ [ItemEditor] Global: Édition effet ${index}`);
+    window.adminPanel?.itemEditor?.editEffect(index);
     return false;
 };
 
@@ -1596,32 +1585,10 @@ window.itemEditorAddObtainMethod = () => {
 };
 
 window.itemEditorEditObtainMethod = (index) => {
-    console.log(`✏️ [ItemEditor] Édition méthode ${index}`);
-    
-    const itemEditor = window.adminPanel?.itemEditor;
-    if (!itemEditor || !itemEditor.currentItem) {
-        console.error('❌ [ItemEditor] Pas d\'item sélectionné');
-        return false;
-    }
-
-    const method = itemEditor.currentItem.obtainMethods?.[index];
-    if (!method) {
-        console.error('❌ [ItemEditor] Méthode non trouvée à l\'index', index);
-        return false;
-    }
-
-    // Pour l'instant, modifier la localisation
-    const newLocation = prompt('Localisation:', method.location || '');
-    if (newLocation !== null) {
-        method.location = newLocation.trim();
-        itemEditor.populateObtainMethods(itemEditor.currentItem.obtainMethods);
-        itemEditor.unsavedChanges = true;
-        console.log(`✅ [ItemEditor] Méthode ${index} modifiée`);
-    }
-    
+    console.log(`✏️ [ItemEditor] Global: Édition méthode ${index}`);
+    window.adminPanel?.itemEditor?.editObtainMethod(index);
     return false;
 };
-
 
 window.itemEditorRemoveObtainMethod = (index) => {
     window.adminPanel?.itemEditor?.removeObtainMethod(index);
