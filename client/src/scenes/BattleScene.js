@@ -163,16 +163,19 @@ export class BattleScene extends Phaser.Scene {
 
   // === GESTION LANGUE ===
 
-  setupLanguageListener() {
-    if (window.optionsSystem) {
-      this.languageCleanupFunction = window.optionsSystem.addLanguageListener((newLang, oldLang) => {
-        this.onLanguageChanged(newLang, oldLang);
-      });
+    setupLanguageListener() {
+      // 🆕 VÉRIFICATION SÉCURISÉE
+      if (window.optionsSystem && typeof window.optionsSystem.addLanguageListener === 'function') {
+        this.languageCleanupFunction = window.optionsSystem.addLanguageListener((newLang, oldLang) => {
+          this.onLanguageChanged(newLang, oldLang);
+        });
+      } else {
+        console.log('ℹ️ [BattleScene] OptionsSystem non disponible, skip language listener');
+      }
+      
+      // Écouter également l'événement global
+      window.addEventListener('languageChanged', this.handleGlobalLanguageChange);
     }
-    
-    // Écouter également l'événement global
-    window.addEventListener('languageChanged', this.handleGlobalLanguageChange);
-  }
 
   handleGlobalLanguageChange = (event) => {
     const newLang = event.detail?.newLanguage;
@@ -370,9 +373,30 @@ export class BattleScene extends Phaser.Scene {
 
   // === BARRES DE VIE ===
 
-  createModernHealthBars() {
-    const { width, height } = this.cameras.main;
-    
+createModernHealthBars() {
+  console.log('🏥 [BattleScene] Création barres de vie modernes...');
+  
+  const { width, height } = this.cameras.main;
+  
+  // 🆕 NETTOYER LES ANCIENNES BARRES AVANT CRÉATION
+  if (this.modernHealthBars.player1?.container) {
+    try {
+      this.modernHealthBars.player1.container.destroy();
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction ancienne barre player1:', error);
+    }
+  }
+  
+  if (this.modernHealthBars.player2?.container) {
+    try {
+      this.modernHealthBars.player2.container.destroy();
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction ancienne barre player2:', error);
+    }
+  }
+  
+  // Créer les nouvelles barres
+  try {
     this.createModernHealthBar('player2', {
       x: width * 0.05,
       y: height * 0.05,
@@ -388,7 +412,18 @@ export class BattleScene extends Phaser.Scene {
       height: 80,
       isPlayer: true
     });
+    
+    console.log('✅ [BattleScene] Barres de vie créées avec succès');
+    
+    // 🆕 VÉRIFICATION POST-CRÉATION
+    console.log('🔍 [BattleScene] Vérification post-création:');
+    console.log('  - player1 container existe:', !!this.modernHealthBars.player1?.container);
+    console.log('  - player2 container existe:', !!this.modernHealthBars.player2?.container);
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur création barres de vie:', error);
   }
+}
 
   createModernHealthBar(type, config) {
     const container = this.add.container(config.x, config.y);
@@ -2218,45 +2253,63 @@ case 'bag':
   /**
    * 🆕 Traitement actionSelectionStart universel
    */
-  handleUniversalActionSelectionStart(data) {
-    console.log('🎯 [BattleScene] actionSelectionStart universel:', data);
+handleUniversalActionSelectionStart(data) {
+  console.log('🎯 [BattleScene] actionSelectionStart universel:', data);
+  
+  // 🆕 S'ASSURER QUE L'INTERFACE EST PRÊTE À CHAQUE TOUR
+  this.ensureBattleInterfaceReady();
+  
+  // 🆕 EXTRAIRE OPTIONS SWITCH UNIVERSELLES
+  this.canSwitch = data.canSwitch !== false;
+  this.availableSwitches = data.availableSwitches || [];
+  this.noTimeLimit = data.noTimeLimit !== false;
+  
+  // Extraire moves du joueur si présent
+  if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
+    const playerPokemon = data.gameState.player1.pokemon;
     
-    // 🆕 EXTRAIRE OPTIONS SWITCH UNIVERSELLES
-    this.canSwitch = data.canSwitch !== false;
-    this.availableSwitches = data.availableSwitches || [];
-    this.noTimeLimit = data.noTimeLimit !== false;
+    // 🆕 MISE À JOUR DU POKÉMON ACTUEL
+    this.currentPlayerPokemon = playerPokemon;
     
-    // Extraire moves du joueur si présent
-    if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
-      const playerPokemon = data.gameState.player1.pokemon;
+    if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
+      this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
       
-      if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
-        this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
-        
-        if (this.currentPlayerPokemon) {
-          this.currentPlayerPokemon.moves = this.currentPlayerMoves;
-        }
-      } else {
-        this.currentPlayerMoves = [];
+      if (this.currentPlayerPokemon) {
+        this.currentPlayerPokemon.moves = this.currentPlayerMoves;
       }
     } else {
       this.currentPlayerMoves = [];
     }
     
-    // 🆕 NOTIFIER ÉQUIPE SI CHANGEMENTS DISPONIBLES
-    if (this.canSwitch && this.availableSwitches.length > 0) {
-      console.log('🔄 [BattleScene] Changements disponibles:', this.availableSwitches.length);
-      this.events.emit('switchingAvailable', {
-        availableCount: this.availableSwitches.length,
-        canSwitch: this.canSwitch,
-        battleType: this.battleType,
-        isMultiPokemonBattle: this.isMultiPokemonBattle
-      });
-    }
-    
-    this.showActionButtons();
+    // 🆕 METTRE À JOUR LA BARRE DE VIE DU JOUEUR
+    console.log('🩺 [BattleScene] Mise à jour HP joueur depuis actionSelection:', playerPokemon);
+    this.updateModernHealthBar('player1', playerPokemon);
+  } else {
+    this.currentPlayerMoves = [];
   }
-
+  
+  // 🆕 TRAITER POKÉMON ADVERSAIRE SI PRÉSENT
+  if (data.gameState && data.gameState.player2 && data.gameState.player2.pokemon) {
+    const opponentPokemon = data.gameState.player2.pokemon;
+    this.currentOpponentPokemon = opponentPokemon;
+    
+    console.log('🩺 [BattleScene] Mise à jour HP adversaire depuis actionSelection:', opponentPokemon);
+    this.updateModernHealthBar('player2', opponentPokemon);
+  }
+  
+  // 🆕 NOTIFIER ÉQUIPE SI CHANGEMENTS DISPONIBLES
+  if (this.canSwitch && this.availableSwitches.length > 0) {
+    console.log('🔄 [BattleScene] Changements disponibles:', this.availableSwitches.length);
+    this.events.emit('switchingAvailable', {
+      availableCount: this.availableSwitches.length,
+      canSwitch: this.canSwitch,
+      battleType: this.battleType,
+      isMultiPokemonBattle: this.isMultiPokemonBattle
+    });
+  }
+  
+  this.showActionButtons();
+}
   /**
    * 🆕 Traitement phaseChanged universel
    */
@@ -3034,18 +3087,28 @@ completeBattleCleanup(battleResult) {
 }
 debugHealthBarsState() {
   console.log('🔍 [DEBUG] État des barres de vie:');
-  console.log('  - modernHealthBars:', this.modernHealthBars);
+  console.log('  - modernHealthBars objet:', this.modernHealthBars);
   console.log('  - player1 existe:', !!this.modernHealthBars?.player1);
   console.log('  - player2 existe:', !!this.modernHealthBars?.player2);
   
   if (this.modernHealthBars?.player1) {
-    console.log('  - player1.container:', !!this.modernHealthBars.player1.container);
-    console.log('  - player1.container.visible:', this.modernHealthBars.player1.container?.visible);
+    const p1 = this.modernHealthBars.player1;
+    console.log('  - player1.container:', !!p1.container);
+    console.log('  - player1.container.visible:', p1.container?.visible);
+    console.log('  - player1.container.alpha:', p1.container?.alpha);
+    console.log('  - player1.container.depth:', p1.container?.depth);
+    console.log('  - player1.container.x:', p1.container?.x);
+    console.log('  - player1.container.y:', p1.container?.y);
   }
   
   if (this.modernHealthBars?.player2) {
-    console.log('  - player2.container:', !!this.modernHealthBars.player2.container);
-    console.log('  - player2.container.visible:', this.modernHealthBars.player2.container?.visible);
+    const p2 = this.modernHealthBars.player2;
+    console.log('  - player2.container:', !!p2.container);
+    console.log('  - player2.container.visible:', p2.container?.visible);
+    console.log('  - player2.container.alpha:', p2.container?.alpha);
+    console.log('  - player2.container.depth:', p2.container?.depth);
+    console.log('  - player2.container.x:', p2.container?.x);
+    console.log('  - player2.container.y:', p2.container?.y);
   }
   
   // Vérifier tous les containers dans la scène
@@ -3053,8 +3116,15 @@ debugHealthBarsState() {
   console.log('  - Containers totaux dans la scène:', allContainers.length);
   
   allContainers.forEach((container, index) => {
-    console.log(`    Container ${index}: visible=${container.visible}, depth=${container.depth}, x=${container.x}, y=${container.y}`);
+    if (container.depth >= 180) { // Profondeur des barres de vie
+      console.log(`    HealthBar Container ${index}: visible=${container.visible}, depth=${container.depth}, x=${container.x}, y=${container.y}, alpha=${container.alpha}`);
+    }
   });
+  
+  // Vérifier l'état de la scène elle-même
+  console.log('  - Scène visible:', this.scene.isVisible());
+  console.log('  - Scène active:', this.scene.isActive());
+  console.log('  - isVisible flag:', this.isVisible);
 }
 
 // Modifier la méthode ensureBattleInterfaceReady pour ajouter plus de debug :
