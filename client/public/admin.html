@@ -457,7 +457,7 @@
     </div>
 </div>
 
-<!-- Panel Items - VERSION CORRIGÉE -->
+<!-- Panel Items - VERSION CORRIGÉE avec type="button" -->
 <div class="panel" id="items">
     <div class="item-editor-container">
         
@@ -518,13 +518,13 @@
                 </div>
                 
                 <div class="item-editor-header-actions">
-                    <button class="item-editor-btn item-editor-btn-success" onclick="window.itemEditorCreateNew()">
+                    <button type="button" class="item-editor-btn item-editor-btn-success" onclick="window.itemEditorCreateNew()">
                         <i class="fas fa-plus"></i> Nouvel Item
                     </button>
-                    <button class="item-editor-btn item-editor-btn-info" onclick="window.itemEditorRefresh()">
+                    <button type="button" class="item-editor-btn item-editor-btn-info" onclick="window.itemEditorRefresh()">
                         <i class="fas fa-sync-alt"></i> Actualiser
                     </button>
-                    <button class="item-editor-btn item-editor-btn-secondary" onclick="window.itemEditorExport()">
+                    <button type="button" class="item-editor-btn item-editor-btn-secondary" onclick="window.itemEditorExport()">
                         <i class="fas fa-download"></i> Exporter
                     </button>
                 </div>
@@ -577,11 +577,11 @@
                         0-0 sur 0 items
                     </div>
                     <div class="item-editor-pagination">
-                        <button class="item-editor-page-btn" id="itemsPrevBtn" onclick="window.itemEditorPreviousPage()">
+                        <button type="button" class="item-editor-page-btn" id="itemsPrevBtn" onclick="window.itemEditorPreviousPage()">
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span id="itemsPageInfo">1 / 1</span>
-                        <button class="item-editor-page-btn" id="itemsNextBtn" onclick="window.itemEditorNextPage()">
+                        <button type="button" class="item-editor-page-btn" id="itemsNextBtn" onclick="window.itemEditorNextPage()">
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
@@ -596,16 +596,16 @@
                     </h2>
                     
                     <div class="item-editor-panel-actions" id="itemEditorActions" style="display: none;">
-                        <button class="item-editor-btn item-editor-btn-success" id="saveItemBtn" onclick="window.itemEditorSave()" disabled>
+                        <button type="button" class="item-editor-btn item-editor-btn-success" id="saveItemBtn" onclick="window.itemEditorSave()" disabled>
                             <i class="fas fa-save"></i> Enregistrer
                         </button>
-                        <button class="item-editor-btn item-editor-btn-warning" onclick="window.itemEditorDuplicate()">
+                        <button type="button" class="item-editor-btn item-editor-btn-warning" onclick="window.itemEditorDuplicate()">
                             <i class="fas fa-copy"></i> Dupliquer
                         </button>
-                        <button class="item-editor-btn item-editor-btn-secondary" onclick="window.itemEditorCancel()">
+                        <button type="button" class="item-editor-btn item-editor-btn-secondary" onclick="window.itemEditorCancel()">
                             <i class="fas fa-times"></i> Annuler
                         </button>
-                        <button class="item-editor-btn item-editor-btn-danger" onclick="window.itemEditorDelete()">
+                        <button type="button" class="item-editor-btn item-editor-btn-danger" onclick="window.itemEditorDelete()">
                             <i class="fas fa-trash"></i> Supprimer
                         </button>
                     </div>
@@ -621,13 +621,13 @@
                         <p class="item-editor__empty-subtitle">
                             Choisissez un item dans la liste ou créez-en un nouveau pour commencer l'édition.
                         </p>
-                        <button class="item-editor-btn item-editor-btn-primary" onclick="window.itemEditorCreateNew()">
+                        <button type="button" class="item-editor-btn item-editor-btn-primary" onclick="window.itemEditorCreateNew()">
                             <i class="fas fa-plus"></i> Créer un nouvel item
                         </button>
                     </div>
                     
                     <!-- Formulaire d'édition -->
-                    <form class="item-editor-form" id="itemEditorForm" style="display: none;">
+                    <form class="item-editor-form" id="itemEditorForm" style="display: none;" autocomplete="off" onsubmit="return false;">
                         
                         <!-- Section Informations de base -->
                         <div class="item-editor-form-section">
@@ -654,6 +654,7 @@
                                             class="item-editor-form-input"
                                             placeholder="ex: potion"
                                             required
+                                            autocomplete="off"
                                         />
                                         <div class="item-editor-field-help">
                                             Identifiant unique (lettres minuscules, chiffres, tirets et underscores uniquement)
@@ -672,6 +673,7 @@
                                             class="item-editor-form-input"
                                             placeholder="ex: Potion"
                                             required
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
@@ -725,6 +727,7 @@
                                             name="sprite"
                                             class="item-editor-form-input"
                                             placeholder="ex: potion.png"
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
@@ -736,6 +739,7 @@
                                             name="tags"
                                             class="item-editor-form-input"
                                             placeholder="tag1, tag2, tag3"
+                                            autocomplete="off"
                                         />
                                         <div class="item-editor-field-help">Séparez les tags par des virgules</div>
                                     </div>
@@ -779,6 +783,7 @@
                                             class="item-editor-form-input"
                                             min="0"
                                             placeholder="0 = gratuit"
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
@@ -791,6 +796,7 @@
                                             class="item-editor-form-input"
                                             min="0"
                                             placeholder="Auto = prix d'achat / 2"
+                                            autocomplete="off"
                                         />
                                     </div>
                                 </div>
@@ -878,6 +884,7 @@
                                             min="1"
                                             max="100"
                                             placeholder="Aucune restriction"
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
@@ -889,6 +896,7 @@
                                             name="locationRestrictions"
                                             class="item-editor-form-input"
                                             placeholder="zone1, zone2, zone3"
+                                            autocomplete="off"
                                         />
                                         <div class="item-editor-field-help">Zones où l'item peut être utilisé (optionnel)</div>
                                     </div>
@@ -965,6 +973,7 @@
                                             name="version"
                                             class="item-editor-form-input"
                                             placeholder="2.0.0"
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
@@ -976,6 +985,7 @@
                                             name="sourceFile"
                                             class="item-editor-form-input"
                                             placeholder="admin_editor"
+                                            autocomplete="off"
                                         />
                                     </div>
                                     
