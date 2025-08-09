@@ -2158,40 +2158,43 @@ case 'bag':
   /**
    * 🆕 Traitement battleStart universel
    */
-  handleUniversalBattleStart(data) {
-    console.log('⚔️ [BattleScene] Traitement battleStart universel:', data);
-    
-    // Extraire propriétés Universal Switch
-    this.isMultiPokemonBattle = data.isMultiPokemonBattle || false;
-    this.switchingEnabled = data.switchingEnabled || false;
-    this.battleType = data.gameState?.type || 'wild';
-    
-    console.log(`🔍 [BattleScene] État détecté:`, {
-      type: this.battleType,
-      multiPokemon: this.isMultiPokemonBattle,
-      switchingEnabled: this.switchingEnabled
-    });
-    
-    // Traitement classique
-    if (data.isNarrative || data.duration) {
-      return;
-    }
-    
-    const playerPokemon = data.playerPokemon || data.gameState?.player1?.pokemon;
-    const opponentPokemon = data.opponentPokemon || data.gameState?.player2?.pokemon;
-    
-    if (playerPokemon) {
-      this.displayPlayerPokemon(playerPokemon);
-    }
-    
-    if (opponentPokemon) {
-      this.displayOpponentPokemon(opponentPokemon);
-    }
-    
-    this.activateBattleUI();
-    this.isVisible = true;
-    this.startBattleIntroSequence(opponentPokemon);
+ handleUniversalBattleStart(data) {
+  console.log('⚔️ [BattleScene] Traitement battleStart universel:', data);
+  
+  // 🆕 S'ASSURER QUE L'INTERFACE EST PRÊTE
+  this.ensureBattleInterfaceReady();
+  
+  // Extraire propriétés Universal Switch
+  this.isMultiPokemonBattle = data.isMultiPokemonBattle || false;
+  this.switchingEnabled = data.switchingEnabled || false;
+  this.battleType = data.gameState?.type || 'wild';
+  
+  console.log(`🔍 [BattleScene] État détecté:`, {
+    type: this.battleType,
+    multiPokemon: this.isMultiPokemonBattle,
+    switchingEnabled: this.switchingEnabled
+  });
+  
+  // Traitement classique
+  if (data.isNarrative || data.duration) {
+    return;
   }
+  
+  const playerPokemon = data.playerPokemon || data.gameState?.player1?.pokemon;
+  const opponentPokemon = data.opponentPokemon || data.gameState?.player2?.pokemon;
+  
+  if (playerPokemon) {
+    this.displayPlayerPokemon(playerPokemon);
+  }
+  
+  if (opponentPokemon) {
+    this.displayOpponentPokemon(opponentPokemon);
+  }
+  
+  this.activateBattleUI();
+  this.isVisible = true;
+  this.startBattleIntroSequence(opponentPokemon);
+}
 
   /**
    * 🆕 Traitement actionSelectionStart universel
@@ -2857,24 +2860,29 @@ initializeCaptureManager() {
 
   // === CONTRÔLES PUBLICS ===
 
-  startBattle(battleData) {
-    if (!this.isActive) {
-      console.error('Scène non active');
-      return;
-    }
-
-    try {
-      if (window.pokemonUISystem?.setGameState) {
-        window.pokemonUISystem.setGameState('battle', { animated: true });
-      } else if (window.uiManager?.setGameState) {
-        window.uiManager.setGameState('battle', { animated: true });
-      }
-    } catch (error) {
-      console.error('Erreur notification UIManager:', error);
-    }
-    
-    this.handleUniversalBattleStart(battleData);
+startBattle(battleData) {
+  if (!this.isActive) {
+    console.error('❌ [BattleScene] Scène non active');
+    return;
   }
+
+  console.log('🎮 [BattleScene] Démarrage combat avec données:', battleData);
+  
+  // 🆕 S'ASSURER QUE L'INTERFACE EST PRÊTE
+  this.ensureBattleInterfaceReady();
+
+  try {
+    if (window.pokemonUISystem?.setGameState) {
+      window.pokemonUISystem.setGameState('battle', { animated: true });
+    } else if (window.uiManager?.setGameState) {
+      window.uiManager.setGameState('battle', { animated: true });
+    }
+  } catch (error) {
+    console.error('❌ Erreur notification UIManager:', error);
+  }
+  
+  this.handleUniversalBattleStart(battleData);
+}
 
   activateFromTransition() {
     if (!this.isReadyForActivation) {
@@ -3005,7 +3013,53 @@ completeBattleCleanup(battleResult) {
   
   console.log('✅ [BattleScene] Nettoyage complet terminé');
 }
-
+ensureBattleInterfaceReady() {
+  console.log('🔧 [BattleScene] Vérification interface combat...');
+  
+  // Vérifier et recréer les barres de vie si nécessaire
+  if (!this.modernHealthBars.player1 || !this.modernHealthBars.player2) {
+    console.log('🔧 [BattleScene] Recréation des barres de vie...');
+    this.createModernHealthBars();
+  }
+  
+  // Vérifier l'interface d'action
+  if (!this.actionInterface) {
+    console.log('🔧 [BattleScene] Recréation interface d\'action...');
+    this.createModernActionInterface();
+  }
+  
+  // Vérifier le dialogue de combat
+  if (!this.battleDialog) {
+    console.log('🔧 [BattleScene] Recréation dialogue combat...');
+    this.createModernBattleDialog();
+  }
+  
+  // Vérifier le HealthBarManager
+  if (!this.healthBarManager) {
+    console.log('🔧 [BattleScene] Recréation HealthBarManager...');
+    this.healthBarManager = new HealthBarManager(this);
+  }
+  
+  // Vérifier le KOManager
+  if (!this.koManager) {
+    console.log('🔧 [BattleScene] Recréation KOManager...');
+    this.initializeKOManager();
+  }
+  
+  // Vérifier l'interface équipe
+  if (!this.pokemonTeamUI) {
+    console.log('🔧 [BattleScene] Recréation interface équipe...');
+    this.ensurePokemonTeamUI();
+  }
+  
+  // Vérifier le CaptureManager
+  if (!this.captureManager && this.battleNetworkHandler) {
+    console.log('🔧 [BattleScene] Recréation CaptureManager...');
+    this.initializeCaptureManager();
+  }
+  
+  console.log('✅ [BattleScene] Interface combat vérifiée/recréée');
+}
 // 🆕 NOUVELLE MÉTHODE : Nettoyage des barres de vie
 clearAllHealthBars() {
   console.log('🧹 [BattleScene] Nettoyage barres de vie...');
@@ -3014,6 +3068,9 @@ clearAllHealthBars() {
     const healthBar = this.modernHealthBars[key];
     if (healthBar?.container) {
       try {
+        // Cacher au lieu de détruire immédiatement
+        healthBar.container.setVisible(false);
+        // Détruire seulement si on est sûr de pouvoir recréer
         healthBar.container.destroy();
       } catch (error) {
         console.warn(`⚠️ Erreur destruction barre de vie ${key}:`, error);
