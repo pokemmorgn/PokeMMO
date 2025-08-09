@@ -96,70 +96,104 @@ export class ItemEditorModule {
     }
 
     setupEventListeners() {
-        console.log('🔧 [ItemEditor] Configuration des event listeners');
+    console.log('🔧 [ItemEditor] Configuration des event listeners');
 
-        // DÉLÉGATION D'ÉVÉNEMENTS
-        document.addEventListener('change', (e) => {
-            const tag = (e.target?.tagName || '').toUpperCase();
-            if (tag !== 'SELECT') return;
-
-            const id = (e.target.id || '').toLowerCase();
-            const cls = (e.target.className || '').toLowerCase();
-
-            // Catégorie
-            if (id.includes('category') || cls.includes('category') || e.target.closest('[class*="category"]')) {
-                this.currentFilters.category = e.target.value;
-                this.currentPage = 1;
-                this.applyFilters();
-                return;
-            }
-            // Génération
-            if (id.includes('generation') || cls.includes('generation') || e.target.closest('[class*="generation"]')) {
-                this.currentFilters.generation = e.target.value;
-                this.currentPage = 1;
-                this.applyFilters();
-                return;
-            }
-            // Rareté
-            if (id.includes('rarity') || cls.includes('rarity') || e.target.closest('[class*="rarity"]')) {
-                this.currentFilters.rarity = e.target.value;
-                this.currentPage = 1;
-                this.applyFilters();
-                return;
-            }
+    // ✅ PRÉVENIR LA SOUMISSION DU FORMULAIRE
+    const itemForm = document.getElementById('itemEditorForm');
+    if (itemForm) {
+        itemForm.addEventListener('submit', (e) => {
+            console.log('🛑 [ItemEditor] Prévention soumission formulaire');
+            e.preventDefault();
+            return false;
         });
-
-        // Recherche avec debounce
-        document.addEventListener('input', (e) => {
-            const isText = e.target?.tagName === 'INPUT' || e.target?.type === 'text';
-            const hasSearchPlaceholder = (e.target?.placeholder || '').toLowerCase().includes('recherch');
-            if (!isText || !hasSearchPlaceholder) return;
-
-            clearTimeout(this.searchTimeout);
-            this.searchTimeout = setTimeout(() => {
-                this.currentFilters.search = e.target.value || '';
-                this.currentPage = 1;
-                this.applyFilters();
-            }, 300);
-        });
-
-        // Raccourci clavier: Ctrl+S
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 's' && this.selectedItemId) {
-                e.preventDefault();
-                this.saveItem();
-            }
-        });
-
-        // Marquer les changements de formulaire
-        const form = this.findElement('[id*="editorForm"], .editor-form, form');
-        if (form) {
-            form.addEventListener('input', () => { this.unsavedChanges = true; });
-            form.addEventListener('change', () => { this.unsavedChanges = true; });
-        }
-
-        console.log('✅ [ItemEditor] Event listeners configurés');
     }
+
+    // DÉLÉGATION D'ÉVÉNEMENTS pour les sélects
+    document.addEventListener('change', (e) => {
+        const tag = (e.target?.tagName || '').toUpperCase();
+        if (tag !== 'SELECT') return;
+
+        const id = (e.target.id || '').toLowerCase();
+        const cls = (e.target.className || '').toLowerCase();
+
+        // Catégorie
+        if (id.includes('category') || cls.includes('category') || e.target.closest('[class*="category"]')) {
+            this.currentFilters.category = e.target.value;
+            this.currentPage = 1;
+            this.applyFilters();
+            return;
+        }
+        // Génération
+        if (id.includes('generation') || cls.includes('generation') || e.target.closest('[class*="generation"]')) {
+            this.currentFilters.generation = e.target.value;
+            this.currentPage = 1;
+            this.applyFilters();
+            return;
+        }
+        // Rareté
+        if (id.includes('rarity') || cls.includes('rarity') || e.target.closest('[class*="rarity"]')) {
+            this.currentFilters.rarity = e.target.value;
+            this.currentPage = 1;
+            this.applyFilters();
+            return;
+        }
+    });
+
+    // Recherche avec debounce
+    document.addEventListener('input', (e) => {
+        const isText = e.target?.tagName === 'INPUT' || e.target?.type === 'text';
+        const hasSearchPlaceholder = (e.target?.placeholder || '').toLowerCase().includes('recherch');
+        if (!isText || !hasSearchPlaceholder) return;
+
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+            this.currentFilters.search = e.target.value || '';
+            this.currentPage = 1;
+            this.applyFilters();
+        }, 300);
+    });
+
+    // ✅ PRÉVENIR TOUS LES CLICS SUR LES BOUTONS DANS LE FORMULAIRE
+    document.addEventListener('click', (e) => {
+        const button = e.target.closest('button');
+        if (!button) return;
+
+        // Si le bouton est dans le formulaire itemEditorForm, prévenir le comportement par défaut
+        const form = button.closest('#itemEditorForm');
+        if (form) {
+            console.log('🛑 [ItemEditor] Prévention comportement bouton dans formulaire');
+            e.preventDefault();
+            
+            // Identifier le type de bouton par son onclick ou ses classes
+            const onclickAttr = button.getAttribute('onclick');
+            if (onclickAttr) {
+                // Exécuter manuellement la fonction onclick
+                try {
+                    eval(onclickAttr);
+                } catch (error) {
+                    console.error('❌ [ItemEditor] Erreur exécution onclick:', error);
+                }
+            }
+            return false;
+        }
+    });
+
+    // Raccourci clavier: Ctrl+S
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 's' && this.selectedItemId) {
+            e.preventDefault();
+            this.saveItem();
+        }
+    });
+
+    // Marquer les changements de formulaire
+    if (itemForm) {
+        itemForm.addEventListener('input', () => { this.unsavedChanges = true; });
+        itemForm.addEventListener('change', () => { this.unsavedChanges = true; });
+    }
+
+    console.log('✅ [ItemEditor] Event listeners configurés avec prévention submit');
+}
 
     // ===== CHARGEMENT DES DONNÉES =====
 async loadStats() {
@@ -686,8 +720,7 @@ checkItemEditorElements() {
         this.populateObtainMethods(item.obtainMethods || []);
     }
 
-    populateEffects(effects) {
-    // ✅ SÉLECTEUR CORRIGÉ
+   populateEffects(effects) {
     const container = document.getElementById('itemEffectsList');
     if (!container) {
         console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
@@ -699,7 +732,7 @@ checkItemEditorElements() {
             <div style="padding: 2rem; text-align: center; color: #666;">
                 <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
                 <p>Aucun effet défini</p>
-                <button onclick="window.itemEditorAddEffect()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <button type="button" onclick="window.itemEditorAddEffect(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter un effet
                 </button>
             </div>
@@ -715,10 +748,10 @@ checkItemEditorElements() {
                     <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
                 </div>
                 <div>
-                    <button onclick="window.itemEditorEditEffect(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                    <button type="button" onclick="window.itemEditorEditEffect(${index}); return false;" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="window.itemEditorRemoveEffect(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                    <button type="button" onclick="window.itemEditorRemoveEffect(${index}); return false;" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -732,15 +765,14 @@ checkItemEditorElements() {
         </div>
     `).join('') + `
         <div style="text-align: center; margin: 1rem 0;">
-            <button onclick="window.itemEditorAddEffect()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+            <button type="button" onclick="window.itemEditorAddEffect(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                 <i class="fas fa-plus"></i> Ajouter un effet
             </button>
         </div>
     `;
 }
 
-    populateObtainMethods(methods) {
-    // ✅ SÉLECTEUR CORRIGÉ
+   populateObtainMethods(methods) {
     const container = document.getElementById('itemObtainMethodsList');
     if (!container) {
         console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
@@ -752,7 +784,7 @@ checkItemEditorElements() {
             <div style="padding: 2rem; text-align: center; color: #666;">
                 <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
                 <p>Aucune méthode définie</p>
-                <button onclick="window.itemEditorAddObtainMethod()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <button type="button" onclick="window.itemEditorAddObtainMethod(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter une méthode
                 </button>
             </div>
@@ -768,10 +800,10 @@ checkItemEditorElements() {
                     ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
                 </div>
                 <div>
-                    <button onclick="window.itemEditorEditObtainMethod(${index})" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                    <button type="button" onclick="window.itemEditorEditObtainMethod(${index}); return false;" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="window.itemEditorRemoveObtainMethod(${index})" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                    <button type="button" onclick="window.itemEditorRemoveObtainMethod(${index}); return false;" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -784,61 +816,66 @@ checkItemEditorElements() {
         </div>
     `).join('') + `
         <div style="text-align: center; margin: 1rem 0;">
-            <button onclick="window.itemEditorAddObtainMethod()" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+            <button type="button" onclick="window.itemEditorAddObtainMethod(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                 <i class="fas fa-plus"></i> Ajouter une méthode
             </button>
         </div>
     `;
 }
-
     // ===== ACTIONS =====
 
     async saveItem() {
-        console.log('💾 [ItemEditor] Sauvegarde item');
+    console.log('💾 [ItemEditor] Sauvegarde item (prévention rechargement)');
 
-        if (!this.validateForm()) return;
+    if (!this.validateForm()) {
+        console.log('❌ [ItemEditor] Validation formulaire échouée');
+        return false;
+    }
 
-        try {
-            const formData = this.gatherFormData();
-            let response;
+    try {
+        const formData = this.gatherFormData();
+        let response;
+
+        if (this.selectedItemId === 'new') {
+            response = await this.api('/items', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+        } else {
+            response = await this.api(`/items/${this.selectedItemId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+        }
+
+        if (response.success) {
+            this.unsavedChanges = false;
+            this.adminPanel.showNotification(
+                this.selectedItemId === 'new' ? 'Item créé' : 'Item mis à jour',
+                'success'
+            );
+
+            await this.loadItems();
+            await this.loadStats();
+            this.updateStatsHeader();
+            this.initializeDropdowns();
 
             if (this.selectedItemId === 'new') {
-                response = await this.api('/items', {
-                    method: 'POST',
-                    body: JSON.stringify(formData)
-                });
-            } else {
-                response = await this.api(`/items/${this.selectedItemId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(formData)
-                });
+                this.selectedItemId = formData.itemId;
+                await this.selectItem(this.selectedItemId);
             }
-
-            if (response.success) {
-                this.unsavedChanges = false;
-                this.adminPanel.showNotification(
-                    this.selectedItemId === 'new' ? 'Item créé' : 'Item mis à jour',
-                    'success'
-                );
-
-                await this.loadItems();
-                await this.loadStats();
-                this.updateStatsHeader();   // <-- NEW
-
-                this.initializeDropdowns();
-
-                if (this.selectedItemId === 'new') {
-                    this.selectedItemId = formData.itemId;
-                    await this.selectItem(this.selectedItemId);
-                }
-            } else {
-                throw new Error(response.error);
-            }
-        } catch (error) {
-            console.error('❌ [ItemEditor] Erreur sauvegarde:', error);
-            this.adminPanel.showNotification('Erreur: ' + error.message, 'error');
+            
+            console.log('✅ [ItemEditor] Sauvegarde réussie');
+            return true;
+        } else {
+            throw new Error(response.error);
         }
+    } catch (error) {
+        console.error('❌ [ItemEditor] Erreur sauvegarde:', error);
+        this.adminPanel.showNotification('Erreur: ' + error.message, 'error');
+        return false;
     }
+}
 
     validateForm() {
         const itemId = this.getFieldValue('itemId');
@@ -1328,7 +1365,8 @@ window.itemEditorCreateNew = () => {
 };
 
 window.itemEditorSave = () => {
-    window.adminPanel?.itemEditor?.saveItem();
+    const result = window.adminPanel?.itemEditor?.saveItem();
+    return false; // Toujours prévenir le comportement par défaut
 };
 
 window.itemEditorDuplicate = () => {
@@ -1360,7 +1398,30 @@ window.itemEditorAddEffect = () => {
 };
 
 window.itemEditorEditEffect = (index) => {
-    console.log(`✏️ Édition effet ${index} - À implémenter`);
+    console.log(`✏️ [ItemEditor] Édition effet ${index}`);
+    
+    const itemEditor = window.adminPanel?.itemEditor;
+    if (!itemEditor || !itemEditor.currentItem) {
+        console.error('❌ [ItemEditor] Pas d\'item sélectionné');
+        return false;
+    }
+
+    const effect = itemEditor.currentItem.effects?.[index];
+    if (!effect) {
+        console.error('❌ [ItemEditor] Effet non trouvé à l\'index', index);
+        return false;
+    }
+
+    // Pour l'instant, ouvrir une boîte de dialogue simple
+    const newName = prompt('Nom de l\'effet:', effect.name || effect.id || '');
+    if (newName !== null && newName.trim()) {
+        effect.name = newName.trim();
+        itemEditor.populateEffects(itemEditor.currentItem.effects);
+        itemEditor.unsavedChanges = true;
+        console.log(`✅ [ItemEditor] Effet ${index} modifié`);
+    }
+    
+    return false;
 };
 
 window.itemEditorRemoveEffect = (index) => {
@@ -1372,8 +1433,32 @@ window.itemEditorAddObtainMethod = () => {
 };
 
 window.itemEditorEditObtainMethod = (index) => {
-    console.log(`✏️ Édition méthode ${index} - À implémenter`);
+    console.log(`✏️ [ItemEditor] Édition méthode ${index}`);
+    
+    const itemEditor = window.adminPanel?.itemEditor;
+    if (!itemEditor || !itemEditor.currentItem) {
+        console.error('❌ [ItemEditor] Pas d\'item sélectionné');
+        return false;
+    }
+
+    const method = itemEditor.currentItem.obtainMethods?.[index];
+    if (!method) {
+        console.error('❌ [ItemEditor] Méthode non trouvée à l\'index', index);
+        return false;
+    }
+
+    // Pour l'instant, modifier la localisation
+    const newLocation = prompt('Localisation:', method.location || '');
+    if (newLocation !== null) {
+        method.location = newLocation.trim();
+        itemEditor.populateObtainMethods(itemEditor.currentItem.obtainMethods);
+        itemEditor.unsavedChanges = true;
+        console.log(`✅ [ItemEditor] Méthode ${index} modifiée`);
+    }
+    
+    return false;
 };
+
 
 window.itemEditorRemoveObtainMethod = (index) => {
     window.adminPanel?.itemEditor?.removeObtainMethod(index);
