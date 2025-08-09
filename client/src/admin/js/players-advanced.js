@@ -1,5 +1,6 @@
 // client/src/admin/js/players-advanced.js
 // Extension du module Players pour la gestion avancée (équipes, inventaires, Pokédex)
+// VERSION COMPLÈTE avec autocomplétion des items
 
 export class PlayersAdvancedModule {
     constructor(adminPanel) {
@@ -7,6 +8,9 @@ export class PlayersAdvancedModule {
         this.name = 'playersAdvanced'
         this.currentPlayerData = null
         this.currentAdvancedTab = 'team'
+        this.itemsCache = null // Cache pour les items
+        this.itemsLoaded = false
+        this.selectedItemId = null // Item sélectionné pour ajout
         
         console.log('🎮 [PlayersAdvanced] Module d\'extension initialisé')
         this.init()
@@ -112,6 +116,36 @@ export class PlayersAdvancedModule {
         }
     }
 
+    // ✅ NOUVELLE MÉTHODE: Charger les items depuis l'API
+    async loadItemsFromAPI() {
+        if (this.itemsLoaded && this.itemsCache) {
+            console.log('📦 [PlayersAdvanced] Items déjà en cache')
+            return this.itemsCache
+        }
+
+        try {
+            console.log('📦 [PlayersAdvanced] Chargement des items depuis l\'API...')
+            this.adminPanel.showLoading('itemsLoading', true)
+            
+            // Utiliser la route existante qui retourne les items formatés
+            const itemsData = await this.adminPanel.apiCall('/items')
+            
+            // itemsData est déjà un objet { itemId: {...}, itemId2: {...} }
+            this.itemsCache = itemsData
+            this.itemsLoaded = true
+            
+            console.log(`✅ [PlayersAdvanced] ${Object.keys(itemsData).length} items chargés`)
+            return itemsData
+            
+        } catch (error) {
+            console.error('❌ [PlayersAdvanced] Erreur chargement items:', error)
+            this.adminPanel.showNotification('Erreur chargement items: ' + error.message, 'error')
+            return {}
+        } finally {
+            this.adminPanel.showLoading('itemsLoading', false)
+        }
+    }
+
     showAdvancedModal() {
         const modal = document.getElementById('advancedPlayerModal')
         if (!modal) {
@@ -195,7 +229,7 @@ export class PlayersAdvancedModule {
         }
 
         container.innerHTML = `
-            <div style="margin-bottom: 20px; display: flex; justify-content: between; align-items: center;">
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
                 <h4 style="margin: 0; color: #2c3e50;">
                     <i class="fas fa-users"></i> Équipe Pokémon (${teamData.pokemon.length}/6)
                 </h4>
@@ -257,7 +291,7 @@ export class PlayersAdvancedModule {
                         <div>DEF: ${pokemon.stats.defense}</div>
                         <div>SP.ATT: ${pokemon.stats.specialAttack}</div>
                         <div>SP.DEF: ${pokemon.stats.specialDefense}</div>
-                        <div colspan="2">SPEED: ${pokemon.stats.speed}</div>
+                        <div style="grid-column: span 2; text-align: center;">SPEED: ${pokemon.stats.speed}</div>
                     </div>
                 </div>
                 
@@ -439,6 +473,442 @@ export class PlayersAdvancedModule {
         `
     }
 
+    // ✅ MÉTHODE AMÉLIORÉE: Interface d'ajout d'item avec autocomplétion
+    async addItemToInventory() {
+        if (!this.currentPlayerData) {
+            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+            return
+        }
+
+        // Charger les items si pas encore fait
+        const items = await this.loadItemsFromAPI()
+        if (!items || Object.keys(items).length === 0) {
+            this.adminPanel.showNotification('Impossible de charger la liste des items', 'error')
+            return
+        }
+
+        // Créer le modal d'ajout d'item avec autocomplétion
+        this.showAddItemModal(items)
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Créer le modal d'ajout d'item
+    showAddItemModal(items) {
+        // Supprimer le modal existant s'il y en a un
+        const existingModal = document.getElementById('addItemModal')
+        if (existingModal) {
+            existingModal.remove()
+        }
+
+        // Créer le modal
+        const modal = document.createElement('div')
+        modal.className = 'modal'
+        modal.id = 'addItemModal'
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h3 style="margin-bottom: 25px; color: #2c3e50;">
+                    <i class="fas fa-plus-circle"></i> Ajouter un Objet à l'Inventaire
+                    <span style="font-size: 0.8rem; color: #6c757d; font-weight: normal;">
+                        - ${this.currentPlayerData.username}
+                    </span>
+                </h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                        <i class="fas fa-search"></i> Rechercher un objet:
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" 
+                               id="itemSearchInput" 
+                               placeholder="Tapez pour rechercher un objet..."
+                               style="width: 100%; padding: 12px 40px 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;"
+                               autocomplete="off">
+                        <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                        
+                        <!-- Liste d'autocomplétion -->
+                        <div id="itemSuggestions" style="
+                            position: absolute;
+                            top: 100%;
+                            left: 0;
+                            right: 0;
+                            background: white;
+                            border: 2px solid #e9ecef;
+                            border-top: none;
+                            border-radius: 0 0 8px 8px;
+                            max-height: 300px;
+                            overflow-y: auto;
+                            z-index: 1000;
+                            display: none;
+                        "></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                        <i class="fas fa-tag"></i> Catégorie:
+                    </label>
+                    <select id="itemCategory" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                        <option value="items">📦 Objets</option>
+                        <option value="medicine">💊 Médecine</option>
+                        <option value="balls">⚽ Poké Balls</option>
+                        <option value="berries">🍓 Baies</option>
+                        <option value="key_items">🗝️ Objets Clés</option>
+                        <option value="tms">💿 CTs</option>
+                        <option value="battle_items">⚔️ Combat</option>
+                        <option value="valuables">💎 Objets de Valeur</option>
+                        <option value="held_items">🎭 Objets Tenus</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                        <i class="fas fa-sort-numeric-up"></i> Quantité:
+                    </label>
+                    <input type="number" 
+                           id="itemQuantity" 
+                           value="1" 
+                           min="1" 
+                           max="999"
+                           style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                </div>
+
+                <!-- Prévisualisation de l'objet sélectionné -->
+                <div id="itemPreview" style="
+                    background: #f8f9fa; 
+                    border: 2px solid #e9ecef; 
+                    border-radius: 8px; 
+                    padding: 15px; 
+                    margin-bottom: 25px;
+                    display: none;
+                ">
+                    <h5 style="margin: 0 0 10px 0; color: #2c3e50;">Objet sélectionné:</h5>
+                    <div id="itemPreviewContent"></div>
+                </div>
+
+                <div style="text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="adminPanel.playersAdvanced.closeAddItemModal()">
+                        <i class="fas fa-times"></i> Annuler
+                    </button>
+                    <button class="btn btn-success" onclick="adminPanel.playersAdvanced.confirmAddItem()">
+                        <i class="fas fa-plus"></i> Ajouter à l'Inventaire
+                    </button>
+                </div>
+            </div>
+        `
+
+        // Fermeture sur clic extérieur
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeAddItemModal()
+            }
+        })
+
+        document.body.appendChild(modal)
+        modal.classList.add('active')
+
+        // Initialiser l'autocomplétion
+        this.initializeItemAutocomplete(items)
+
+        // Focus sur le champ de recherche
+        setTimeout(() => {
+            document.getElementById('itemSearchInput')?.focus()
+        }, 100)
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Initialiser l'autocomplétion
+    initializeItemAutocomplete(items) {
+        const input = document.getElementById('itemSearchInput')
+        const suggestions = document.getElementById('itemSuggestions')
+        const preview = document.getElementById('itemPreview')
+        
+        if (!input || !suggestions) return
+
+        let currentFocus = -1
+
+        // Convertir l'objet items en array pour la recherche
+        const itemsArray = Object.entries(items).map(([itemId, itemData]) => ({
+            itemId,
+            ...itemData
+        }))
+
+        // Fonction de recherche
+        const searchItems = (query) => {
+            if (query.length < 2) {
+                suggestions.style.display = 'none'
+                currentFocus = -1
+                return
+            }
+
+            const matches = itemsArray.filter(item => 
+                item.name.toLowerCase().includes(query.toLowerCase()) ||
+                item.itemId.toLowerCase().includes(query.toLowerCase()) ||
+                (item.description && item.description.toLowerCase().includes(query.toLowerCase())) ||
+                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())))
+            ).slice(0, 10) // Limiter à 10 résultats
+
+            if (matches.length === 0) {
+                suggestions.innerHTML = `
+                    <div style="padding: 15px; text-align: center; color: #6c757d;">
+                        <i class="fas fa-search"></i> Aucun objet trouvé pour "${query}"
+                    </div>
+                `
+                suggestions.style.display = 'block'
+                return
+            }
+
+            suggestions.innerHTML = matches.map((item, index) => `
+                <div class="item-suggestion" 
+                     data-item-id="${item.itemId}"
+                     data-index="${index}"
+                     style="
+                        padding: 12px 16px; 
+                        border-bottom: 1px solid #f0f0f0; 
+                        cursor: pointer;
+                        transition: background-color 0.2s;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                     "
+                     onmouseenter="this.style.backgroundColor='#f8f9fa'"
+                     onmouseleave="this.style.backgroundColor='white'">
+                    <div>
+                        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 2px;">
+                            ${item.name}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #6c757d;">
+                            ID: ${item.itemId} • ${item.category || 'Objet'}
+                            ${item.price ? ` • ${item.price}₽` : ''}
+                        </div>
+                    </div>
+                    <div style="color: #007bff;">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                </div>
+            `).join('')
+
+            suggestions.style.display = 'block'
+            currentFocus = -1
+        }
+
+        // Fonction de sélection d'item
+        const selectItem = (itemId) => {
+            const item = items[itemId]
+            if (!item) return
+
+            this.selectedItemId = itemId
+            input.value = item.name
+            suggestions.style.display = 'none'
+            
+            // Afficher la prévisualisation
+            this.showItemPreview(item, itemId)
+            
+            // Suggérer une catégorie appropriée
+            this.suggestCategory(item)
+        }
+
+        // Événements
+        input.addEventListener('input', (e) => {
+            this.selectedItemId = null
+            preview.style.display = 'none'
+            searchItems(e.target.value.trim())
+        })
+
+        input.addEventListener('keydown', (e) => {
+            const suggestionItems = suggestions.querySelectorAll('.item-suggestion')
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                currentFocus = Math.min(currentFocus + 1, suggestionItems.length - 1)
+                this.updateSuggestionFocus(suggestionItems, currentFocus)
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                currentFocus = Math.max(currentFocus - 1, -1)
+                this.updateSuggestionFocus(suggestionItems, currentFocus)
+            } else if (e.key === 'Enter') {
+                e.preventDefault()
+                if (currentFocus >= 0 && suggestionItems[currentFocus]) {
+                    const itemId = suggestionItems[currentFocus].dataset.itemId
+                    selectItem(itemId)
+                }
+            } else if (e.key === 'Escape') {
+                suggestions.style.display = 'none'
+                currentFocus = -1
+            }
+        })
+
+        // Clic sur une suggestion
+        suggestions.addEventListener('click', (e) => {
+            const suggestion = e.target.closest('.item-suggestion')
+            if (suggestion) {
+                const itemId = suggestion.dataset.itemId
+                selectItem(itemId)
+            }
+        })
+
+        // Fermer les suggestions en cliquant ailleurs
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                suggestions.style.display = 'none'
+                currentFocus = -1
+            }
+        })
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Mettre à jour le focus des suggestions
+    updateSuggestionFocus(suggestions, focusIndex) {
+        suggestions.forEach((suggestion, index) => {
+            if (index === focusIndex) {
+                suggestion.style.backgroundColor = '#007bff'
+                suggestion.style.color = 'white'
+            } else {
+                suggestion.style.backgroundColor = 'white'
+                suggestion.style.color = 'inherit'
+            }
+        })
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Afficher la prévisualisation de l'item
+    showItemPreview(item, itemId) {
+        const preview = document.getElementById('itemPreview')
+        const previewContent = document.getElementById('itemPreviewContent')
+        
+        if (!preview || !previewContent) return
+
+        previewContent.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                    <h6 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 1.1rem;">
+                        ${item.name}
+                    </h6>
+                    <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">
+                        ${item.description || 'Aucune description disponible'}
+                    </p>
+                    <div style="display: flex; gap: 15px; font-size: 0.85rem;">
+                        <span><strong>ID:</strong> ${itemId}</span>
+                        <span><strong>Catégorie:</strong> ${item.category || 'Objet'}</span>
+                        ${item.price ? `<span><strong>Prix:</strong> ${item.price}₽</span>` : ''}
+                        ${item.rarity ? `<span><strong>Rareté:</strong> ${item.rarity}</span>` : ''}
+                    </div>
+                </div>
+                ${item.sprite ? `
+                    <div style="margin-left: 15px;">
+                        <img src="/assets/items/${item.sprite}" 
+                             alt="${item.name}" 
+                             style="width: 48px; height: 48px; object-fit: contain;"
+                             onerror="this.style.display='none'">
+                    </div>
+                ` : ''}
+            </div>
+        `
+        
+        preview.style.display = 'block'
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Suggérer une catégorie appropriée
+    suggestCategory(item) {
+        const categorySelect = document.getElementById('itemCategory')
+        if (!categorySelect || !item.category) return
+
+        // Mapping des catégories d'items vers les catégories d'inventaire
+        const categoryMapping = {
+            'medicine': 'medicine',
+            'pokeball': 'balls',
+            'berry': 'berries',
+            'key': 'key_items',
+            'tm': 'tms',
+            'battle': 'battle_items',
+            'valuable': 'valuables',
+            'held': 'held_items'
+        }
+
+        const suggestedCategory = categoryMapping[item.category.toLowerCase()] || 'items'
+        
+        // Mettre à jour la sélection si l'option existe
+        const option = categorySelect.querySelector(`option[value="${suggestedCategory}"]`)
+        if (option) {
+            categorySelect.value = suggestedCategory
+            // Effet visuel pour indiquer la suggestion
+            categorySelect.style.borderColor = '#28a745'
+            setTimeout(() => {
+                categorySelect.style.borderColor = '#e9ecef'
+            }, 1000)
+        }
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Confirmer l'ajout de l'item
+    async confirmAddItem() {
+        const itemInput = document.getElementById('itemSearchInput')
+        const categorySelect = document.getElementById('itemCategory')
+        const quantityInput = document.getElementById('itemQuantity')
+
+        if (!this.selectedItemId) {
+            this.adminPanel.showNotification('Veuillez sélectionner un objet valide', 'warning')
+            itemInput?.focus()
+            return
+        }
+
+        const category = categorySelect?.value
+        const quantity = parseInt(quantityInput?.value || '1')
+
+        if (!category) {
+            this.adminPanel.showNotification('Veuillez sélectionner une catégorie', 'warning')
+            categorySelect?.focus()
+            return
+        }
+
+        if (isNaN(quantity) || quantity < 1) {
+            this.adminPanel.showNotification('Quantité invalide (minimum 1)', 'warning')
+            quantityInput?.focus()
+            return
+        }
+
+        try {
+            // Afficher un loading
+            const confirmBtn = document.querySelector('#addItemModal .btn-success')
+            if (confirmBtn) {
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ajout...'
+                confirmBtn.disabled = true
+            }
+
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/inventory/add`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    category: category,
+                    itemId: this.selectedItemId,
+                    quantity: quantity
+                })
+            })
+
+            this.adminPanel.showNotification(`${quantity}x ${this.itemsCache[this.selectedItemId]?.name} ajouté à l'inventaire`, 'success')
+            
+            // Fermer le modal
+            this.closeAddItemModal()
+            
+            // Recharger les données et l'affichage
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderInventoryContent()
+
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+            
+            // Restaurer le bouton
+            const confirmBtn = document.querySelector('#addItemModal .btn-success')
+            if (confirmBtn) {
+                confirmBtn.innerHTML = '<i class="fas fa-plus"></i> Ajouter à l\'Inventaire'
+                confirmBtn.disabled = false
+            }
+        }
+    }
+
+    // ✅ NOUVELLE MÉTHODE: Fermer le modal d'ajout
+    closeAddItemModal() {
+        const modal = document.getElementById('addItemModal')
+        if (modal) {
+            modal.classList.remove('active')
+            setTimeout(() => modal.remove(), 300)
+        }
+        this.selectedItemId = null
+    }
+
     // Méthodes d'action pour l'équipe
     async editPokemon(pokemonId) {
         console.log(`✏️ [PlayersAdvanced] Édition Pokémon: ${pokemonId}`)
@@ -529,46 +999,6 @@ export class PlayersAdvancedModule {
             this.adminPanel.showNotification('Pokémon retiré de l\'équipe', 'success')
             await this.loadPlayerAdvancedData(this.currentPlayerData.username)
             this.renderTeamContent()
-        } catch (error) {
-            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
-        }
-    }
-
-    // Méthodes pour l'inventaire
-    async addItemToInventory() {
-        if (!this.currentPlayerData) {
-            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
-            return
-        }
-
-        const itemId = prompt('ID de l\'objet à ajouter:')
-        if (!itemId) return
-
-        const category = prompt('Catégorie (items, medicine, balls, berries, key_items, tms, battle_items, valuables, held_items):')
-        if (!category) return
-
-        const quantity = prompt('Quantité:', '1')
-        if (!quantity) return
-
-        const qty = parseInt(quantity)
-        if (isNaN(qty) || qty < 1) {
-            this.adminPanel.showNotification('Quantité invalide', 'error')
-            return
-        }
-
-        try {
-            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/inventory/add`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    category: category,
-                    itemId: itemId,
-                    quantity: qty
-                })
-            })
-
-            this.adminPanel.showNotification('Objet ajouté à l\'inventaire', 'success')
-            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
-            this.renderInventoryContent()
         } catch (error) {
             this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
         }
@@ -774,6 +1204,29 @@ export class PlayersAdvancedModule {
                 background: rgba(255,255,255,0.2) !important;
                 color: inherit !important;
             }
+            
+            /* Styles pour l'autocomplétion */
+            .item-suggestion:hover {
+                background: #f8f9fa !important;
+            }
+            
+            .item-suggestion.focused {
+                background: #007bff !important;
+                color: white !important;
+            }
+            
+            #itemSuggestions {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            
+            #itemPreview {
+                animation: slideDown 0.3s ease;
+            }
+            
+            @keyframes slideDown {
+                from { opacity: 0; transform: translateY(-10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
         `
         document.head.appendChild(styles)
     }
@@ -843,14 +1296,21 @@ export class PlayersAdvancedModule {
     // Cleanup
     cleanup() {
         this.currentPlayerData = null
+        this.itemsCache = null
+        this.itemsLoaded = false
+        this.selectedItemId = null
         
         // Supprimer les styles injectés
         const styles = document.getElementById('advanced-player-styles')
         if (styles) styles.remove()
         
-        // Supprimer le modal
+        // Supprimer le modal principal
         const modal = document.getElementById('advancedPlayerModal')
         if (modal) modal.remove()
+        
+        // Supprimer le modal d'ajout d'item s'il existe
+        const addItemModal = document.getElementById('addItemModal')
+        if (addItemModal) addItemModal.remove()
         
         console.log('🧹 [PlayersAdvanced] Module cleanup completed')
     }
