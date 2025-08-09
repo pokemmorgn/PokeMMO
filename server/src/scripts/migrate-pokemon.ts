@@ -2,7 +2,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import mongoose from 'mongoose';
-import axios, { AxiosRequestConfig } from 'axios';
+// Utilisation du fetch natif Node.js (disponible depuis Node 18+)
 import { PokemonData, IPokemonData, PokemonType, GrowthRate, EggGroup, IBaseStats, IGenderRatio, IEvolutionData, ILearnsetMove } from '../models/PokemonData';
 
 // ===== CONFIGURATION =====
@@ -217,18 +217,28 @@ async function fetchWithCache<T>(url: string, cacheKey: string): Promise<T> {
     return cachedData;
   }
   
-  // Télécharger depuis l'API
+  // Télécharger depuis l'API avec fetch natif
   try {
     await delay(RATE_LIMIT_DELAY); // Rate limiting
     
-    const response = await axios.get<T>(url, {
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'PokemonMigrationScript/1.0'
-      }
-    } as AxiosRequestConfig);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
-    const data = response.data;
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'PokemonMigrationScript/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json() as T;
     
     // Sauvegarder en cache
     fs.writeFileSync(cacheFile, JSON.stringify(data, null, 2));
