@@ -95,7 +95,7 @@ export class ItemEditorModule {
         });
     }
 
-    setupEventListeners() {
+  setupEventListeners() {
     console.log('🔧 [ItemEditor] Configuration des event listeners');
 
     // ✅ PRÉVENIR LA SOUMISSION DU FORMULAIRE avec délégation d'événements
@@ -108,7 +108,6 @@ export class ItemEditorModule {
         }
     });
 
-        
     // DÉLÉGATION D'ÉVÉNEMENTS pour les sélects
     document.addEventListener('change', (e) => {
         const tag = (e.target?.tagName || '').toUpperCase();
@@ -155,7 +154,7 @@ export class ItemEditorModule {
     });
 
     // ✅ PRÉVENIR TOUS LES CLICS SUR LES BOUTONS DANS LE FORMULAIRE
-   document.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (!button) return;
 
@@ -197,7 +196,8 @@ export class ItemEditorModule {
         }
     });
 
-    // Marquer les changements de formulaire
+    // ✅ CORRECTION : itemForm n'est pas défini ici, utiliser getElementById
+    const itemForm = document.getElementById('itemEditorForm');
     if (itemForm) {
         itemForm.addEventListener('input', () => { this.unsavedChanges = true; });
         itemForm.addEventListener('change', () => { this.unsavedChanges = true; });
@@ -705,31 +705,43 @@ checkItemEditorElements() {
 }
 
     populateForm(item) {
-        console.log('📝 [ItemEditor] Remplissage formulaire:', item.itemId);
+    console.log('📝 [ItemEditor] Remplissage formulaire:', item.itemId);
 
-        // Remplir tous les champs
-        this.setFieldValue('itemId', item.itemId);
-        this.setFieldValue('itemName', item.name);
-        this.setFieldValue('itemDescription', item.description);
-        this.setFieldValue('itemCategory', item.category);
-        this.setFieldValue('itemGeneration', item.generation);
-        this.setFieldValue('itemRarity', item.rarity);
-        this.setFieldValue('itemSprite', item.sprite);
-        this.setFieldValue('itemPrice', item.price);
-        this.setFieldValue('itemSellPrice', item.sellPrice);
-        this.setFieldValue('itemStackable', item.stackable, 'checkbox');
-        this.setFieldValue('itemConsumable', item.consumable, 'checkbox');
-        this.setFieldValue('itemIsActive', item.isActive, 'checkbox');
-
-        // Tags
-        if (item.tags && Array.isArray(item.tags)) {
-            this.setFieldValue('itemTags', item.tags.join(', '));
-        }
-
-        // Effets et méthodes
-        this.populateEffects(item.effects || []);
-        this.populateObtainMethods(item.obtainMethods || []);
+    // Désactiver l'autocomplétion et la soumission du formulaire
+    const form = document.getElementById('itemEditorForm');
+    if (form) {
+        form.setAttribute('autocomplete', 'off');
+        form.setAttribute('onsubmit', 'return false;');
+        
+        // S'assurer que tous les boutons dans le formulaire ont type="button"
+        form.querySelectorAll('button:not([type])').forEach(btn => {
+            btn.setAttribute('type', 'button');
+        });
     }
+
+    // Remplir tous les champs
+    this.setFieldValue('itemId', item.itemId);
+    this.setFieldValue('itemName', item.name);
+    this.setFieldValue('itemDescription', item.description);
+    this.setFieldValue('itemCategory', item.category);
+    this.setFieldValue('itemGeneration', item.generation);
+    this.setFieldValue('itemRarity', item.rarity);
+    this.setFieldValue('itemSprite', item.sprite);
+    this.setFieldValue('itemPrice', item.price);
+    this.setFieldValue('itemSellPrice', item.sellPrice);
+    this.setFieldValue('itemStackable', item.stackable, 'checkbox');
+    this.setFieldValue('itemConsumable', item.consumable, 'checkbox');
+    this.setFieldValue('itemIsActive', item.isActive, 'checkbox');
+
+    // Tags
+    if (item.tags && Array.isArray(item.tags)) {
+        this.setFieldValue('itemTags', item.tags.join(', '));
+    }
+
+    // Effets et méthodes
+    this.populateEffects(item.effects || []);
+    this.populateObtainMethods(item.obtainMethods || []);
+}
 
    populateEffects(effects) {
     const container = document.getElementById('itemEffectsList');
@@ -836,181 +848,104 @@ setupEffectButtonListeners(container) {
     });
 }
 
-   // CORRECTION pour item-editor.js - Empêcher le rechargement de page
 
-// Dans la méthode populateEffects, remplacer cette ligne :
-// <button type="button" onclick="window.itemEditorAddEffect(); return false;" ...>
-
-// Par cette version corrigée :
-populateEffects(effects) {
-    const container = document.getElementById('itemEffectsList');
-    if (!container) {
-        console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
+    editEffect(index) {
+    console.log(`✏️ [ItemEditor] Édition effet ${index}`);
+    
+    if (!this.currentItem || !this.currentItem.effects?.[index]) {
+        console.error('❌ [ItemEditor] Effet non trouvé à l\'index', index);
         return;
     }
 
-    if (effects.length === 0) {
-        container.innerHTML = `
-            <div style="padding: 2rem; text-align: center; color: #666;">
-                <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                <p>Aucun effet défini</p>
-                <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                    <i class="fas fa-plus"></i> Ajouter un effet
-                </button>
-            </div>
-        `;
+    const effect = this.currentItem.effects[index];
+    
+    // Pour l'instant, édition simple du nom et description
+    const newName = prompt('Nom de l\'effet:', effect.name || effect.id || '');
+    if (newName !== null && newName.trim()) {
+        effect.name = newName.trim();
         
-        // Ajouter l'event listener après avoir créé le bouton
-        const addBtn = container.querySelector('.add-effect-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.addEffect();
-                return false;
-            });
+        const newDescription = prompt('Description (optionnel):', effect.description || '');
+        if (newDescription !== null) {
+            effect.description = newDescription.trim();
         }
-        return;
-    }
-
-    container.innerHTML = effects.map((effect, index) => `
-        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>${this.escapeHtml(effect.name || effect.id)}</strong>
-                    <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
-                </div>
-                <div>
-                    <button type="button" class="edit-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button" class="remove-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            ${effect.description ? `<div style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">${this.escapeHtml(effect.description)}</div>` : ''}
-            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
-                Actions: ${effect.actions?.length || 0} |
-                Conditions: ${effect.conditions?.length || 0}
-                ${effect.priority ? ` | Priorité: ${effect.priority}` : ''}
-            </div>
-        </div>
-    `).join('') + `
-        <div style="text-align: center; margin: 1rem 0;">
-            <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                <i class="fas fa-plus"></i> Ajouter un effet
-            </button>
-        </div>
-    `;
-
-    // Ajouter les event listeners après avoir créé les boutons
-    this.setupEffectButtonListeners(container);
-}
-
-// Nouvelle méthode pour configurer les event listeners
-setupEffectButtonListeners(container) {
-    // Bouton "Ajouter effet"
-    const addBtn = container.querySelector('.add-effect-btn');
-    if (addBtn) {
-        addBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔘 [ItemEditor] Bouton Ajouter effet cliqué');
-            this.addEffect();
-            return false;
-        });
-    }
-
-    // Boutons "Modifier effet"
-    container.querySelectorAll('.edit-effect-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const index = parseInt(btn.getAttribute('data-index'));
-            console.log('🔘 [ItemEditor] Bouton Modifier effet cliqué, index:', index);
-            this.editEffect(index);
-            return false;
-        });
-    });
-
-    // Boutons "Supprimer effet"
-    container.querySelectorAll('.remove-effect-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const index = parseInt(btn.getAttribute('data-index'));
-            console.log('🔘 [ItemEditor] Bouton Supprimer effet cliqué, index:', index);
-            this.removeEffect(index);
-            return false;
-        });
-    });
-}
-
-// De même pour populateObtainMethods :
-populateObtainMethods(methods) {
-    const container = document.getElementById('itemObtainMethodsList');
-    if (!container) {
-        console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
-        return;
-    }
-
-    if (methods.length === 0) {
-        container.innerHTML = `
-            <div style="padding: 2rem; text-align: center; color: #666;">
-                <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                <p>Aucune méthode définie</p>
-                <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                    <i class="fas fa-plus"></i> Ajouter une méthode
-                </button>
-            </div>
-        `;
         
-        const addBtn = container.querySelector('.add-method-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.addObtainMethod();
-                return false;
-            });
-        }
+        // Re-générer l'affichage des effets
+        this.populateEffects(this.currentItem.effects);
+        this.unsavedChanges = true;
+        
+        console.log(`✅ [ItemEditor] Effet ${index} modifié`);
+    }
+}
+
+editObtainMethod(index) {
+    console.log(`✏️ [ItemEditor] Édition méthode ${index}`);
+    
+    if (!this.currentItem || !this.currentItem.obtainMethods?.[index]) {
+        console.error('❌ [ItemEditor] Méthode non trouvée à l\'index', index);
         return;
     }
 
-    container.innerHTML = methods.map((method, index) => `
-        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>${this.formatMethodName(method.method)}</strong>
-                    ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
-                </div>
-                <div>
-                    <button type="button" class="edit-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button" class="remove-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
-                ${method.chance ? `Chance: ${method.chance}% | ` : ''}
-                ${method.cost ? `Coût: ${method.cost} ${method.currency || 'money'} | ` : ''}
-                ${method.npc ? `NPC: ${method.npc}` : ''}
-            </div>
-        </div>
-    `).join('') + `
-        <div style="text-align: center; margin: 1rem 0;">
-            <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                <i class="fas fa-plus"></i> Ajouter une méthode
-            </button>
-        </div>
-    `;
-
-    this.setupMethodButtonListeners(container);
+    const method = this.currentItem.obtainMethods[index];
+    
+    // Édition des propriétés principales
+    const newLocation = prompt('Localisation:', method.location || '');
+    if (newLocation !== null) {
+        method.location = newLocation.trim();
+        
+        const newChance = prompt('Chance (%):', method.chance || '');
+        if (newChance !== null && newChance.trim()) {
+            method.chance = parseInt(newChance) || null;
+        }
+        
+        const newCost = prompt('Coût:', method.cost || '');
+        if (newCost !== null && newCost.trim()) {
+            method.cost = parseInt(newCost) || null;
+        }
+        
+        // Re-générer l'affichage des méthodes
+        this.populateObtainMethods(this.currentItem.obtainMethods);
+        this.unsavedChanges = true;
+        
+        console.log(`✅ [ItemEditor] Méthode ${index} modifiée`);
+    }
 }
 
+// 6. ✅ AJOUTER cancelEdit() manquante
+cancelEdit() {
+    console.log('❌ [ItemEditor] Annulation édition');
+    
+    if (this.unsavedChanges && !confirm('Modifications non sauvegardées. Continuer ?')) {
+        return;
+    }
+
+    this.selectedItemId = null;
+    this.currentItem = null;
+    this.unsavedChanges = false;
+    
+    this.showEmptyState();
+    this.updateDisplay();
+}
+
+// 7. ✅ AJOUTER exportItems() manquante
+exportItems() {
+    console.log('📤 [ItemEditor] Export des items');
+    
+    try {
+        const dataStr = JSON.stringify(this.items, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `items_export_${new Date().toISOString().slice(0,10)}.json`;
+        link.click();
+        
+        this.adminPanel.showNotification('Export réussi', 'success');
+    } catch (error) {
+        console.error('❌ [ItemEditor] Erreur export:', error);
+        this.adminPanel.showNotification('Erreur export: ' + error.message, 'error');
+    }
+}
+    
 // Nouvelle méthode pour configurer les event listeners des méthodes
 setupMethodButtonListeners(container) {
     // Bouton "Ajouter méthode"
