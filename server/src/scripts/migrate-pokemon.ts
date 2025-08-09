@@ -466,25 +466,47 @@ function convertLearnMethod(apiMethod: string): ILearnsetMove['method'] {
  */
 async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemonName: string]: IEvolutionData }> {
   const chainId = extractIdFromUrl(evolutionChainUrl);
-  const evolutionChain = await fetchWithCache<PokeApiEvolutionChain>(
-    evolutionChainUrl,
-    `evolution_chain_${chainId}`
-  );
+  
+  let evolutionChain: PokeApiEvolutionChain;
+  try {
+    evolutionChain = await fetchWithCache<PokeApiEvolutionChain>(
+      evolutionChainUrl,
+      `evolution_chain_${chainId}`
+    );
+  } catch (error) {
+    console.log(`⚠️ Failed to fetch evolution chain ${chainId}:`, error);
+    return {};
+  }
+  
+  if (!evolutionChain?.chain) {
+    console.log(`⚠️ Invalid evolution chain data for ${chainId}`);
+    return {};
+  }
   
   const evolutionData: { [pokemonName: string]: IEvolutionData } = {};
   
   function processEvolutionNode(node: EvolutionNode, fromSpecies?: string): void {
+    if (!node?.species?.name || !node.species.url) {
+      console.log('⚠️ Invalid evolution node:', node);
+      return;
+    }
+    
     const speciesName = node.species.name;
     const speciesId = extractIdFromUrl(node.species.url);
     
     if (fromSpecies) {
       // Ce Pokémon évolue depuis fromSpecies
-      const evDetail = node.evolution_details[0];
+      const evDetail = node.evolution_details?.[0];
+      if (!evDetail) {
+        console.log(`⚠️ No evolution details for ${speciesName}`);
+        return;
+      }
+      
       evolutionData[speciesName] = {
-        canEvolve: node.evolves_to.length > 0,
-        evolvesInto: node.evolves_to.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
+        canEvolve: node.evolves_to?.length > 0,
+        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
         evolvesFrom: extractIdFromUrl(fromSpecies),
-        method: convertEvolutionMethod(evDetail.trigger.name),
+        method: convertEvolutionMethod(evDetail.trigger?.name || 'level-up'),
         requirement: evDetail.min_level || evDetail.item?.name || 'trade',
         conditions: {
           minimumLevel: evDetail.min_level,
@@ -499,20 +521,27 @@ async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemon
     } else {
       // Pokémon de base
       evolutionData[speciesName] = {
-        canEvolve: node.evolves_to.length > 0,
-        evolvesInto: node.evolves_to.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
+        canEvolve: node.evolves_to?.length > 0,
+        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
         method: 'level',
         requirement: 1
       };
     }
     
     // Traiter les évolutions suivantes
-    node.evolves_to.forEach(evolution => {
-      processEvolutionNode(evolution, node.species.url);
-    });
+    if (node.evolves_to && Array.isArray(node.evolves_to)) {
+      node.evolves_to.forEach(evolution => {
+        processEvolutionNode(evolution, node.species.url);
+      });
+    }
   }
   
-  processEvolutionNode(evolutionChain.chain);
+  try {
+    processEvolutionNode(evolutionChain.chain);
+  } catch (error) {
+    console.log(`⚠️ Error processing evolution chain ${chainId}:`, error);
+  }
+  
   return evolutionData;
 }
 
@@ -768,22 +797,40 @@ async function validateMigration(): Promise<void> {
 }
 
 /**
- * Fonction principale de migration
+ * Fonction principale de migration avec mode récupération
  */
 async function migratePokemon(options: {
   dryRun?: boolean;
   clearExisting?: boolean;
   startFrom?: number;
   endAt?: number;
+  missingOnly?: boolean;
+  missingIds?: number[];
 }): Promise<void> {
-  const { dryRun = false, clearExisting = true, startFrom = 1, endAt = GEN1_POKEMON_COUNT } = options;
+  const { 
+    dryRun = false, 
+    clearExisting = true, 
+    startFrom = 1, 
+    endAt = GEN1_POKEMON_COUNT,
+    missingOnly = false,
+    missingIds = []
+  } = options;
   
   try {
     console.log('🚀 Starting Pokémon Generation 1 migration...');
-    console.log(`🔧 Options: dryRun=${dryRun}, clearExisting=${clearExisting}`);
-    console.log(`📊 Range: Pokémon #${startFrom} to #${endAt}`);
+    console.log(`🔧 Options: dryRun=${dryRun}, clearExisting=${clearExisting}, missingOnly=${missingOnly}`);
     
-    if (clearExisting && !dryRun) {
+    let pokemonToProcess: number[];
+    
+    if (missingOnly && missingIds.length > 0) {
+      pokemonToProcess = missingIds.sort((a, b) => a - b);
+      console.log(`🎯 Processing ${pokemonToProcess.length} missing Pokémon: ${pokemonToProcess.slice(0, 10).join(', ')}${pokemonToProcess.length > 10 ? '...' : ''}`);
+    } else {
+      pokemonToProcess = Array.from({length: endAt - startFrom + 1}, (_, i) => startFrom + i);
+      console.log(`📊 Range: Pokémon #${startFrom} to #${endAt}`);
+    }
+    
+    if (clearExisting && !dryRun && !missingOnly) {
       await clearPokemonCollection();
     }
     
@@ -795,50 +842,45 @@ async function migratePokemon(options: {
     let errorCount = 0;
     const errors: string[] = [];
     
-    // Traiter par lots
-    for (let i = startFrom; i <= endAt; i += BATCH_SIZE) {
-      const batchEnd = Math.min(i + BATCH_SIZE - 1, endAt);
-      console.log(`\n📦 Processing batch: Pokémon #${i}-${batchEnd}`);
-      
-      const promises = [];
-      for (let pokemonId = i; pokemonId <= batchEnd; pokemonId++) {
-        promises.push(
-          fetchAndConvertPokemon(pokemonId).catch(error => ({
-            error: true,
-            pokemonId,
-            message: error.message
-          }))
-        );
-      }
-      
-      const results = await Promise.all(promises);
-      
-      for (const result of results) {
-        if ('error' in result) {
-          errorCount++;
-          const errorMsg = `❌ Pokémon #${result.pokemonId}: ${result.message}`;
-          errors.push(errorMsg);
-          console.log(errorMsg);
-          continue;
+    // Traiter individuellement pour éviter les échecs en cascade
+    console.log(`\n📦 Processing ${pokemonToProcess.length} Pokémon individually (safer mode)...`);
+    
+    for (const pokemonId of pokemonToProcess) {
+      try {
+        console.log(`🔍 Processing Pokémon #${pokemonId}...`);
+        
+        const result = await fetchAndConvertPokemon(pokemonId);
+        
+        if (!dryRun) {
+          // Vérifier si le Pokémon existe déjà (pour le mode missing)
+          if (missingOnly) {
+            const existing = await PokemonData.findOne({ nationalDex: pokemonId });
+            if (existing) {
+              console.log(`⏭️ Pokémon #${pokemonId} already exists, skipping`);
+              successCount++;
+              continue;
+            }
+          }
+          
+          await PokemonData.create(result);
         }
         
-        try {
-          if (!dryRun) {
-            await PokemonData.create(result);
-          }
-          successCount++;
-        } catch (saveError) {
-          errorCount++;
-          const errorMsg = `❌ Save error for Pokémon #${result.nationalDex}: ${saveError instanceof Error ? saveError.message : 'Unknown error'}`;
-          errors.push(errorMsg);
-          console.log(errorMsg);
+        successCount++;
+        console.log(`✅ Pokémon #${pokemonId} processed successfully`);
+        
+        // Pause plus longue entre chaque Pokémon pour éviter les rate limits
+        if (pokemonId !== pokemonToProcess[pokemonToProcess.length - 1]) {
+          await delay(RATE_LIMIT_DELAY * 3); // 300ms pause
         }
-      }
-      
-      // Pause entre les lots
-      if (i + BATCH_SIZE <= endAt) {
-        console.log(`⏳ Waiting ${RATE_LIMIT_DELAY * 2}ms before next batch...`);
-        await delay(RATE_LIMIT_DELAY * 2);
+        
+      } catch (error) {
+        errorCount++;
+        const errorMsg = `❌ Pokémon #${pokemonId}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        errors.push(errorMsg);
+        console.log(errorMsg);
+        
+        // Pause même en cas d'erreur pour éviter de surcharger l'API
+        await delay(RATE_LIMIT_DELAY);
       }
     }
     
@@ -846,13 +888,16 @@ async function migratePokemon(options: {
     console.log('======================');
     console.log(`✅ Success: ${successCount} Pokémon`);
     console.log(`❌ Errors: ${errorCount}`);
-    console.log(`🎮 Generation 1 complete!`);
+    console.log(`🎮 Generation 1 progress: ${successCount}/${pokemonToProcess.length}`);
     
     if (errors.length > 0) {
       console.log('\n❌ ERRORS ENCOUNTERED:');
-      errors.forEach((error, index) => {
+      errors.slice(0, 10).forEach((error, index) => {
         console.log(`  ${index + 1}. ${error}`);
       });
+      if (errors.length > 10) {
+        console.log(`  ... and ${errors.length - 10} more errors`);
+      }
     }
     
   } catch (error) {
@@ -873,6 +918,7 @@ async function main(): Promise<void> {
     skipValidation: args.includes('--skip-validation'),
     skipStats: args.includes('--skip-stats'),
     help: args.includes('--help') || args.includes('-h'),
+    missingOnly: args.includes('--missing-only') || args.includes('-m'),
     startFrom: parseInt(args.find(arg => arg.startsWith('--start='))?.split('=')[1] || '1'),
     endAt: parseInt(args.find(arg => arg.startsWith('--end='))?.split('=')[1] || GEN1_POKEMON_COUNT.toString())
   };
@@ -887,6 +933,7 @@ Usage: npx ts-node server/src/scripts/migrate-pokemon.ts [options]
 Options:
   --dry-run, -d          Run without making changes (simulation)
   --no-clear             Don't clear existing Pokémon before migration
+  --missing-only, -m     Only process missing Pokémon (safer recovery mode)
   --skip-validation      Skip database validation after migration
   --skip-stats           Skip statistics display
   --start=N              Start from Pokémon #N (default: 1)
@@ -936,8 +983,33 @@ Examples:
     // Connexion à la base de données
     await connectToDatabase();
     
-    // Migration
-    await migratePokemon(options);
+    // Mode récupération des manquants
+    if (options.missingOnly) {
+      console.log('🎯 MISSING RECOVERY MODE - Fetching missing Pokémon from database...');
+      
+      // Récupérer les IDs manquants depuis la base
+      const presentIds = await PokemonData.distinct('nationalDex');
+      const expectedIds = Array.from({length: GEN1_POKEMON_COUNT}, (_, i) => i + 1);
+      const missingIds = expectedIds.filter(id => !presentIds.includes(id));
+      
+      console.log(`📊 Found ${missingIds.length} missing Pokémon out of ${GEN1_POKEMON_COUNT}`);
+      console.log(`🎯 Missing IDs: ${missingIds.slice(0, 20).join(', ')}${missingIds.length > 20 ? '...' : ''}`);
+      
+      if (missingIds.length === 0) {
+        console.log('✅ No missing Pokémon found! Database is complete.');
+        return;
+      }
+      
+      await migratePokemon({ 
+        ...options, 
+        missingOnly: true, 
+        missingIds: missingIds,
+        clearExisting: false // Never clear in missing mode
+      });
+    } else {
+      // Migration normale
+      await migratePokemon(options);
+    }
     
     // Statistiques post-migration
     if (!options.dryRun && !options.skipStats) {
