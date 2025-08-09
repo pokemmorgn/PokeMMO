@@ -509,12 +509,12 @@ async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemon
         method: convertEvolutionMethod(evDetail.trigger?.name || 'level-up'),
         requirement: evDetail.min_level || evDetail.item?.name || 'trade',
         conditions: {
-          minimumLevel: evDetail.min_level,
-          timeOfDay: evDetail.time_of_day as any,
-          heldItem: evDetail.held_item?.name,
-          knownMove: evDetail.known_move?.name,
-          location: evDetail.location?.name,
-          minimumFriendship: evDetail.min_happiness,
+          minimumLevel: evDetail.min_level || undefined,
+          timeOfDay: evDetail.time_of_day && evDetail.time_of_day !== '' ? evDetail.time_of_day as any : undefined,
+          heldItem: evDetail.held_item?.name || undefined,
+          knownMove: evDetail.known_move?.name || undefined,
+          location: evDetail.location?.name || undefined,
+          minimumFriendship: evDetail.min_happiness || undefined,
           gender: evDetail.gender === 1 ? 'female' : evDetail.gender === 2 ? 'male' : undefined
         }
       };
@@ -524,7 +524,8 @@ async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemon
         canEvolve: node.evolves_to?.length > 0,
         evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
         method: 'level',
-        requirement: 1
+        requirement: 1,
+        conditions: {} // Pas de conditions pour les Pokémon de base
       };
     }
     
@@ -554,6 +555,62 @@ function convertEvolutionMethod(apiMethod: string): IEvolutionData['method'] {
   };
   
   return methodMap[apiMethod] || 'level';
+}
+
+/**
+ * Nettoie les conditions d'évolution pour éviter les erreurs de validation
+ */
+function cleanEvolutionConditions(conditions: any): any {
+  if (!conditions) return {};
+  
+  const cleaned: any = {};
+  
+  // Ne garder que les propriétés avec des valeurs valides
+  if (conditions.minimumLevel && conditions.minimumLevel > 0) {
+    cleaned.minimumLevel = conditions.minimumLevel;
+  }
+  
+  if (conditions.timeOfDay && conditions.timeOfDay !== '' && ['day', 'night'].includes(conditions.timeOfDay)) {
+    cleaned.timeOfDay = conditions.timeOfDay;
+  }
+  
+  if (conditions.heldItem && conditions.heldItem !== '') {
+    cleaned.heldItem = conditions.heldItem;
+  }
+  
+  if (conditions.knownMove && conditions.knownMove !== '') {
+    cleaned.knownMove = conditions.knownMove;
+  }
+  
+  if (conditions.location && conditions.location !== '') {
+    cleaned.location = conditions.location;
+  }
+  
+  if (conditions.minimumFriendship && conditions.minimumFriendship > 0) {
+    cleaned.minimumFriendship = conditions.minimumFriendship;
+  }
+  
+  if (conditions.gender && ['male', 'female', 'genderless'].includes(conditions.gender)) {
+    cleaned.gender = conditions.gender;
+  }
+  
+  if (conditions.partySpecies && conditions.partySpecies > 0) {
+    cleaned.partySpecies = conditions.partySpecies;
+  }
+  
+  if (conditions.minimumStats) {
+    cleaned.minimumStats = conditions.minimumStats;
+  }
+  
+  if (conditions.weather && conditions.weather !== '') {
+    cleaned.weather = conditions.weather;
+  }
+  
+  if (typeof conditions.upside_down === 'boolean') {
+    cleaned.upside_down = conditions.upside_down;
+  }
+  
+  return cleaned;
 }
 
 /**
@@ -588,7 +645,8 @@ async function fetchAndConvertPokemon(pokemonId: number): Promise<Partial<IPokem
     let evolutionData: IEvolutionData = {
       canEvolve: false,
       method: 'level',
-      requirement: 1
+      requirement: 1,
+      conditions: {} // Toujours inclure conditions même si vide
     };
     
     try {
