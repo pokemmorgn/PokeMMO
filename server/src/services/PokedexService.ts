@@ -1277,10 +1277,14 @@ export class PokedexService extends EventEmitter {
         types: pokemonData.types.slice(0, 1) // Premier type seulement
       });
       
+      // Filtrer pour exclure le Pokémon courant et limiter à 5
+      const filteredIds = sameTypeIds
+        .filter(id => id !== pokemonData.nationalDex)
+        .slice(0, 5);
+      
       const relatedEntries = await PokedexEntry.find({
         playerId,
-        pokemonId: { $in: sameTypeIds.slice(0, 5) }, // Limiter à 5
-        pokemonId: { $ne: pokemonData.nationalDex } // Exclure le Pokémon courant
+        pokemonId: { $in: filteredIds }
       }).lean();
       
       return relatedEntries;
