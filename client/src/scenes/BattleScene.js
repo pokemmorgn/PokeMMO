@@ -535,41 +535,60 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  updateModernHealthBar(type, pokemonData) {
-    const healthBar = this.modernHealthBars[type];
-    if (!healthBar) return;
-    
-    if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) return;
-    
-    const displayName = pokemonData.name ? pokemonData.name.toUpperCase() : 'POKÉMON';
-    const nameKey = healthBar.config.isPlayer ? 'battle.ui.your_pokemon_name' : 'battle.ui.wild_pokemon_name';
-    healthBar.nameText.setText(t(nameKey).replace('{name}', displayName));
-    healthBar.levelText.setText(`LV.${pokemonData.level || 1}`);
-    
-    const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
-    
-    if (pokemonData.currentHp <= 0 || pokemonData.statusCondition === 'ko') {
-      this.updateHealthBarForKO(healthBar, pokemonData);
-    } else {
-      this.updateHealthBarNormal(healthBar, hpPercentage, pokemonData);
-    }
-    
-    if (healthBar.config.isPlayer && healthBar.expBar && pokemonData.currentExp !== undefined) {
-      const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
-      this.animateModernExpBar(healthBar.expBar, expPercentage);
-    }
-    
-    healthBar.container.setVisible(true);
-    
-    if (healthBar.container.alpha < 1) {
-      this.tweens.add({
-        targets: healthBar.container,
-        alpha: 1,
-        duration: 600,
-        ease: 'Power2.easeOut'
-      });
-    }
+updateModernHealthBar(type, pokemonData) {
+  console.log(`🩺 [BattleScene] Mise à jour barre de vie ${type}:`, pokemonData);
+  
+  const healthBar = this.modernHealthBars[type];
+  if (!healthBar) {
+    console.error(`❌ [BattleScene] Barre de vie ${type} introuvable`);
+    // Tenter de recréer
+    this.createModernHealthBars();
+    return;
   }
+  
+  if (!healthBar.container) {
+    console.error(`❌ [BattleScene] Container barre de vie ${type} introuvable`);
+    return;
+  }
+  
+  if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) {
+    console.warn(`⚠️ [BattleScene] Données HP manquantes pour ${type}`);
+    return;
+  }
+  
+  const displayName = pokemonData.name ? pokemonData.name.toUpperCase() : 'POKÉMON';
+  const nameKey = healthBar.config.isPlayer ? 'battle.ui.your_pokemon_name' : 'battle.ui.wild_pokemon_name';
+  healthBar.nameText.setText(t(nameKey).replace('{name}', displayName));
+  healthBar.levelText.setText(`LV.${pokemonData.level || 1}`);
+  
+  const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
+  
+  if (pokemonData.currentHp <= 0 || pokemonData.statusCondition === 'ko') {
+    this.updateHealthBarForKO(healthBar, pokemonData);
+  } else {
+    this.updateHealthBarNormal(healthBar, hpPercentage, pokemonData);
+  }
+  
+  if (healthBar.config.isPlayer && healthBar.expBar && pokemonData.currentExp !== undefined) {
+    const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
+    this.animateModernExpBar(healthBar.expBar, expPercentage);
+  }
+  
+  // 🆕 FORCER LA VISIBILITÉ
+  healthBar.container.setVisible(true);
+  healthBar.container.setAlpha(1);
+  
+  console.log(`✅ [BattleScene] Barre de vie ${type} mise à jour et visible`);
+  
+  if (healthBar.container.alpha < 1) {
+    this.tweens.add({
+      targets: healthBar.container,
+      alpha: 1,
+      duration: 600,
+      ease: 'Power2.easeOut'
+    });
+  }
+}
 
   updateHealthBarForKO(healthBar, pokemonData) {
     this.animateModernHealthBarToZero(healthBar.hpBar);
@@ -3013,14 +3032,57 @@ completeBattleCleanup(battleResult) {
   
   console.log('✅ [BattleScene] Nettoyage complet terminé');
 }
+debugHealthBarsState() {
+  console.log('🔍 [DEBUG] État des barres de vie:');
+  console.log('  - modernHealthBars:', this.modernHealthBars);
+  console.log('  - player1 existe:', !!this.modernHealthBars?.player1);
+  console.log('  - player2 existe:', !!this.modernHealthBars?.player2);
+  
+  if (this.modernHealthBars?.player1) {
+    console.log('  - player1.container:', !!this.modernHealthBars.player1.container);
+    console.log('  - player1.container.visible:', this.modernHealthBars.player1.container?.visible);
+  }
+  
+  if (this.modernHealthBars?.player2) {
+    console.log('  - player2.container:', !!this.modernHealthBars.player2.container);
+    console.log('  - player2.container.visible:', this.modernHealthBars.player2.container?.visible);
+  }
+  
+  // Vérifier tous les containers dans la scène
+  const allContainers = this.children.list.filter(child => child.type === 'Container');
+  console.log('  - Containers totaux dans la scène:', allContainers.length);
+  
+  allContainers.forEach((container, index) => {
+    console.log(`    Container ${index}: visible=${container.visible}, depth=${container.depth}, x=${container.x}, y=${container.y}`);
+  });
+}
+
+// Modifier la méthode ensureBattleInterfaceReady pour ajouter plus de debug :
 ensureBattleInterfaceReady() {
   console.log('🔧 [BattleScene] Vérification interface combat...');
+  
+  // Debug l'état avant
+  this.debugHealthBarsState();
   
   // Vérifier et recréer les barres de vie si nécessaire
   if (!this.modernHealthBars.player1 || !this.modernHealthBars.player2) {
     console.log('🔧 [BattleScene] Recréation des barres de vie...');
-    this.createModernHealthBars();
+    
+    // Forcer la recréation complète
+    this.modernHealthBars = { player1: null, player2: null };
+    
+    try {
+      this.createModernHealthBars();
+      console.log('✅ [BattleScene] Barres de vie recréées avec succès');
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur création barres de vie:', error);
+    }
+  } else {
+    console.log('ℹ️ [BattleScene] Barres de vie déjà présentes');
   }
+  
+  // Debug l'état après
+  this.debugHealthBarsState();
   
   // Vérifier l'interface d'action
   if (!this.actionInterface) {
@@ -3060,6 +3122,7 @@ ensureBattleInterfaceReady() {
   
   console.log('✅ [BattleScene] Interface combat vérifiée/recréée');
 }
+  
 // 🆕 NOUVELLE MÉTHODE : Nettoyage des barres de vie
 clearAllHealthBars() {
   console.log('🧹 [BattleScene] Nettoyage barres de vie...');
