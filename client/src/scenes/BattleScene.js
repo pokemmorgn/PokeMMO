@@ -2313,32 +2313,84 @@ handleUniversalActionSelectionStart(data) {
   /**
    * 🆕 Traitement phaseChanged universel
    */
-  handleUniversalPhaseChanged(data) {
-    console.log('📋 [BattleScene] phaseChanged universel:', data);
-    
-    // Mettre à jour l'état selon la phase
-    if (data.phase === 'action_selection') {
-      // Extraire options switch si présentes
-      if (data.canSwitch !== undefined) {
-        this.canSwitch = data.canSwitch;
-      }
-      if (data.availableSwitches) {
-        this.availableSwitches = data.availableSwitches;
-      }
-      
-      this.showActionButtons();
-    } else if (data.phase === 'switch_phase' || data.phase === 'forced_switch') {
-      // Phase de changement - sera gérée par switchRequired
+handleUniversalPhaseChanged(data) {
+  console.log('📋 [BattleScene] phaseChanged universel:', data);
+  
+  // Mettre à jour l'état selon la phase
+  if (data.phase === 'action_selection') {
+    // Extraire options switch si présentes
+    if (data.canSwitch !== undefined) {
+      this.canSwitch = data.canSwitch;
+    }
+    if (data.availableSwitches) {
+      this.availableSwitches = data.availableSwitches;
     }
     
-    // Mettre à jour propriétés universelles si présentes
-    if (data.isMultiPokemonBattle !== undefined) {
-      this.isMultiPokemonBattle = data.isMultiPokemonBattle;
-    }
-    if (data.switchingEnabled !== undefined) {
-      this.switchingEnabled = data.switchingEnabled;
-    }
+    this.showActionButtons();
+  } else if (data.phase === 'switch_phase' || data.phase === 'forced_switch') {
+    // Phase de changement - sera gérée par switchRequired
+  } else if (data.phase === 'ended') {
+    // 🎯 DÉCLENCHER LE KOMANAGER
+    console.log('🏁 [BattleScene] Combat terminé, trigger KOManager');
+    this.triggerKOManagerFromPhase(data);
   }
+  
+  // Mettre à jour propriétés universelles si présentes
+  if (data.isMultiPokemonBattle !== undefined) {
+    this.isMultiPokemonBattle = data.isMultiPokemonBattle;
+  }
+  if (data.switchingEnabled !== undefined) {
+    this.switchingEnabled = data.switchingEnabled;
+  }
+}
+
+// Nouvelle méthode simple pour déclencher le KOManager :
+triggerKOManagerFromPhase(phaseData) {
+  console.log('💀 [BattleScene] Déclenchement KOManager depuis phase ended:', phaseData);
+  
+  // Déterminer qui est KO selon le trigger
+  const trigger = phaseData.trigger;
+  let koData = null;
+  
+  if (trigger === 'opponent_pokemon_fainted') {
+    // Pokémon adversaire KO
+    koData = {
+      targetRole: 'player2',
+      pokemonName: this.currentOpponentPokemon?.name || 'Pokémon ennemi',
+      maxHp: this.currentOpponentPokemon?.maxHp || 100,
+      level: this.currentOpponentPokemon?.level || 5,
+      winner: phaseData.gameState?.winner || 'player1',
+      battleEndData: phaseData
+    };
+  } else if (trigger === 'player_pokemon_fainted') {
+    // Pokémon joueur KO
+    koData = {
+      targetRole: 'player1', 
+      pokemonName: this.currentPlayerPokemon?.name || 'Votre Pokémon',
+      maxHp: this.currentPlayerPokemon?.maxHp || 100,
+      level: this.currentPlayerPokemon?.level || 5,
+      winner: phaseData.gameState?.winner || 'player2',
+      battleEndData: phaseData
+    };
+  }
+  
+  // Déclencher le KOManager si on a des données valides
+  if (koData && this.koManager) {
+    console.log('🎯 [BattleScene] Appel KOManager.handlePokemonKO:', koData);
+    this.koManager.handlePokemonKO(koData);
+  } else {
+    console.warn('⚠️ [BattleScene] Impossible de déclencher KOManager:', {
+      koData: !!koData,
+      koManager: !!this.koManager,
+      trigger
+    });
+    
+    // Fallback : fin directe
+    setTimeout(() => {
+      this.endBattle(phaseData);
+    }, 2000);
+  }
+}
 
   /**
    * 🆕 Traitement switchRequired universel (changement forcé)
