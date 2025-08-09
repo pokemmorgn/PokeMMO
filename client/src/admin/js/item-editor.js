@@ -98,16 +98,17 @@ export class ItemEditorModule {
     setupEventListeners() {
     console.log('🔧 [ItemEditor] Configuration des event listeners');
 
-    // ✅ PRÉVENIR LA SOUMISSION DU FORMULAIRE
-    const itemForm = document.getElementById('itemEditorForm');
-    if (itemForm) {
-        itemForm.addEventListener('submit', (e) => {
-            console.log('🛑 [ItemEditor] Prévention soumission formulaire');
+    // ✅ PRÉVENIR LA SOUMISSION DU FORMULAIRE avec délégation d'événements
+    document.addEventListener('submit', (e) => {
+        if (e.target.id === 'itemEditorForm') {
+            console.log('🛑 [ItemEditor] Prévention soumission formulaire itemEditorForm');
             e.preventDefault();
+            e.stopPropagation();
             return false;
-        });
-    }
+        }
+    });
 
+        
     // DÉLÉGATION D'ÉVÉNEMENTS pour les sélects
     document.addEventListener('change', (e) => {
         const tag = (e.target?.tagName || '').toUpperCase();
@@ -154,26 +155,36 @@ export class ItemEditorModule {
     });
 
     // ✅ PRÉVENIR TOUS LES CLICS SUR LES BOUTONS DANS LE FORMULAIRE
-    document.addEventListener('click', (e) => {
+   document.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (!button) return;
 
-        // Si le bouton est dans le formulaire itemEditorForm, prévenir le comportement par défaut
+        // Si le bouton est dans le formulaire itemEditorForm
         const form = button.closest('#itemEditorForm');
         if (form) {
-            console.log('🛑 [ItemEditor] Prévention comportement bouton dans formulaire');
+            console.log('🛑 [ItemEditor] Prévention comportement bouton dans formulaire:', button);
             e.preventDefault();
+            e.stopPropagation();
             
-            // Identifier le type de bouton par son onclick ou ses classes
-            const onclickAttr = button.getAttribute('onclick');
-            if (onclickAttr) {
-                // Exécuter manuellement la fonction onclick
-                try {
-                    eval(onclickAttr);
-                } catch (error) {
-                    console.error('❌ [ItemEditor] Erreur exécution onclick:', error);
-                }
+            // Identifier le type de bouton et exécuter l'action appropriée
+            if (button.classList.contains('add-effect-btn')) {
+                this.addEffect();
+            } else if (button.classList.contains('add-method-btn')) {
+                this.addObtainMethod();
+            } else if (button.classList.contains('edit-effect-btn')) {
+                const index = parseInt(button.getAttribute('data-index'));
+                this.editEffect(index);
+            } else if (button.classList.contains('remove-effect-btn')) {
+                const index = parseInt(button.getAttribute('data-index'));
+                this.removeEffect(index);
+            } else if (button.classList.contains('edit-method-btn')) {
+                const index = parseInt(button.getAttribute('data-index'));
+                this.editObtainMethod(index);
+            } else if (button.classList.contains('remove-method-btn')) {
+                const index = parseInt(button.getAttribute('data-index'));
+                this.removeObtainMethod(index);
             }
+            
             return false;
         }
     });
@@ -732,11 +743,22 @@ checkItemEditorElements() {
             <div style="padding: 2rem; text-align: center; color: #666;">
                 <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
                 <p>Aucun effet défini</p>
-                <button type="button" onclick="window.itemEditorAddEffect(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter un effet
                 </button>
             </div>
         `;
+        
+        // Ajouter l'event listener après avoir créé le bouton
+        const addBtn = container.querySelector('.add-effect-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addEffect();
+                return false;
+            });
+        }
         return;
     }
 
@@ -748,10 +770,10 @@ checkItemEditorElements() {
                     <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
                 </div>
                 <div>
-                    <button type="button" onclick="window.itemEditorEditEffect(${index}); return false;" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                    <button type="button" class="edit-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" onclick="window.itemEditorRemoveEffect(${index}); return false;" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                    <button type="button" class="remove-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -765,14 +787,168 @@ checkItemEditorElements() {
         </div>
     `).join('') + `
         <div style="text-align: center; margin: 1rem 0;">
-            <button type="button" onclick="window.itemEditorAddEffect(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+            <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                 <i class="fas fa-plus"></i> Ajouter un effet
             </button>
         </div>
     `;
+
+    // Ajouter les event listeners après avoir créé les boutons
+    this.setupEffectButtonListeners(container);
 }
 
-   populateObtainMethods(methods) {
+// Nouvelle méthode pour configurer les event listeners
+setupEffectButtonListeners(container) {
+    // Bouton "Ajouter effet"
+    const addBtn = container.querySelector('.add-effect-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔘 [ItemEditor] Bouton Ajouter effet cliqué');
+            this.addEffect();
+            return false;
+        });
+    }
+
+    // Boutons "Modifier effet"
+    container.querySelectorAll('.edit-effect-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Modifier effet cliqué, index:', index);
+            this.editEffect(index);
+            return false;
+        });
+    });
+
+    // Boutons "Supprimer effet"
+    container.querySelectorAll('.remove-effect-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Supprimer effet cliqué, index:', index);
+            this.removeEffect(index);
+            return false;
+        });
+    });
+}
+
+   // CORRECTION pour item-editor.js - Empêcher le rechargement de page
+
+// Dans la méthode populateEffects, remplacer cette ligne :
+// <button type="button" onclick="window.itemEditorAddEffect(); return false;" ...>
+
+// Par cette version corrigée :
+populateEffects(effects) {
+    const container = document.getElementById('itemEffectsList');
+    if (!container) {
+        console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
+        return;
+    }
+
+    if (effects.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #666;">
+                <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>Aucun effet défini</p>
+                <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                    <i class="fas fa-plus"></i> Ajouter un effet
+                </button>
+            </div>
+        `;
+        
+        // Ajouter l'event listener après avoir créé le bouton
+        const addBtn = container.querySelector('.add-effect-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addEffect();
+                return false;
+            });
+        }
+        return;
+    }
+
+    container.innerHTML = effects.map((effect, index) => `
+        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${this.escapeHtml(effect.name || effect.id)}</strong>
+                    <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
+                </div>
+                <div>
+                    <button type="button" class="edit-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="remove-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            ${effect.description ? `<div style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">${this.escapeHtml(effect.description)}</div>` : ''}
+            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
+                Actions: ${effect.actions?.length || 0} |
+                Conditions: ${effect.conditions?.length || 0}
+                ${effect.priority ? ` | Priorité: ${effect.priority}` : ''}
+            </div>
+        </div>
+    `).join('') + `
+        <div style="text-align: center; margin: 1rem 0;">
+            <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <i class="fas fa-plus"></i> Ajouter un effet
+            </button>
+        </div>
+    `;
+
+    // Ajouter les event listeners après avoir créé les boutons
+    this.setupEffectButtonListeners(container);
+}
+
+// Nouvelle méthode pour configurer les event listeners
+setupEffectButtonListeners(container) {
+    // Bouton "Ajouter effet"
+    const addBtn = container.querySelector('.add-effect-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔘 [ItemEditor] Bouton Ajouter effet cliqué');
+            this.addEffect();
+            return false;
+        });
+    }
+
+    // Boutons "Modifier effet"
+    container.querySelectorAll('.edit-effect-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Modifier effet cliqué, index:', index);
+            this.editEffect(index);
+            return false;
+        });
+    });
+
+    // Boutons "Supprimer effet"
+    container.querySelectorAll('.remove-effect-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Supprimer effet cliqué, index:', index);
+            this.removeEffect(index);
+            return false;
+        });
+    });
+}
+
+// De même pour populateObtainMethods :
+populateObtainMethods(methods) {
     const container = document.getElementById('itemObtainMethodsList');
     if (!container) {
         console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
@@ -784,11 +960,21 @@ checkItemEditorElements() {
             <div style="padding: 2rem; text-align: center; color: #666;">
                 <i class="fas fa-map-marker-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
                 <p>Aucune méthode définie</p>
-                <button type="button" onclick="window.itemEditorAddObtainMethod(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+                <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                     <i class="fas fa-plus"></i> Ajouter une méthode
                 </button>
             </div>
         `;
+        
+        const addBtn = container.querySelector('.add-method-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addObtainMethod();
+                return false;
+            });
+        }
         return;
     }
 
@@ -800,10 +986,10 @@ checkItemEditorElements() {
                     ${method.location ? `<span style="margin-left: 0.5rem; color: #666;">- ${this.escapeHtml(method.location)}</span>` : ''}
                 </div>
                 <div>
-                    <button type="button" onclick="window.itemEditorEditObtainMethod(${index}); return false;" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
+                    <button type="button" class="edit-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" onclick="window.itemEditorRemoveObtainMethod(${index}); return false;" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
+                    <button type="button" class="remove-method-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -816,12 +1002,54 @@ checkItemEditorElements() {
         </div>
     `).join('') + `
         <div style="text-align: center; margin: 1rem 0;">
-            <button type="button" onclick="window.itemEditorAddObtainMethod(); return false;" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+            <button type="button" class="add-method-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
                 <i class="fas fa-plus"></i> Ajouter une méthode
             </button>
         </div>
     `;
+
+    this.setupMethodButtonListeners(container);
 }
+
+// Nouvelle méthode pour configurer les event listeners des méthodes
+setupMethodButtonListeners(container) {
+    // Bouton "Ajouter méthode"
+    const addBtn = container.querySelector('.add-method-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔘 [ItemEditor] Bouton Ajouter méthode cliqué');
+            this.addObtainMethod();
+            return false;
+        });
+    }
+
+    // Boutons "Modifier méthode"
+    container.querySelectorAll('.edit-method-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Modifier méthode cliqué, index:', index);
+            this.editObtainMethod(index);
+            return false;
+        });
+    });
+
+    // Boutons "Supprimer méthode"
+    container.querySelectorAll('.remove-method-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('🔘 [ItemEditor] Bouton Supprimer méthode cliqué, index:', index);
+            this.removeObtainMethod(index);
+            return false;
+        });
+    });
+}
+
     // ===== ACTIONS =====
 
     async saveItem() {
