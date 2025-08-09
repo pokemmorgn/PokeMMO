@@ -2917,35 +2917,172 @@ initializeCaptureManager() {
     }, 500);
   }
 
-  completeBattleCleanup(battleResult) {
-    if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.disconnectFromBattleRoom();
-    }
+completeBattleCleanup(battleResult) {
+  console.log('🧹 [BattleScene] Début nettoyage complet...', battleResult);
+  
+  // 🆕 NETTOYAGE ÉTAT UNIVERSAL SWITCH
+  this.isMultiPokemonBattle = false;
+  this.canSwitch = false;
+  this.availableSwitches = [];
+  this.noTimeLimit = true;
+  this.switchingAvailable = false;
+  this.availableSwitchCount = 0;
+  this.battleType = 'wild';
+  
+  // 🆕 NETTOYAGE ÉTAT INTERFACE
+  this.interfaceMode = 'hidden';
+  this.currentPlayerMoves = [];
+  this.playerRole = null;
+  
+  // 🆕 NETTOYAGE ÉTAT LOCALISATION
+  this.battleLocalizationReady = false;
+  if (this.battleTranslator) {
+    this.battleTranslator = null;
+  }
+  
+  // 🆕 NETTOYAGE DONNÉES POKÉMON
+  this.currentPlayerPokemon = null;
+  this.currentOpponentPokemon = null;
+  
+  // Nettoyage réseau
+  if (this.battleNetworkHandler) {
+    // Déconnecter tous les événements spécifiques à ce combat
+    const eventsToClean = [
+      'battleStart', 'actionSelectionStart', 'phaseChanged', 
+      'switchRequired', 'pokemonSwitched', 'actionResult', 
+      'moveUsed', 'damageDealt', 'narrativeStart', 'narrativeEnd',
+      'battleJoined', 'yourTurn', 'battleRoomDisconnected'
+    ];
     
-    if (window.battleSystem) {
-      window.battleSystem.isInBattle = false;
-      window.battleSystem.isTransitioning = false;
-      window.battleSystem.currentBattleRoom = null;
-      window.battleSystem.currentBattleData = null;
-      window.battleSystem.selectedPokemon = null;
-    }
-    
-    if (this.gameManager?.battleState) {
-      this.gameManager.battleState = 'none';
-      this.gameManager.inBattle = false;
-    }
-    
-    this.clearAllPokemonSprites();
-    this.hideBattle();
-    
-    if (window.pokemonUISystem?.setGameState) {
+    eventsToClean.forEach(eventName => {
       try {
-        window.pokemonUISystem.setGameState('exploration', { force: true });
+        this.battleNetworkHandler.off(eventName);
       } catch (error) {
-        console.warn('Erreur reset UI:', error);
+        console.warn(`⚠️ Erreur nettoyage événement ${eventName}:`, error);
       }
+    });
+    
+    this.battleNetworkHandler.disconnectFromBattleRoom();
+  }
+  
+  // Nettoyage système bataille global
+  if (window.battleSystem) {
+    window.battleSystem.isInBattle = false;
+    window.battleSystem.isTransitioning = false;
+    window.battleSystem.currentBattleRoom = null;
+    window.battleSystem.currentBattleData = null;
+    window.battleSystem.selectedPokemon = null;
+    // 🆕 NETTOYAGE ÉTAT UNIVERSAL SWITCH GLOBAL
+    window.battleSystem.lastBattleState = null;
+    window.battleSystem.pendingSwitchData = null;
+  }
+  
+  // Nettoyage GameManager
+  if (this.gameManager?.battleState) {
+    this.gameManager.battleState = 'none';
+    this.gameManager.inBattle = false;
+    // 🆕 RESET DONNÉES BATTLE GAMEMANAGER
+    this.gameManager.currentBattle = null;
+    this.gameManager.lastBattleResult = battleResult;
+  }
+  
+  // Nettoyage visuel
+  this.clearAllPokemonSprites();
+  this.clearAllHealthBars();
+  this.hideBattle();
+  
+  // 🆕 NETTOYAGE MANAGERS
+  this.cleanupManagers();
+  
+  // Reset UI
+  if (window.pokemonUISystem?.setGameState) {
+    try {
+      window.pokemonUISystem.setGameState('exploration', { force: true });
+    } catch (error) {
+      console.warn('⚠️ Erreur reset UI:', error);
     }
   }
+  
+  console.log('✅ [BattleScene] Nettoyage complet terminé');
+}
+
+// 🆕 NOUVELLE MÉTHODE : Nettoyage des barres de vie
+clearAllHealthBars() {
+  console.log('🧹 [BattleScene] Nettoyage barres de vie...');
+  
+  Object.keys(this.modernHealthBars).forEach(key => {
+    const healthBar = this.modernHealthBars[key];
+    if (healthBar?.container) {
+      try {
+        healthBar.container.destroy();
+      } catch (error) {
+        console.warn(`⚠️ Erreur destruction barre de vie ${key}:`, error);
+      }
+    }
+  });
+  
+  // Réinitialiser l'objet
+  this.modernHealthBars = { player1: null, player2: null };
+}
+
+// 🆕 NOUVELLE MÉTHODE : Nettoyage des managers
+cleanupManagers() {
+  console.log('🧹 [BattleScene] Nettoyage managers...');
+  
+  // Nettoyage KOManager
+  if (this.koManager) {
+    try {
+      this.koManager.destroy();
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction KOManager:', error);
+    }
+    this.koManager = null;
+  }
+  
+  // Nettoyage PokemonTeamUI
+  if (this.pokemonTeamUI) {
+    try {
+      this.pokemonTeamUI.destroy();
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction PokemonTeamUI:', error);
+    }
+    this.pokemonTeamUI = null;
+  }
+  
+  // Nettoyage CaptureManager
+  if (this.captureManager) {
+    try {
+      this.captureManager.destroy();
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction CaptureManager:', error);
+    }
+    this.captureManager = null;
+  }
+  
+  // Nettoyage BattleInventoryUI
+  if (this.battleInventoryUI) {
+    try {
+      if (typeof this.battleInventoryUI.destroy === 'function') {
+        this.battleInventoryUI.destroy();
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction BattleInventoryUI:', error);
+    }
+    this.battleInventoryUI = null;
+  }
+  
+  // Nettoyage HealthBarManager
+  if (this.healthBarManager) {
+    try {
+      if (typeof this.healthBarManager.destroy === 'function') {
+        this.healthBarManager.destroy();
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction HealthBarManager:', error);
+    }
+    this.healthBarManager = null;
+  }
+}
 
   clearAllPokemonSprites() {
     if (this.playerPokemonSprite) {
