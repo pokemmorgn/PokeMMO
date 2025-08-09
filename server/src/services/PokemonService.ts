@@ -604,5 +604,372 @@ export async function calculatePokemonStatsAtLevel(
   }
 }
 
+/**
+ * 🆕 NOUVEAU : Calcule l'XP donné par un Pokémon NPC vaincu
+ */
+export async function calculateXPYield(
+  pokemonId: number, 
+  pokemonLevel: number, 
+  options: {
+    isTrainer?: boolean;
+    isShared?: boolean; // XP partagé avec Exp. Share
+    participantCount?: number; // Nombre de Pokémon ayant participé
+    playerLevel?: number; // Niveau du Pokémon joueur (pour ajustement)
+    customMultiplier?: number; // Multiplicateur personnalisé
+  } = {}
+): Promise<{
+  baseXP: number;
+  totalXP: number;
+  breakdown: {
+    base: number;
+    trainerBonus: number;
+    levelAdjustment: number;
+    shareAdjustment: number;
+    finalMultiplier: number;
+  };
+}> {
+  try {
+    const pokemonData = await getPokemonById(pokemonId);
+    if (!pokemonData) {
+      return {
+        baseXP: 0,
+        totalXP: 0,
+        breakdown: {
+          base: 0,
+          trainerBonus: 1,
+          levelAdjustment: 1,
+          shareAdjustment: 1,
+          finalMultiplier: 1
+        }
+      };
+    }
+    
+    // Utiliser baseExperienceYield en priorité (Gen 5+), sinon baseExperience (Gen 1-4)
+    const baseXP = pokemonData.baseExperienceYield || pokemonData.baseExperience;
+    
+    // Calculs de multiplicateurs
+    const trainerBonus = options.isTrainer ? 1.5 : 1.0;
+    
+    // Ajustement de niveau (formule officielle)
+    let levelAdjustment = 1.0;
+    if (options.playerLevel) {
+      // Plus l'écart de niveau est grand, moins l'XP est importante
+      const levelDifference = pokemonLevel - options.playerLevel;
+      if (levelDifference > 0) {
+        levelAdjustment = Math.min(1.2, 1.0 + (levelDifference * 0.05)); // Bonus si Pokémon ennemi plus fort
+      } else {
+        levelAdjustment = Math.max(0.5, 1.0 + (levelDifference * 0.1)); // Malus si Pokémon ennemi plus faible
+      }
+    }
+    
+    // Ajustement pour partage d'XP
+    let shareAdjustment = 1.0;
+    if (options.isShared && options.participantCount) {
+      shareAdjustment = 1.0 / Math.sqrt(options.participantCount); // Racine carrée pour un partage équitable
+    }
+    
+    // Multiplicateur final
+    const finalMultiplier = (options.customMultiplier || 1.0) * trainerBonus * levelAdjustment * shareAdjustment;
+    
+    // Calcul final avec formule officielle
+    const levelFactor = pokemonLevel / 7;
+    const totalXP = Math.floor(baseXP * levelFactor * finalMultiplier);
+    
+    return {
+      baseXP,
+      totalXP: Math.max(1, totalXP), // Au minimum 1 XP
+      breakdown: {
+        base: baseXP,
+        trainerBonus,
+        levelAdjustment,
+        shareAdjustment,
+        finalMultiplier
+      }
+    };
+    
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur calculateXPYield:`, error);
+    return {
+      baseXP: 0,
+      totalXP: 0,
+      breakdown: {
+        base: 0,
+        trainerBonus: 1,
+        levelAdjustment: 1,
+        shareAdjustment: 1,
+        finalMultiplier: 1
+      }
+    };
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Récupère les informations de base d'un Pokémon pour les NPC
+ */
+export async function getPokemonBaseInfo(pokemonId: number): Promise<{
+  id: number;
+  name: string;
+  types: string[];
+  baseStats: any;
+  baseXP: number;
+  captureRate: number;
+  growthRate: string;
+  abilities: string[];
+  hiddenAbility?: string;
+  height: number;
+  weight: number;
+  generation: number;
+  region: string;
+} | null> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return null;
+    
+    return {
+      id: pokemon.nationalDex,
+      name: pokemon.nameKey.split('.').pop()?.charAt(0).toUpperCase() + pokemon.nameKey.split('.').pop()?.slice(1) || `Pokemon${pokemonId}`,
+      types: pokemon.types,
+      baseStats: pokemon.baseStats,
+      baseXP: pokemon.baseExperienceYield || pokemon.baseExperience,
+      captureRate: pokemon.captureRate,
+      growthRate: pokemon.growthRate,
+      abilities: pokemon.abilities,
+      hiddenAbility: pokemon.hiddenAbility,
+      height: pokemon.height,
+      weight: pokemon.weight,
+      generation: pokemon.generation,
+      region: pokemon.region
+    };
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur getPokemonBaseInfo:`, error);
+    return null;
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Génère un Pokémon NPC avec des stats appropriées
+ */
+export async function generateNPCPokemon(
+  pokemonId: number, 
+  level: number,
+  options: {
+    nature?: string;
+    ivRange?: { min: number; max: number }; // IVs pour NPCs (généralement plus bas)
+    isTrainer?: boolean; // Les trainers ont de meilleurs IVs
+    customAbility?: string;
+    customMoves?: string[];
+    isShiny?: boolean;
+    aiLevel?: 'novice' | 'intermediate' | 'expert' | 'champion'; // Niveau IA pour les stats
+  } = {}
+): Promise<{
+  pokemonId: number;
+  name: string;
+  level: number;
+  nature: string;
+  ability: string;
+  types: string[];
+  ivs: any;
+  stats: any;
+  moves: string[];
+  shiny: boolean;
+  aiData: {
+    aiLevel: string;
+    strategy: string;
+    priority: number;
+  };
+} | null> {
+  try {
+    const pokemonData = await getPokemonById(pokemonId);
+    if (!pokemonData) return null;
+    
+    // Déterminer les IVs selon le niveau IA
+    const aiLevel = options.aiLevel || 'intermediate';
+    let ivRange = options.ivRange || { min: 10, max: 20 };
+    
+    switch (aiLevel) {
+      case 'novice':
+        ivRange = { min: 0, max: 15 };
+        break;
+      case 'intermediate':
+        ivRange = { min: 10, max: 20 };
+        break;
+      case 'expert':
+        ivRange = { min: 20, max: 28 };
+        break;
+      case 'champion':
+        ivRange = { min: 28, max: 31 };
+        break;
+    }
+    
+    // Si c'est un trainer, améliorer les IVs
+    if (options.isTrainer) {
+      ivRange.min = Math.min(31, ivRange.min + 5);
+      ivRange.max = Math.min(31, ivRange.max + 5);
+    }
+    
+    // Générer les IVs
+    const ivs = {
+      hp: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+      attack: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+      defense: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+      spAttack: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+      spDefense: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+      speed: Math.floor(Math.random() * (ivRange.max - ivRange.min + 1)) + ivRange.min,
+    };
+    
+    // Nature et capacité
+    const nature = options.nature || randomNature();
+    const ability = options.customAbility || await selectPokemonAbility(pokemonId);
+    
+    // Moves (utiliser les custom ou générer selon le niveau)
+    let moves: string[] = [];
+    if (options.customMoves) {
+      moves = options.customMoves.slice(0, 4);
+    } else {
+      // Récupérer les moves que le Pokémon peut apprendre jusqu'à ce niveau
+      const availableMoves = pokemonData.learnset
+        .filter(move => move.method === 'level' && move.level <= level)
+        .sort((a, b) => b.level - a.level) // Plus récents en premier
+        .slice(0, 4)
+        .map(move => move.moveId);
+      
+      moves = availableMoves.length > 0 ? availableMoves : ['tackle'];
+    }
+    
+    // Calculer les stats
+    const stats = calculateWildPokemonStats(pokemonData.baseStats, level, ivs, nature);
+    
+    // Shiny (très rare pour les NPCs sauf spécifié)
+    const isShiny = options.isShiny !== undefined ? options.isShiny : (Math.random() < 0.001); // 0.1% chance
+    
+    // Données IA
+    const aiStrategy = determineAIStrategy(pokemonData, aiLevel);
+    
+    return {
+      pokemonId,
+      name: pokemonData.nameKey.split('.').pop()?.charAt(0).toUpperCase() + pokemonData.nameKey.split('.').pop()?.slice(1) || `Pokemon${pokemonId}`,
+      level,
+      nature,
+      ability,
+      types: pokemonData.types,
+      ivs,
+      stats,
+      moves,
+      shiny: isShiny,
+      aiData: {
+        aiLevel,
+        strategy: aiStrategy,
+        priority: calculateAIPriority(pokemonData, stats)
+      }
+    };
+    
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur generateNPCPokemon:`, error);
+    return null;
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Détermine la stratégie IA basée sur les stats du Pokémon
+ */
+function determineAIStrategy(pokemonData: IPokemonData, aiLevel: string): string {
+  const stats = pokemonData.baseStats;
+  
+  // Analyser les points forts du Pokémon
+  const totalStats = stats.attack + stats.defense + stats.specialAttack + stats.specialDefense + stats.speed + stats.hp;
+  const avgStat = totalStats / 6;
+  
+  if (stats.attack > avgStat * 1.3) {
+    return aiLevel === 'novice' ? 'aggressive' : 'physical_sweeper';
+  } else if (stats.specialAttack > avgStat * 1.3) {
+    return aiLevel === 'novice' ? 'aggressive' : 'special_sweeper';
+  } else if (stats.speed > avgStat * 1.3) {
+    return aiLevel === 'novice' ? 'fast' : 'speed_control';
+  } else if ((stats.defense + stats.specialDefense) > avgStat * 2.5) {
+    return aiLevel === 'novice' ? 'defensive' : 'wall';
+  } else if (stats.hp > avgStat * 1.5) {
+    return aiLevel === 'novice' ? 'tanky' : 'support';
+  } else {
+    return aiLevel === 'novice' ? 'balanced' : 'utility';
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Calcule la priorité IA (ordre d'action)
+ */
+function calculateAIPriority(pokemonData: IPokemonData, stats: any): number {
+  // Base sur la vitesse et la dangerosité
+  const speedFactor = stats.speed / 200; // Normaliser
+  const threatLevel = Math.max(stats.attack, stats.specialAttack) / 150; // Normaliser
+  
+  return Math.round((speedFactor + threatLevel) * 100);
+}
+
+/**
+ * 🆕 NOUVEAU : Récupère les multiplicateurs de capture pour un Pokémon
+ */
+export async function getCaptureInfo(pokemonId: number): Promise<{
+  captureRate: number;
+  ballEffectiveness: any;
+  statusModifiers: any;
+  difficultyLevel: 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard' | 'legendary';
+  tips: string[];
+} | null> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return null;
+    
+    // Déterminer la difficulté de capture
+    let difficultyLevel: 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard' | 'legendary';
+    if (pokemon.captureRate >= 200) difficultyLevel = 'very_easy';
+    else if (pokemon.captureRate >= 120) difficultyLevel = 'easy';
+    else if (pokemon.captureRate >= 75) difficultyLevel = 'medium';
+    else if (pokemon.captureRate >= 45) difficultyLevel = 'hard';
+    else if (pokemon.captureRate >= 25) difficultyLevel = 'very_hard';
+    else difficultyLevel = 'legendary';
+    
+    // Conseils de capture
+    const tips: string[] = [];
+    if (pokemon.captureRate < 50) {
+      tips.push("Utilisez des Ultra Balls ou mieux");
+      tips.push("Infligez un statut (sommeil/paralysie)");
+      tips.push("Réduisez les HP au minimum");
+    }
+    if (pokemon.types.includes('Ghost')) {
+      tips.push("Les Pokémon spectre sont plus faciles à capturer la nuit");
+    }
+    if (pokemon.types.includes('Water')) {
+      tips.push("Utilisez des Filet Balls près de l'eau");
+    }
+    
+    // Ball effectiveness par défaut (peut être override par catch locations)
+    const defaultBallEffectiveness = {
+      poke_ball: 1.0,
+      great_ball: 1.5,
+      ultra_ball: 2.0,
+      master_ball: 255.0
+    };
+    
+    return {
+      captureRate: pokemon.captureRate,
+      ballEffectiveness: pokemon.catchLocations[0]?.ballEffectiveness || defaultBallEffectiveness,
+      statusModifiers: pokemon.catchLocations[0]?.statusModifiers || {
+        normal: 1.0,
+        sleep: 2.5,
+        freeze: 2.5,
+        paralysis: 1.5,
+        burn: 1.5,
+        poison: 1.5
+      },
+      difficultyLevel,
+      tips
+    };
+    
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur getCaptureInfo:`, error);
+    return null;
+  }
+}
+
 // 🔄 EXPORT : Conserver la compatibilité avec l'ancien code
 export { getPokemonById, getStarterMoves, generateRandomGender };
