@@ -1,16 +1,79 @@
-// server/src/services/PokemonService.ts - Version complète corrigée
+// server/src/services/PokemonService.ts - Version mise à jour pour MongoDB
 
 import { OwnedPokemon, IOwnedPokemon } from "../models/OwnedPokemon";
 import { PlayerData } from "../models/PlayerData";
+import { PokemonData, IPokemonData } from "../models/PokemonData"; // 🔄 NOUVEAU : Import du modèle MongoDB
 import { HydratedDocument } from "mongoose";
-import { 
-  getPokemonById, 
-  getStarterMoves, 
-  generateRandomGender 
-} from "../data/PokemonData";
 import movesIndex from "../data/moves-index.json";
 import abilitiesData from "../data/abilities.json";
 import naturesData from "../data/natures.json";
+
+// === FONCTIONS DE DONNÉES MISES À JOUR ===
+
+/**
+ * 🔄 NOUVEAU : Récupère un Pokémon depuis MongoDB au lieu du JSON
+ */
+async function getPokemonById(pokemonId: number): Promise<IPokemonData | null> {
+  try {
+    const pokemon = await PokemonData.findByNationalDex(pokemonId);
+    return pokemon;
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur récupération Pokémon #${pokemonId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 🔄 NOUVEAU : Récupère les moves de départ depuis le nouveau système
+ */
+async function getStarterMoves(pokemonId: number): Promise<string[]> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return ['tackle']; // Fallback
+    
+    // Récupérer les moves de niveau 1 et 0 (moves de base)
+    const starterMoves = pokemon.getMovesAtLevel(1);
+    if (starterMoves.length === 0) {
+      // Si pas de moves au niveau 1, prendre les moves de niveau 0
+      const baseMoves = pokemon.getMovesAtLevel(0);
+      if (baseMoves.length > 0) return baseMoves;
+    }
+    
+    // S'assurer qu'on a au moins une attaque
+    return starterMoves.length > 0 ? starterMoves : ['tackle'];
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur getStarterMoves pour #${pokemonId}:`, error);
+    return ['tackle'];
+  }
+}
+
+/**
+ * 🔄 NOUVEAU : Génère un genre aléatoire basé sur les vrais ratios du Pokémon
+ */
+async function generateRandomGender(pokemonId: number): Promise<string> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return 'Genderless';
+    
+    const { genderRatio } = pokemon;
+    
+    // Pokémon sans genre
+    if (genderRatio.genderless) {
+      return 'Genderless';
+    }
+    
+    // Génération basée sur les vrais pourcentages
+    const random = Math.random() * 100;
+    if (random < genderRatio.male) {
+      return 'Male';
+    } else {
+      return 'Female';
+    }
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur generateRandomGender pour #${pokemonId}:`, error);
+    return 'Genderless';
+  }
+}
 
 // === UTILITAIRES DE GÉNÉRATION ===
 
@@ -76,17 +139,27 @@ function getMoveBasePP(moveId: string): number {
   return defaultPP[moveType] || 30;
 }
 
+/**
+ * 🔄 NOUVEAU : Sélectionne une capacité depuis les vraies données du Pokémon
+ */
 async function selectPokemonAbility(pokemonId: number): Promise<string> {
-  const pokemonData = await getPokemonById(pokemonId);
-  if (!pokemonData || !pokemonData.abilities.length) {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon || !pokemon.abilities.length) {
+      return "run_away";
+    }
+    
+    // 20% de chance d'avoir la capacité cachée si elle existe
+    const useHidden = Math.random() < 0.2 && pokemon.hiddenAbility;
+    if (useHidden && pokemon.hiddenAbility) {
+      return pokemon.hiddenAbility;
+    } else {
+      const randomIndex = Math.floor(Math.random() * pokemon.abilities.length);
+      return pokemon.abilities[randomIndex];
+    }
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur selectPokemonAbility pour #${pokemonId}:`, error);
     return "run_away";
-  }
-  const useHidden = Math.random() < 0.2 && pokemonData.hiddenAbility;
-  if (useHidden) {
-    return pokemonData.hiddenAbility!;
-  } else {
-    const randomIndex = Math.floor(Math.random() * pokemonData.abilities.length);
-    return pokemonData.abilities[randomIndex];
   }
 }
 
@@ -103,7 +176,7 @@ export async function createCompletePokemon(
     inTeam?: boolean;
     ivs?: any;
     ability?: string;
-    gender?: string; // <-- Ajouté pour compat, mais pas obligatoire
+    gender?: string;
   }
 ): Promise<HydratedDocument<IOwnedPokemon>> {
   const playerData = await PlayerData.findOne({ username });
@@ -121,7 +194,7 @@ export async function createCompletePokemon(
   // --- Gestion du genre
   let genderRaw: string | undefined = undefined;
   if (options.gender) {
-    genderRaw = options.gender; // Permet d'imposer un genre, si fourni (future compat)
+    genderRaw = options.gender;
   } else {
     genderRaw = await generateRandomGender(options.pokemonId);
   }
@@ -131,6 +204,9 @@ export async function createCompletePokemon(
   const ability = options.ability || await selectPokemonAbility(options.pokemonId);
   const moves = await getMovesWithPP(options.pokemonId, level);
 
+  // 🔄 NOUVEAU : Utiliser les vraies données pour le nickname par défaut
+  const defaultNickname = options.nickname || pokemonData.nameKey.split('.').pop() || `Pokemon${options.pokemonId}`;
+
   // Création du Pokémon
   const pokemonDoc = new OwnedPokemon({
     owner: username,
@@ -138,7 +214,7 @@ export async function createCompletePokemon(
     level,
     experience: getExperienceForLevel(level),
     nature,
-    nickname: options.nickname,
+    nickname: defaultNickname,
     shiny: isShiny,
     gender: ["Male", "Female", "Genderless"].includes(gender) ? gender : "Genderless",
     ability,
@@ -157,7 +233,7 @@ export async function createCompletePokemon(
     },
     isInTeam: false,
     box: 0,
-    friendship: 70,
+    friendship: pokemonData.baseHappiness || 70, // 🔄 NOUVEAU : Utiliser la vraie valeur
     pokeball: 'poke_ball',
     originalTrainer: username
   });
@@ -186,16 +262,50 @@ export async function createCompletePokemon(
       await playerData.save();
       await pokemonDoc.save();
     } else {
-      console.warn(`Équipe pleine pour ${username}, ${options.nickname || pokemonData.name} envoyé au PC`);
+      console.warn(`Équipe pleine pour ${username}, ${defaultNickname} envoyé au PC`);
     }
   }
 
   return pokemonDoc;
 }
 
-function getExperienceForLevel(level: number): number {
+/**
+ * 🔄 AMÉLIORÉ : Calcul de l'expérience basé sur le growth rate du Pokémon
+ */
+function getExperienceForLevel(level: number, growthRate: string = 'medium_fast'): number {
   if (level === 1) return 0;
-  return Math.floor((6 * Math.pow(level, 3)) / 5 - 15 * Math.pow(level, 2) + 100 * level - 140);
+  
+  // Formules officielles par growth rate
+  switch (growthRate) {
+    case 'fast':
+      return Math.floor((4 * Math.pow(level, 3)) / 5);
+    case 'medium_fast':
+      return Math.floor(Math.pow(level, 3));
+    case 'medium_slow':
+      return Math.floor((6 * Math.pow(level, 3)) / 5 - 15 * Math.pow(level, 2) + 100 * level - 140);
+    case 'slow':
+      return Math.floor((5 * Math.pow(level, 3)) / 4);
+    case 'erratic':
+      if (level <= 50) {
+        return Math.floor((Math.pow(level, 3) * (100 - level)) / 50);
+      } else if (level <= 68) {
+        return Math.floor((Math.pow(level, 3) * (150 - level)) / 100);
+      } else if (level <= 98) {
+        return Math.floor((Math.pow(level, 3) * ((1911 - 10 * level) / 3)) / 500);
+      } else {
+        return Math.floor((Math.pow(level, 3) * (160 - level)) / 100);
+      }
+    case 'fluctuating':
+      if (level <= 15) {
+        return Math.floor(Math.pow(level, 3) * ((level + 1) / 3 + 24) / 50);
+      } else if (level <= 35) {
+        return Math.floor(Math.pow(level, 3) * (level + 14) / 50);
+      } else {
+        return Math.floor(Math.pow(level, 3) * (level / 2 + 32) / 50);
+      }
+    default:
+      return Math.floor(Math.pow(level, 3)); // medium_fast par défaut
+  }
 }
 
 export async function giveStarterToPlayer(
@@ -220,6 +330,9 @@ export async function giveStarterToPlayer(
   });
 }
 
+/**
+ * 🔄 NOUVEAU : Génération de Pokémon sauvage avec vraies données
+ */
 export async function generateWildPokemon(
   pokemonId: number,
   level: number,
@@ -251,12 +364,12 @@ export async function generateWildPokemon(
   const ability = await selectPokemonAbility(pokemonId);
   const moves = await getMovesWithPP(pokemonId, level);
 
-  // Calcul des stats avec la formule officielle
+  // 🔄 NOUVEAU : Calcul des stats avec les vraies baseStats
   const stats = calculateWildPokemonStats(pokemonData.baseStats, level, ivs, nature);
 
   return {
     pokemonId,
-    name: pokemonData.name,
+    name: pokemonData.nameKey.split('.').pop() || `Pokemon${pokemonId}`, // 🔄 Extract name from key
     level,
     nature,
     shiny: isShiny,
@@ -275,22 +388,32 @@ export async function generateWildPokemon(
       speed: stats.speed
     },
     types: pokemonData.types,
-    baseStats: pokemonData.baseStats
+    baseStats: pokemonData.baseStats,
+    // 🔄 NOUVEAU : Ajouter plus de métadonnées
+    species: pokemonData.species,
+    height: pokemonData.height,
+    weight: pokemonData.weight,
+    captureRate: pokemonData.captureRate
   };
 }
 
+/**
+ * 🔄 AMÉLIORÉ : Calcul de stats avec les bonnes propriétés MongoDB
+ */
 function calculateWildPokemonStats(baseStats: any, level: number, ivs: any, nature: string): any {
   const natureData = naturesData[nature as keyof typeof naturesData];
   
-  const calculateStat = (statName: string, baseStat: number, isHP: boolean = false): number => {
-    const iv = ivs[statName] || 0;
+  const calculateStat = (mongoStatName: string, gameStatName: string, isHP: boolean = false): number => {
+    const baseStat = baseStats[mongoStatName] || 1;
+    const iv = ivs[gameStatName] || 0;
+    
     if (isHP) {
       return Math.floor(((2 * baseStat + iv) * level) / 100) + level + 10;
     } else {
       let stat = Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
-      if (natureData?.increased === statName) {
+      if (natureData?.increased === gameStatName) {
         stat = Math.floor(stat * 1.1);
-      } else if (natureData?.decreased === statName) {
+      } else if (natureData?.decreased === gameStatName) {
         stat = Math.floor(stat * 0.9);
       }
       return stat;
@@ -298,15 +421,18 @@ function calculateWildPokemonStats(baseStats: any, level: number, ivs: any, natu
   };
 
   return {
-    hp: calculateStat('hp', baseStats.hp, true),
-    attack: calculateStat('attack', baseStats.attack),
-    defense: calculateStat('defense', baseStats.defense),
-    spAttack: calculateStat('spAttack', baseStats.specialAttack),
-    spDefense: calculateStat('spDefense', baseStats.specialDefense),
-    speed: calculateStat('speed', baseStats.speed)
+    hp: calculateStat('hp', 'hp', true),
+    attack: calculateStat('attack', 'attack'),
+    defense: calculateStat('defense', 'defense'),
+    spAttack: calculateStat('specialAttack', 'spAttack'),
+    spDefense: calculateStat('specialDefense', 'spDefense'),
+    speed: calculateStat('speed', 'speed')
   };
 }
 
+/**
+ * 🔄 AMÉLIORÉ : Évolution avec validation des données
+ */
 export async function evolvePokemon(
   pokemonId: string,
   newPokemonId: number
@@ -317,14 +443,33 @@ export async function evolvePokemon(
   const newPokemonData = await getPokemonById(newPokemonId);
   if (!newPokemonData) return null;
 
+  // Vérifier que l'évolution est valide
+  const currentPokemonData = await getPokemonById(pokemon.pokemonId);
+  if (currentPokemonData && currentPokemonData.evolution.canEvolve) {
+    if (currentPokemonData.evolution.evolvesInto !== newPokemonId) {
+      console.warn(`⚠️ [PokemonService] Évolution invalide: ${pokemon.pokemonId} ne peut pas évoluer en ${newPokemonId}`);
+      return null;
+    }
+  }
+
   pokemon.pokemonId = newPokemonId;
   const newAbility = await selectPokemonAbility(newPokemonId);
   pokemon.ability = newAbility;
+  
+  // 🔄 NOUVEAU : Mettre à jour le nickname si c'était le nom par défaut
+  const oldDefaultName = currentPokemonData?.nameKey.split('.').pop();
+  if (pokemon.nickname === oldDefaultName) {
+    pokemon.nickname = newPokemonData.nameKey.split('.').pop() || pokemon.nickname;
+  }
+  
   await pokemon.save();
 
   return pokemon;
 }
 
+/**
+ * 🔄 AMÉLIORÉ : Gain d'expérience avec growth rate spécifique
+ */
 export async function gainExperience(
   pokemonId: string,
   expAmount: number
@@ -332,10 +477,14 @@ export async function gainExperience(
   const pokemon = await OwnedPokemon.findById(pokemonId);
   if (!pokemon) throw new Error("Pokémon introuvable");
 
+  // 🔄 NOUVEAU : Récupérer le growth rate du Pokémon
+  const pokemonData = await getPokemonById(pokemon.pokemonId);
+  const growthRate = pokemonData?.growthRate || 'medium_fast';
+
   const oldLevel = pokemon.level;
   pokemon.experience += expAmount;
 
-  let newLevel = calculateLevelFromExp(pokemon.experience);
+  let newLevel = calculateLevelFromExp(pokemon.experience, growthRate);
   if (newLevel > 100) newLevel = 100;
 
   const leveledUp = newLevel > oldLevel;
@@ -348,11 +497,15 @@ export async function gainExperience(
   return { leveledUp, newLevel: leveledUp ? newLevel : undefined };
 }
 
-function calculateLevelFromExp(exp: number): number {
+/**
+ * 🔄 NOUVEAU : Calcul de niveau depuis XP avec growth rate
+ */
+function calculateLevelFromExp(exp: number, growthRate: string = 'medium_fast'): number {
   if (exp === 0) return 1;
+  
   for (let level = 1; level <= 100; level++) {
-    const expForLevel = getExperienceForLevel(level);
-    const expForNextLevel = getExperienceForLevel(level + 1);
+    const expForLevel = getExperienceForLevel(level, growthRate);
+    const expForNextLevel = getExperienceForLevel(level + 1, growthRate);
     if (exp >= expForLevel && exp < expForNextLevel) {
       return level;
     }
@@ -391,3 +544,65 @@ export async function givePokemonToPlayer(
 ): Promise<HydratedDocument<IOwnedPokemon>> {
   return createCompletePokemon(username, options);
 }
+
+// === NOUVELLES FONCTIONS UTILITAIRES ===
+
+/**
+ * 🆕 NOUVEAU : Récupère tous les Pokémon disponibles
+ */
+export async function getAvailablePokemon(): Promise<IPokemonData[]> {
+  try {
+    return await PokemonData.find({ isActive: true, isObtainable: true }).sort({ nationalDex: 1 });
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur getAvailablePokemon:`, error);
+    return [];
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Vérifie si un Pokémon peut apprendre une attaque
+ */
+export async function canPokemonLearnMove(pokemonId: number, moveId: string): Promise<boolean> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return false;
+    
+    return pokemon.canLearnMove(moveId);
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur canPokemonLearnMove:`, error);
+    return false;
+  }
+}
+
+/**
+ * 🆕 NOUVEAU : Récupère les stats d'un Pokémon à un niveau donné
+ */
+export async function calculatePokemonStatsAtLevel(
+  pokemonId: number, 
+  level: number, 
+  ivs?: any, 
+  evs?: any, 
+  nature?: string
+): Promise<any> {
+  try {
+    const pokemon = await getPokemonById(pokemonId);
+    if (!pokemon) return null;
+    
+    const stats: any = {};
+    const statNames: (keyof typeof pokemon.baseStats)[] = ['hp', 'attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
+    
+    for (const statName of statNames) {
+      const iv = ivs?.[statName] || 31;
+      const ev = evs?.[statName] || 0;
+      stats[statName] = pokemon.calculateStatAtLevel(statName, level, iv, ev);
+    }
+    
+    return stats;
+  } catch (error) {
+    console.error(`❌ [PokemonService] Erreur calculatePokemonStatsAtLevel:`, error);
+    return null;
+  }
+}
+
+// 🔄 EXPORT : Conserver la compatibilité avec l'ancien code
+export { getPokemonById, getStarterMoves, generateRandomGender };
