@@ -337,10 +337,22 @@ function convertStats(apiStats: PokeApiPokemon['stats']): IBaseStats {
     speed: 1
   };
   
+  // Vérifier que apiStats existe et est un tableau
+  if (!apiStats || !Array.isArray(apiStats)) {
+    console.log('⚠️ No stats data found, using defaults');
+    return baseStats;
+  }
+  
   apiStats.forEach(stat => {
+    // Vérifier que l'objet stat et ses propriétés existent
+    if (!stat?.stat?.name || typeof stat.base_stat !== 'number') {
+      console.log('⚠️ Invalid stat data:', stat);
+      return;
+    }
+    
     const statName = statsMap[stat.stat.name];
     if (statName) {
-      baseStats[statName] = stat.base_stat;
+      baseStats[statName] = Math.max(1, stat.base_stat); // Assurer au moins 1
     }
   });
   
@@ -379,18 +391,41 @@ function extractIdFromUrl(url: string): number {
 function convertLearnset(apiMoves: PokeApiPokemon['moves']): ILearnsetMove[] {
   const learnset: ILearnsetMove[] = [];
   
+  if (!apiMoves || !Array.isArray(apiMoves)) {
+    console.log('⚠️ No moves data found');
+    return learnset;
+  }
+  
   apiMoves.forEach(apiMove => {
+    // Vérifier que l'objet move et son nom existent
+    if (!apiMove?.move?.name) {
+      console.log('⚠️ Skipping invalid move data:', apiMove);
+      return;
+    }
+    
     const moveName = apiMove.move.name.replace(/-/g, '_');
+    
+    // Vérifier que version_group_details existe
+    if (!apiMove.version_group_details || !Array.isArray(apiMove.version_group_details)) {
+      console.log(`⚠️ No version details for move: ${moveName}`);
+      return;
+    }
     
     // Filtrer pour la génération 1 uniquement (red-blue)
     const gen1Details = apiMove.version_group_details.filter(detail => 
-      detail.version_group.name === 'red-blue'
+      detail?.version_group?.name === 'red-blue'
     );
     
     gen1Details.forEach(detail => {
+      // Vérifier que les données nécessaires existent
+      if (!detail?.move_learn_method?.name) {
+        console.log(`⚠️ Invalid learn method for move: ${moveName}`);
+        return;
+      }
+      
       const move: ILearnsetMove = {
         moveId: moveName,
-        level: detail.level_learned_at,
+        level: detail.level_learned_at || 0,
         method: convertLearnMethod(detail.move_learn_method.name),
         generation: 1,
         priority: 0
@@ -498,90 +533,126 @@ function convertEvolutionMethod(apiMethod: string): IEvolutionData['method'] {
 async function fetchAndConvertPokemon(pokemonId: number): Promise<Partial<IPokemonData>> {
   console.log(`🔍 Fetching Pokémon #${pokemonId}...`);
   
-  // Récupérer les données de base
-  const pokemon = await fetchWithCache<PokeApiPokemon>(
-    `${POKEAPI_BASE_URL}/pokemon/${pokemonId}`,
-    `pokemon_${pokemonId}`
-  );
-  
-  // Récupérer les données d'espèce
-  const species = await fetchWithCache<PokeApiSpecies>(
-    pokemon.species.url,
-    `species_${pokemonId}`
-  );
-  
-  // Récupérer les données d'évolution
-  const evolutionDataMap = await fetchEvolutionData(species.evolution_chain.url);
-  const evolutionData = evolutionDataMap[pokemon.name] || {
-    canEvolve: false,
-    method: 'level',
-    requirement: 1
-  };
-  
-  // Extraire les capacités
-  const abilities = pokemon.abilities
-    .filter(ability => !ability.is_hidden)
-    .sort((a, b) => a.slot - b.slot)
-    .map(ability => ability.ability.name.replace(/-/g, '_'));
-  
-  const hiddenAbility = pokemon.abilities
-    .find(ability => ability.is_hidden)?.ability.name.replace(/-/g, '_');
-  
-  // Convertir vers notre format
-  const pokemonData: Partial<IPokemonData> = {
-    nationalDex: pokemon.id,
-    nameKey: `pokemon.name.${pokemon.name}`,
-    species: species.genus.replace(' Pokémon', ''),
-    descriptionKey: `pokemon.description.${pokemon.name}`,
-    category: species.is_legendary ? 'legendary' : 
-             species.is_mythical ? 'mythical' : 
-             species.is_baby ? 'baby' : 'normal',
+  try {
+    // Récupérer les données de base
+    const pokemon = await fetchWithCache<PokeApiPokemon>(
+      `${POKEAPI_BASE_URL}/pokemon/${pokemonId}`,
+      `pokemon_${pokemonId}`
+    );
     
-    types: pokemon.types
-      .sort((a, b) => a.slot - b.slot)
-      .map(type => convertApiType(type.type.name)),
-    
-    baseStats: convertStats(pokemon.stats),
-    abilities: abilities,
-    hiddenAbility: hiddenAbility,
-    
-    height: pokemon.height / 10, // Convertir dm en m
-    weight: pokemon.weight / 10, // Convertir hg en kg
-    sprite: pokemon.sprites.other['official-artwork'].front_default || pokemon.sprites.front_default,
-    
-    genderRatio: convertGenderRatio(species.gender_rate),
-    eggGroups: species.egg_groups.map(group => convertEggGroup(group.name)),
-    hatchTime: species.hatch_counter * 256, // Convertir en steps
-    
-    baseExperience: pokemon.base_experience,
-    growthRate: convertGrowthRate(species.growth_rate.name),
-    captureRate: species.capture_rate,
-    baseHappiness: species.base_happiness,
-    
-    region: 'kanto',
-    generation: 1,
-    
-    learnset: convertLearnset(pokemon.moves),
-    evolution: evolutionData,
-    
-    catchLocations: [], // Sera rempli plus tard si nécessaire
-    
-    isActive: true,
-    isObtainable: true,
-    rarity: species.is_legendary ? 'legendary' : 
-           species.is_mythical ? 'mythical' : 'common',
-    
-    metadata: {
-      color: species.color.name,
-      habitat: species.habitat?.name,
-      isLegendary: species.is_legendary,
-      isMythical: species.is_mythical,
-      isBaby: species.is_baby
+    // Vérifier que les données essentielles existent
+    if (!pokemon || !pokemon.species?.url) {
+      throw new Error(`Invalid pokemon data for #${pokemonId}`);
     }
-  };
-  
-  console.log(`✅ Converted ${pokemon.name} (#${pokemon.id})`);
-  return pokemonData;
+    
+    // Récupérer les données d'espèce
+    const species = await fetchWithCache<PokeApiSpecies>(
+      pokemon.species.url,
+      `species_${pokemonId}`
+    );
+    
+    if (!species) {
+      throw new Error(`Invalid species data for #${pokemonId}`);
+    }
+    
+    // Récupérer les données d'évolution
+    let evolutionData: IEvolutionData = {
+      canEvolve: false,
+      method: 'level',
+      requirement: 1
+    };
+    
+    try {
+      if (species.evolution_chain?.url) {
+        const evolutionDataMap = await fetchEvolutionData(species.evolution_chain.url);
+        evolutionData = evolutionDataMap[pokemon.name] || evolutionData;
+      }
+    } catch (evolutionError) {
+      console.log(`⚠️ Evolution data fetch failed for #${pokemonId}:`, evolutionError);
+    }
+    
+    // Extraire les capacités avec vérifications de sécurité
+    const abilities = (pokemon.abilities || [])
+      .filter(ability => !ability.is_hidden && ability.ability?.name)
+      .sort((a, b) => a.slot - b.slot)
+      .map(ability => ability.ability.name.replace(/-/g, '_'));
+    
+    const hiddenAbility = (pokemon.abilities || [])
+      .find(ability => ability.is_hidden && ability.ability?.name)
+      ?.ability.name?.replace(/-/g, '_');
+    
+    // Vérifications de sécurité pour les champs requis
+    if (!abilities.length) {
+      abilities.push('no_ability'); // Fallback si aucune capacité
+    }
+    
+    // Convertir vers notre format
+    const pokemonData: Partial<IPokemonData> = {
+      nationalDex: pokemon.id,
+      nameKey: `pokemon.name.${pokemon.name}`,
+      species: (species.genus || 'Unknown Pokémon').replace(' Pokémon', ''),
+      descriptionKey: `pokemon.description.${pokemon.name}`,
+      category: species.is_legendary ? 'legendary' : 
+               species.is_mythical ? 'mythical' : 
+               species.is_baby ? 'baby' : 'normal',
+      
+      types: (pokemon.types || [])
+        .sort((a, b) => a.slot - b.slot)
+        .map(type => convertApiType(type.type?.name || 'normal')),
+      
+      baseStats: convertStats(pokemon.stats || []),
+      abilities: abilities,
+      hiddenAbility: hiddenAbility,
+      
+      height: (pokemon.height || 10) / 10, // Convertir dm en m, fallback à 1m
+      weight: (pokemon.weight || 100) / 10, // Convertir hg en kg, fallback à 10kg
+      sprite: pokemon.sprites?.other?.['official-artwork']?.front_default || 
+              pokemon.sprites?.front_default || 
+              `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+      
+      genderRatio: convertGenderRatio(species.gender_rate ?? 4), // Fallback à 50/50
+      eggGroups: (species.egg_groups || [{ name: 'undiscovered' }]).map(group => convertEggGroup(group.name)),
+      hatchTime: (species.hatch_counter || 20) * 256, // Convertir en steps
+      
+      baseExperience: pokemon.base_experience || 100,
+      growthRate: convertGrowthRate(species.growth_rate?.name || 'medium-fast'),
+      captureRate: species.capture_rate ?? 255,
+      baseHappiness: species.base_happiness ?? 70,
+      
+      region: 'kanto',
+      generation: 1,
+      
+      learnset: convertLearnset(pokemon.moves || []),
+      evolution: evolutionData,
+      
+      catchLocations: [], // Sera rempli plus tard si nécessaire
+      
+      isActive: true,
+      isObtainable: true,
+      rarity: species.is_legendary ? 'legendary' : 
+             species.is_mythical ? 'mythical' : 'common',
+      
+      metadata: {
+        color: species.color?.name || 'unknown',
+        habitat: species.habitat?.name,
+        isLegendary: species.is_legendary || false,
+        isMythical: species.is_mythical || false,
+        isBaby: species.is_baby || false
+      }
+    };
+    
+    // Validation finale des types
+    if (!pokemonData.types || pokemonData.types.length === 0) {
+      pokemonData.types = ['Normal'];
+    }
+    
+    console.log(`✅ Converted ${pokemon.name} (#${pokemon.id}) - Types: ${pokemonData.types.join(', ')}`);
+    return pokemonData;
+    
+  } catch (error) {
+    console.error(`❌ Failed to fetch/convert Pokémon #${pokemonId}:`, error);
+    throw error;
+  }
 }
 
 /**
