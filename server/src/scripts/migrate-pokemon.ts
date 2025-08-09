@@ -1,16 +1,14 @@
-// server/src/scripts/migrate-pokemon.ts - SCRIPT DE MIGRATION POKÉMON GÉNÉRATION 1
+// server/src/scripts/migrate-pokemon.ts - SCRIPT DE MIGRATION POKÉMON GÉNÉRATION 1 (VERSION CORRIGÉE)
 import * as fs from 'fs';
 import * as path from 'path';
 import mongoose from 'mongoose';
-// Utilisation du fetch natif Node.js (disponible depuis Node 18+)
 import { PokemonData, IPokemonData, PokemonType, GrowthRate, EggGroup, IBaseStats, IGenderRatio, IEvolutionData, ILearnsetMove } from '../models/PokemonData';
 
 // ===== CONFIGURATION =====
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
 const POKEAPI_BASE_URL = 'https://pokeapi.co/api/v2';
 const GEN1_POKEMON_COUNT = 151; // Pokémon 1-151 pour Gen 1
-const RATE_LIMIT_DELAY = 100; // 100ms entre chaque requête API
-const BATCH_SIZE = 10; // Traiter par lots de 10 Pokémon
+const RATE_LIMIT_DELAY = 200; // 200ms entre chaque requête API (plus conservateur)
 const CACHE_DIR = './cache/pokemon';
 
 // ===== INTERFACES POKEAPI =====
@@ -222,12 +220,12 @@ async function fetchWithCache<T>(url: string, cacheKey: string): Promise<T> {
     await delay(RATE_LIMIT_DELAY); // Rate limiting
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
     
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'PokemonMigrationScript/1.0',
+        'User-Agent': 'PokemonMigrationScript/2.0',
         'Accept': 'application/json'
       }
     });
@@ -360,19 +358,30 @@ function convertStats(apiStats: PokeApiPokemon['stats']): IBaseStats {
 }
 
 /**
- * Calcule le ratio de genre depuis l'API
+ * Calcule le ratio de genre depuis l'API (CORRIGÉ)
  */
 function convertGenderRatio(genderRate: number): IGenderRatio {
   if (genderRate === -1) {
     return { male: 0, female: 0, genderless: true };
   }
   
+  // L'API PokéAPI utilise un système sur 8 parts
+  // 0 = 100% mâle, 8 = 100% femelle
   const femalePercent = (genderRate / 8) * 100;
-  const malePercent = 100 - femalePercent;
+  
+  // S'assurer que les pourcentages sont des entiers et totalisent exactement 100
+  const femaleRounded = Math.round(femalePercent);
+  const maleRounded = 100 - femaleRounded; // Garantir que ça totalise 100
+  
+  // Validation finale
+  if (maleRounded + femaleRounded !== 100) {
+    console.log(`⚠️ Gender ratio adjustment: ${maleRounded}/${femaleRounded} -> 50/50`);
+    return { male: 50, female: 50, genderless: false };
+  }
   
   return {
-    male: Math.round(malePercent),
-    female: Math.round(femalePercent),
+    male: maleRounded,
+    female: femaleRounded,
     genderless: false
   };
 }
@@ -461,91 +470,6 @@ function convertLearnMethod(apiMethod: string): ILearnsetMove['method'] {
   return methodMap[apiMethod] || 'level';
 }
 
-/**
- * Récupère les données d'évolution
- */
-async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemonName: string]: IEvolutionData }> {
-  const chainId = extractIdFromUrl(evolutionChainUrl);
-  
-  let evolutionChain: PokeApiEvolutionChain;
-  try {
-    evolutionChain = await fetchWithCache<PokeApiEvolutionChain>(
-      evolutionChainUrl,
-      `evolution_chain_${chainId}`
-    );
-  } catch (error) {
-    console.log(`⚠️ Failed to fetch evolution chain ${chainId}:`, error);
-    return {};
-  }
-  
-  if (!evolutionChain?.chain) {
-    console.log(`⚠️ Invalid evolution chain data for ${chainId}`);
-    return {};
-  }
-  
-  const evolutionData: { [pokemonName: string]: IEvolutionData } = {};
-  
-  function processEvolutionNode(node: EvolutionNode, fromSpecies?: string): void {
-    if (!node?.species?.name || !node.species.url) {
-      console.log('⚠️ Invalid evolution node:', node);
-      return;
-    }
-    
-    const speciesName = node.species.name;
-    const speciesId = extractIdFromUrl(node.species.url);
-    
-    if (fromSpecies) {
-      // Ce Pokémon évolue depuis fromSpecies
-      const evDetail = node.evolution_details?.[0];
-      if (!evDetail) {
-        console.log(`⚠️ No evolution details for ${speciesName}`);
-        return;
-      }
-      
-      evolutionData[speciesName] = {
-        canEvolve: node.evolves_to?.length > 0,
-        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
-        evolvesFrom: extractIdFromUrl(fromSpecies),
-        method: convertEvolutionMethod(evDetail.trigger?.name || 'level-up'),
-        requirement: evDetail.min_level || evDetail.item?.name || 'trade',
-        conditions: {
-          minimumLevel: evDetail.min_level || undefined,
-          timeOfDay: evDetail.time_of_day && evDetail.time_of_day !== '' ? evDetail.time_of_day as any : undefined,
-          heldItem: evDetail.held_item?.name || undefined,
-          knownMove: evDetail.known_move?.name || undefined,
-          location: evDetail.location?.name || undefined,
-          minimumFriendship: evDetail.min_happiness || undefined,
-          gender: evDetail.gender === 1 ? 'female' : evDetail.gender === 2 ? 'male' : undefined
-        }
-      };
-    } else {
-      // Pokémon de base
-      evolutionData[speciesName] = {
-        canEvolve: node.evolves_to?.length > 0,
-        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
-        method: 'level',
-        requirement: 1,
-        conditions: {} // Pas de conditions pour les Pokémon de base
-      };
-    }
-    
-    // Traiter les évolutions suivantes
-    if (node.evolves_to && Array.isArray(node.evolves_to)) {
-      node.evolves_to.forEach(evolution => {
-        processEvolutionNode(evolution, node.species.url);
-      });
-    }
-  }
-  
-  try {
-    processEvolutionNode(evolutionChain.chain);
-  } catch (error) {
-    console.log(`⚠️ Error processing evolution chain ${chainId}:`, error);
-  }
-  
-  return evolutionData;
-}
-
 function convertEvolutionMethod(apiMethod: string): IEvolutionData['method'] {
   const methodMap: { [key: string]: IEvolutionData['method'] } = {
     'level-up': 'level',
@@ -611,6 +535,91 @@ function cleanEvolutionConditions(conditions: any): any {
   }
   
   return cleaned;
+}
+
+/**
+ * Récupère les données d'évolution
+ */
+async function fetchEvolutionData(evolutionChainUrl: string): Promise<{ [pokemonName: string]: IEvolutionData }> {
+  const chainId = extractIdFromUrl(evolutionChainUrl);
+  
+  let evolutionChain: PokeApiEvolutionChain;
+  try {
+    evolutionChain = await fetchWithCache<PokeApiEvolutionChain>(
+      evolutionChainUrl,
+      `evolution_chain_${chainId}`
+    );
+  } catch (error) {
+    console.log(`⚠️ Failed to fetch evolution chain ${chainId}:`, error);
+    return {};
+  }
+  
+  if (!evolutionChain?.chain) {
+    console.log(`⚠️ Invalid evolution chain data for ${chainId}`);
+    return {};
+  }
+  
+  const evolutionData: { [pokemonName: string]: IEvolutionData } = {};
+  
+  function processEvolutionNode(node: EvolutionNode, fromSpecies?: string): void {
+    if (!node?.species?.name || !node.species.url) {
+      console.log('⚠️ Invalid evolution node:', node);
+      return;
+    }
+    
+    const speciesName = node.species.name;
+    const speciesId = extractIdFromUrl(node.species.url);
+    
+    if (fromSpecies) {
+      // Ce Pokémon évolue depuis fromSpecies
+      const evDetail = node.evolution_details?.[0];
+      if (!evDetail) {
+        console.log(`⚠️ No evolution details for ${speciesName}`);
+        return;
+      }
+      
+      evolutionData[speciesName] = {
+        canEvolve: node.evolves_to?.length > 0,
+        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
+        evolvesFrom: extractIdFromUrl(fromSpecies),
+        method: convertEvolutionMethod(evDetail.trigger?.name || 'level-up'),
+        requirement: evDetail.min_level || evDetail.item?.name || 'trade',
+        conditions: cleanEvolutionConditions({
+          minimumLevel: evDetail.min_level,
+          timeOfDay: evDetail.time_of_day,
+          heldItem: evDetail.held_item?.name,
+          knownMove: evDetail.known_move?.name,
+          location: evDetail.location?.name,
+          minimumFriendship: evDetail.min_happiness,
+          gender: evDetail.gender === 1 ? 'female' : evDetail.gender === 2 ? 'male' : undefined
+        })
+      };
+    } else {
+      // Pokémon de base
+      evolutionData[speciesName] = {
+        canEvolve: node.evolves_to?.length > 0,
+        evolvesInto: node.evolves_to?.length > 0 ? extractIdFromUrl(node.evolves_to[0].species.url) : undefined,
+        method: 'level',
+        requirement: 1,
+        conditions: {} // Pas de conditions pour les Pokémon de base
+      };
+    }
+    
+    // Traiter les évolutions suivantes
+    if (node.evolves_to && Array.isArray(node.evolves_to)) {
+      node.evolves_to.forEach(evolution => {
+        processEvolutionNode(evolution, node.species.url);
+      });
+    }
+  }
+  
+  try {
+    processEvolutionNode(evolutionChain.chain);
+  } catch (error) {
+    console.log(`⚠️ Error processing evolution chain ${chainId}:`, error);
+  }
+  
+  return evolutionData;
 }
 
 /**
@@ -782,6 +791,8 @@ async function showStats(): Promise<void> {
     
     console.log(`📦 Total Pokémon: ${total}`);
     console.log(`🏆 Legendary/Mythical: ${legendary}`);
+    console.log(`🎯 Expected Gen 1: ${GEN1_POKEMON_COUNT}`);
+    console.log(`📊 Completion: ${Math.round((total / GEN1_POKEMON_COUNT) * 100)}%`);
     
     console.log('\n📈 By Generation:');
     byGeneration.forEach(stat => {
@@ -833,6 +844,20 @@ async function validateMigration(): Promise<void> {
     
     if (pokemonWithBadStats.length > 0) {
       issues.push(`${pokemonWithBadStats.length} Pokémon have invalid base stats`);
+    }
+    
+    // Vérifier les ratios de genre
+    const pokemonWithBadGender = await PokemonData.find({
+      $expr: {
+        $and: [
+          { $ne: ['$genderRatio.genderless', true] },
+          { $ne: [{ $add: ['$genderRatio.male', '$genderRatio.female'] }, 100] }
+        ]
+      }
+    });
+    
+    if (pokemonWithBadGender.length > 0) {
+      issues.push(`${pokemonWithBadGender.length} Pokémon have invalid gender ratios`);
     }
     
     console.log('\n🔍 VALIDATION RESULTS');
@@ -928,7 +953,7 @@ async function migratePokemon(options: {
         
         // Pause plus longue entre chaque Pokémon pour éviter les rate limits
         if (pokemonId !== pokemonToProcess[pokemonToProcess.length - 1]) {
-          await delay(RATE_LIMIT_DELAY * 3); // 300ms pause
+          await delay(RATE_LIMIT_DELAY * 2); // 400ms pause
         }
         
       } catch (error) {
@@ -983,8 +1008,8 @@ async function main(): Promise<void> {
   
   if (options.help) {
     console.log(`
-🎮 Pokémon Generation 1 Migration Script
-========================================
+🎮 Pokémon Generation 1 Migration Script v2.0 (CORRECTED)
+========================================================
 
 Usage: npx ts-node server/src/scripts/migrate-pokemon.ts [options]
 
@@ -1006,29 +1031,28 @@ Data Source:
   📊 Generation 1: Pokémon #1-151 (Kanto region)
   🔄 Includes: Base stats, types, abilities, learnsets, evolutions
 
-Features:
-  ⚡ Rate limiting (100ms between requests)
-  💾 Local caching for repeated runs  
-  📦 Batch processing (10 Pokémon per batch)
-  🔍 Data validation and error reporting
-  📊 Comprehensive statistics
+Corrections Applied:
+  ✅ Fixed gender ratio calculation (must total 100%)
+  ✅ Fixed evolution conditions validation (timeOfDay enum)
+  ✅ Added robust error handling for malformed API data
+  ✅ Individual processing mode to prevent cascade failures
+  ✅ Comprehensive data validation and cleanup
 
 Examples:
-  npx ts-node server/src/scripts/migrate-pokemon.ts                    # Full Gen 1 migration
-  npx ts-node server/src/scripts/migrate-pokemon.ts --dry-run          # Simulation only
-  npx ts-node server/src/scripts/migrate-pokemon.ts --start=1 --end=50 # First 50 Pokémon
-  npx ts-node server/src/scripts/migrate-pokemon.ts --no-clear         # Keep existing data
+  npx ts-node server/src/scripts/migrate-pokemon.ts --missing-only         # Recover missing Pokémon
+  npx ts-node server/src/scripts/migrate-pokemon.ts --dry-run              # Simulation only
+  npx ts-node server/src/scripts/migrate-pokemon.ts --start=1 --end=50     # First 50 Pokémon
+  npx ts-node server/src/scripts/migrate-pokemon.ts                        # Full Gen 1 migration
 
-⚠️  WARNING: This script will REPLACE all Pokémon data in the database!
-    Use --dry-run first to preview changes.
+⚠️  For recovery: Use --missing-only to safely add missing Pokémon without affecting existing data.
 `);
     return;
   }
   
-  console.log('🎮 PokéMMO Generation 1 Migration Script');
-  console.log('========================================\n');
+  console.log('🎮 PokéMMO Generation 1 Migration Script v2.0 (CORRECTED)');
+  console.log('=========================================================\n');
   
-  if (!options.dryRun && options.clearExisting) {
+  if (!options.dryRun && options.clearExisting && !options.missingOnly) {
     console.log('⚠️  WARNING: This will REPLACE all Pokémon data in the database!');
     console.log('⚠️  Press Ctrl+C within 5 seconds to cancel...\n');
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -1080,7 +1104,7 @@ Examples:
     }
     
     console.log('🎉 Migration script completed successfully!');
-    console.log('📱 Your PokéMMO database now contains Generation 1 Pokémon!');
+    console.log('📱 Your PokéMMO database is now updated with corrected data!');
     console.log('💾 Cache stored in ./cache/pokemon for faster subsequent runs');
     
   } catch (error) {
