@@ -1,3 +1,5 @@
+import { ItemEffectEditor } from './item-effect-editor.js';
+
 export class ItemEditorModule {
     constructor(adminPanel) {
         this.adminPanel = adminPanel;
@@ -9,6 +11,8 @@ export class ItemEditorModule {
         this.selectedItemId = null;
         this.currentItem = null;
         this.unsavedChanges = false;
+        // ✅ NOUVEAU : Initialiser l'éditeur d'effets
+        this.effectEditor = new ItemEffectEditor(adminPanel);
 
         // Filtres et pagination
         this.currentFilters = {
@@ -744,71 +748,225 @@ checkItemEditorElements() {
 }
 
    populateEffects(effects) {
-    const container = document.getElementById('itemEffectsList');
-    if (!container) {
-        console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
-        return;
-    }
+        const container = document.getElementById('itemEffectsList');
+        if (!container) {
+            console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
+            return;
+        }
 
-    if (effects.length === 0) {
-        container.innerHTML = `
-            <div style="padding: 2rem; text-align: center; color: #666;">
-                <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                <p>Aucun effet défini</p>
-                <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
+        if (effects.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #666;">
+                    <i class="fas fa-magic" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                    <p>Aucun effet défini</p>
+                    <button type="button" class="add-effect-btn" style="
+                        padding: 0.75rem 1.5rem; background: #28a745; color: white; 
+                        border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+                        transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;
+                    ">
+                        <i class="fas fa-plus"></i> Ajouter un effet
+                    </button>
+                </div>
+            `;
+            
+            // Event listener simple pour le bouton d'ajout
+            const addBtn = container.querySelector('.add-effect-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.addEffect();
+                });
+            }
+            return;
+        }
+
+        container.innerHTML = effects.map((effect, index) => `
+            <div class="effect-card" style="
+                border: 2px solid #e3f2fd; border-radius: 12px; padding: 1.5rem; 
+                margin: 1rem 0; background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+                transition: all 0.2s; position: relative;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #1976d2; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-magic"></i> ${this.escapeHtml(effect.name || effect.id)}
+                        </h4>
+                        <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="
+                                background: #2196f3; color: white; padding: 0.25rem 0.75rem; 
+                                border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+                            ">${this.formatTriggerName(effect.trigger)}</span>
+                            ${effect.priority ? `<span style="color: #666;">Priorité: ${effect.priority}</span>` : ''}
+                            ${effect.duration ? `<span style="color: #666;">Durée: ${effect.duration} tours</span>` : ''}
+                        </div>
+                        ${effect.description ? `<p style="margin: 0; color: #666; font-size: 0.9rem;">${this.escapeHtml(effect.description)}</p>` : ''}
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="edit-effect-btn" data-index="${index}" style="
+                            background: #2196f3; color: white; border: none; 
+                            border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer;
+                            transition: all 0.2s; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;
+                        " onmouseover="this.style.background='#1976d2'"
+                           onmouseout="this.style.background='#2196f3'">
+                            <i class="fas fa-edit"></i> Éditer
+                        </button>
+                        <button type="button" class="remove-effect-btn" data-index="${index}" style="
+                            background: #f44336; color: white; border: none; 
+                            border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer;
+                            transition: all 0.2s; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;
+                        " onmouseover="this.style.background='#d32f2f'"
+                           onmouseout="this.style.background='#f44336'">
+                            <i class="fas fa-trash"></i> Suppr.
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div>
+                        <h5 style="margin: 0 0 0.5rem 0; color: #f57c00; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-filter"></i> Conditions (${effect.conditions?.length || 0})
+                        </h5>
+                        ${effect.conditions?.length > 0 ? 
+                            effect.conditions.map(cond => `
+                                <div style="background: #fff3e0; padding: 0.5rem; border-radius: 6px; margin: 0.25rem 0; font-size: 0.8rem;">
+                                    <strong>${this.formatConditionType(cond.type)}</strong> 
+                                    ${cond.operator || 'equals'} "${cond.value}"
+                                </div>
+                            `).join('') : 
+                            '<p style="margin: 0; color: #999; font-style: italic; font-size: 0.8rem;">Aucune condition</p>'
+                        }
+                    </div>
+                    
+                    <div>
+                        <h5 style="margin: 0 0 0.5rem 0; color: #388e3c; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-cogs"></i> Actions (${effect.actions?.length || 0})
+                        </h5>
+                        ${effect.actions?.length > 0 ? 
+                            effect.actions.map(action => `
+                                <div style="background: #e8f5e8; padding: 0.5rem; border-radius: 6px; margin: 0.25rem 0; font-size: 0.8rem;">
+                                    <strong>${this.formatActionType(action.type)}</strong>
+                                    ${action.target ? ` → ${this.formatTarget(action.target)}` : ''}
+                                    ${action.value ? ` (${action.value})` : ''}
+                                </div>
+                            `).join('') : 
+                            '<p style="margin: 0; color: #999; font-style: italic; font-size: 0.8rem;">Aucune action</p>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `).join('') + `
+            <div style="text-align: center; margin: 1.5rem 0;">
+                <button type="button" class="add-effect-btn" style="
+                    padding: 0.75rem 1.5rem; background: #28a745; color: white; 
+                    border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+                    transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;
+                " onmouseover="this.style.background='#218838'; this.style.transform='translateY(-1px)'"
+                   onmouseout="this.style.background='#28a745'; this.style.transform='translateY(0)'">
                     <i class="fas fa-plus"></i> Ajouter un effet
                 </button>
             </div>
         `;
-        
-        // Ajouter l'event listener après avoir créé le bouton
+
+        // Configurer les event listeners après génération du HTML
+        this.setupEffectListeners(container);
+    }
+ setupEffectListeners(container) {
+        // Bouton "Ajouter effet"
         const addBtn = container.querySelector('.add-effect-btn');
         if (addBtn) {
             addBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
                 this.addEffect();
-                return false;
             });
         }
-        return;
+
+        // Boutons "Éditer effet"
+        container.querySelectorAll('.edit-effect-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const index = parseInt(btn.getAttribute('data-index'));
+                this.editEffect(index);
+            });
+        });
+
+        // Boutons "Supprimer effet"
+        container.querySelectorAll('.remove-effect-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const index = parseInt(btn.getAttribute('data-index'));
+                this.removeEffect(index);
+            });
+        });
     }
 
-    container.innerHTML = effects.map((effect, index) => `
-        <div style="border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>${this.escapeHtml(effect.name || effect.id)}</strong>
-                    <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem;">${effect.trigger}</span>
-                </div>
-                <div>
-                    <button type="button" class="edit-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; margin: 0 0.25rem; background: #007bff; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button" class="remove-effect-btn" data-index="${index}" style="padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            ${effect.description ? `<div style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">${this.escapeHtml(effect.description)}</div>` : ''}
-            <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">
-                Actions: ${effect.actions?.length || 0} |
-                Conditions: ${effect.conditions?.length || 0}
-                ${effect.priority ? ` | Priorité: ${effect.priority}` : ''}
-            </div>
-        </div>
-    `).join('') + `
-        <div style="text-align: center; margin: 1rem 0;">
-            <button type="button" class="add-effect-btn" style="padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px;">
-                <i class="fas fa-plus"></i> Ajouter un effet
-            </button>
-        </div>
-    `;
+    // ✅ NOUVELLES MÉTHODES : Formatage pour l'affichage
+    formatTriggerName(trigger) {
+        const triggers = {
+            'on_use': 'À l\'utilisation',
+            'on_use_in_battle': 'En combat',
+            'on_use_on_pokemon': 'Sur Pokémon',
+            'on_use_in_field': 'Hors combat',
+            'turn_start': 'Début tour',
+            'turn_end': 'Fin tour',
+            'on_switch_in': 'Entrée',
+            'on_switch_out': 'Sortie',
+            'when_hit': 'Quand touché',
+            'when_damaged': 'Quand blessé',
+            'on_hp_low': 'HP faibles',
+            'on_status_inflict': 'Statut infligé',
+            'continuous': 'Continu',
+            'passive': 'Passif'
+        };
+        return triggers[trigger] || trigger;
+    }
 
-    // Ajouter les event listeners après avoir créé les boutons
-    this.setupEffectButtonListeners(container);
-}
+    formatConditionType(type) {
+        const types = {
+            'pokemon_species': 'Espèce',
+            'pokemon_type': 'Type',
+            'pokemon_level': 'Niveau',
+            'hp_percentage': 'HP %',
+            'has_status': 'A statut',
+            'has_no_status': 'Sans statut',
+            'battle_type': 'Combat',
+            'weather_active': 'Météo',
+            'random_chance': 'Chance'
+        };
+        return types[type] || type;
+    }
 
+    formatActionType(type) {
+        const types = {
+            'heal_hp_fixed': 'Soigner HP',
+            'heal_hp_percentage': 'Soigner HP %',
+            'cure_status': 'Guérir statut',
+            'boost_stat': 'Booster stat',
+            'evolve_pokemon': 'Évolution',
+            'teach_move': 'Apprendre',
+            'modify_catch_rate': 'Capture',
+            'prevent_wild_encounters': 'Repel',
+            'show_message': 'Message',
+            'consume_item': 'Consommer'
+        };
+        return types[type] || type;
+    }
+
+    formatTarget(target) {
+        const targets = {
+            'self': 'Soi',
+            'user': 'Utilisateur',
+            'opponent': 'Adversaire',
+            'ally': 'Allié',
+            'party': 'Équipe',
+            'field': 'Terrain',
+            'all': 'Tous'
+        };
+        return targets[target] || target;
+    }
+    
     populateObtainMethods(methods) {
     const container = document.getElementById('itemObtainMethodsList');
     if (!container) {
@@ -873,72 +1031,22 @@ checkItemEditorElements() {
     this.setupMethodButtonListeners(container);
 }
 // Nouvelle méthode pour configurer les event listeners
-setupEffectButtonListeners(container) {
-    // Bouton "Ajouter effet"
-    const addBtn = container.querySelector('.add-effect-btn');
-    if (addBtn) {
-        addBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔘 [ItemEditor] Bouton Ajouter effet cliqué');
-            this.addEffect();
-            return false;
-        });
-    }
 
-    // Boutons "Modifier effet"
-    container.querySelectorAll('.edit-effect-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const index = parseInt(btn.getAttribute('data-index'));
-            console.log('🔘 [ItemEditor] Bouton Modifier effet cliqué, index:', index);
-            this.editEffect(index);
-            return false;
-        });
-    });
-
-    // Boutons "Supprimer effet"
-    container.querySelectorAll('.remove-effect-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const index = parseInt(btn.getAttribute('data-index'));
-            console.log('🔘 [ItemEditor] Bouton Supprimer effet cliqué, index:', index);
-            this.removeEffect(index);
-            return false;
-        });
-    });
-}
-
-
-    editEffect(index) {
-    console.log(`✏️ [ItemEditor] Édition effet ${index}`);
-    
-    if (!this.currentItem || !this.currentItem.effects?.[index]) {
-        console.error('❌ [ItemEditor] Effet non trouvé à l\'index', index);
-        return;
-    }
-
-    const effect = this.currentItem.effects[index];
-    
-    // Pour l'instant, édition simple du nom et description
-    const newName = prompt('Nom de l\'effet:', effect.name || effect.id || '');
-    if (newName !== null && newName.trim()) {
-        effect.name = newName.trim();
+  editEffect(index) {
+        console.log(`✏️ [ItemEditor] Édition effet ${index}`);
         
-        const newDescription = prompt('Description (optionnel):', effect.description || '');
-        if (newDescription !== null) {
-            effect.description = newDescription.trim();
+        if (!this.currentItem || !this.currentItem.effects?.[index]) {
+            console.error('❌ [ItemEditor] Effet non trouvé à l\'index', index);
+            return;
         }
+
+        const effect = this.currentItem.effects[index];
         
-        // Re-générer l'affichage des effets
-        this.populateEffects(this.currentItem.effects);
-        this.unsavedChanges = true;
-        
-        console.log(`✅ [ItemEditor] Effet ${index} modifié`);
+        // Ouvrir l'éditeur d'effets dédié
+        this.effectEditor.openEditor(effect, index, (updatedEffect, effectIndex) => {
+            this.onEffectSaved(updatedEffect, effectIndex);
+        });
     }
-}
 
 editObtainMethod(index) {
     console.log(`✏️ [ItemEditor] Édition méthode ${index}`);
@@ -1329,27 +1437,64 @@ updateStatsHeader() {
             return;
         }
 
+        // Créer un nouvel effet vide
         const newEffect = {
             id: `effect_${Date.now()}`,
             name: 'Nouvel effet',
+            description: '',
             trigger: 'on_use',
-            actions: [],
-            conditions: []
+            priority: 0,
+            conditions: [],
+            actions: []
         };
 
-        if (!this.currentItem.effects) this.currentItem.effects = [];
-        this.currentItem.effects.push(newEffect);
+        // Ouvrir l'éditeur pour le nouvel effet
+        this.effectEditor.openEditor(newEffect, null, (updatedEffect, effectIndex) => {
+            this.onEffectSaved(updatedEffect, effectIndex);
+        });
+    }
+
+    // ✅ NOUVELLE MÉTHODE : Callback appelé quand un effet est sauvegardé
+    onEffectSaved(updatedEffect, index) {
+        console.log('💾 [ItemEditor] Effet sauvegardé:', updatedEffect);
+        
+        if (!this.currentItem.effects) {
+            this.currentItem.effects = [];
+        }
+        
+        if (index !== null) {
+            // Modification d'un effet existant
+            this.currentItem.effects[index] = updatedEffect;
+            console.log(`✅ [ItemEditor] Effet ${index} mis à jour`);
+        } else {
+            // Nouvel effet
+            this.currentItem.effects.push(updatedEffect);
+            console.log(`✅ [ItemEditor] Nouvel effet ajouté`);
+        }
+        
+        // Re-générer l'affichage
         this.populateEffects(this.currentItem.effects);
         this.unsavedChanges = true;
     }
 
-    removeEffect(index) {
-        if (!this.currentItem?.effects || !confirm('Supprimer cet effet ?')) return;
+  removeEffect(index) {
+        if (!this.currentItem?.effects || index < 0 || index >= this.currentItem.effects.length) {
+            console.error('❌ [ItemEditor] Index d\'effet invalide:', index);
+            return;
+        }
+
+        const effect = this.currentItem.effects[index];
+        const effectName = effect.name || effect.id || `Effet ${index + 1}`;
+        
+        if (!confirm(`Supprimer l'effet "${effectName}" ?`)) return;
+        
         this.currentItem.effects.splice(index, 1);
         this.populateEffects(this.currentItem.effects);
         this.unsavedChanges = true;
+        
+        this.adminPanel.showNotification('Effet supprimé', 'info');
+        console.log(`✅ [ItemEditor] Effet ${index} supprimé`);
     }
-
     addObtainMethod() {
         if (!this.currentItem) {
             this.adminPanel.showNotification('Sélectionnez un item', 'warning');
@@ -1631,6 +1776,7 @@ window.itemEditorNextPage = () => {
 
 window.itemEditorAddEffect = () => {
     window.adminPanel?.itemEditor?.addEffect();
+    return false;
 };
 
 window.itemEditorEditEffect = (index) => {
@@ -1639,8 +1785,10 @@ window.itemEditorEditEffect = (index) => {
     return false;
 };
 
+
 window.itemEditorRemoveEffect = (index) => {
     window.adminPanel?.itemEditor?.removeEffect(index);
+    return false;
 };
 
 window.itemEditorAddObtainMethod = () => {
