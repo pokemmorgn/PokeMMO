@@ -1,4 +1,4 @@
-// client/src/Battle/ExperienceUI.js - Popup XP authentique style Pokémon
+// client/src/Battle/ExperienceUI.js - Version CORRIGÉE pour nouveau format serveur
 // 🎮 Interface d'expérience qui apparaît après les combats
 // ✨ Animations fluides et effets visuels
 
@@ -144,7 +144,7 @@ export class ExperienceUI {
   
   /**
    * Afficher les gains d'expérience
-   * @param {Object} data - Données d'expérience depuis le serveur
+   * @param {Object} data - Données d'expérience depuis le serveur (nouveau format)
    */
   async showExperienceGain(data) {
     console.log('📈 [ExperienceUI] Affichage gain XP:', data);
@@ -172,27 +172,127 @@ export class ExperienceUI {
   }
   
   async playExperienceSequence(data) {
-    // 1. Préparer les données
+    console.log('🎮 [ExperienceUI] === SÉQUENCE XP (NOUVEAU FORMAT) ===');
+    console.log('📊 Données complètes:', data);
+    
+    // 🆕 ADAPTATION AU NOUVEAU FORMAT
     const pokemon = data.pokemon || {};
     const experience = data.experience || {};
     const progression = data.progression || {};
+    const levelData = progression.level || {};
     
-    // 2. Mettre à jour les textes
+    console.log('🐾 Pokémon:', {
+      name: pokemon.name,
+      niveau: levelData.current
+    });
+    
+    console.log('💰 Expérience:', {
+      gained: experience.gained,
+      expInLevel: `${levelData.expInLevelBefore} → ${levelData.expInLevelAfter}`,
+      expNeeded: levelData.expNeededForLevel,
+      progress: `${(levelData.progressBefore * 100).toFixed(2)}% → ${(levelData.progressAfter * 100).toFixed(2)}%`
+    });
+    
+    // Mettre à jour les textes
     this.pokemonNameText.setText(pokemon.name?.toUpperCase() || 'POKÉMON');
     this.expGainedText.setText(`+${experience.gained || 0} EXP!`);
+    this.levelText.setText(`Niveau ${levelData.current || '?'}`);
     
-    // 3. Animation d'entrée
+    // Animation d'entrée
     await this.animateEntry();
     
-    // 4. Animation progression XP
-    if (progression.levelProgression && progression.levelProgression.length > 0) {
-      await this.animateMultiLevelProgression(progression);
+    // 🆕 ANIMATION XP AVEC NOUVEAU FORMAT
+    if (data.levelUp?.hasLeveledUp) {
+      await this.animateLevelUpSequence(data);
     } else {
-      await this.animateSingleProgression(progression);
+      await this.animateSimpleProgression(levelData);
     }
     
-    // 5. Animation de sortie
+    // Animation de sortie
     await this.animateExit();
+  }
+  
+  // 🆕 NOUVELLE MÉTHODE : Animation progression simple (pas de level up)
+  async animateSimpleProgression(levelData) {
+    console.log('📊 [ExperienceUI] Animation progression simple');
+    
+    const fromPercent = levelData.progressBefore || 0;
+    const toPercent = levelData.progressAfter || 0;
+    
+    console.log(`📈 [ExperienceUI] XP: ${levelData.expInLevelBefore}/${levelData.expNeededForLevel} → ${levelData.expInLevelAfter}/${levelData.expNeededForLevel}`);
+    console.log(`📊 [ExperienceUI] Progress: ${(fromPercent * 100).toFixed(2)}% → ${(toPercent * 100).toFixed(2)}%`);
+    
+    await this.animateExpBarFill(fromPercent, toPercent);
+  }
+  
+  // 🆕 NOUVELLE MÉTHODE : Animation avec level up
+  async animateLevelUpSequence(data) {
+    console.log('🆙 [ExperienceUI] Animation avec level up');
+    
+    const levelData = data.progression.level;
+    const levelUp = data.levelUp;
+    
+    // Remplir jusqu'à 100% du niveau actuel
+    await this.animateExpBarFill(levelData.progressBefore, 1.0);
+    
+    // Animation level up
+    await this.animateLevelUp(levelData.current + 1);
+    
+    // Si plusieurs niveaux gagnés
+    if (levelUp.levelsGained > 1) {
+      for (let i = 1; i < levelUp.levelsGained; i++) {
+        await this.animateExpBarFill(0, 1.0);
+        await this.animateLevelUp(levelData.current + i + 1);
+      }
+    }
+    
+    // Position finale dans le nouveau niveau
+    const finalProgress = levelData.progressAfter || 0;
+    this.levelText.setText(`Niveau ${levelData.current + levelUp.levelsGained}`);
+    await this.animateExpBarFill(0, finalProgress);
+  }
+  
+  animateExpBarFill(fromPercent, toPercent) {
+    return new Promise((resolve) => {
+      console.log(`📊 [ExperienceUI] Animation XP: ${(fromPercent * 100).toFixed(2)}% → ${(toPercent * 100).toFixed(2)}%`);
+      
+      // Mettre la barre à la position de départ
+      this.updateExpBarVisual(fromPercent);
+      this.expBar.currentPercent = fromPercent;
+      
+      this.scene.tweens.add({
+        targets: { value: fromPercent },
+        value: toPercent,
+        duration: this.config.expFillDuration,
+        ease: 'Power2.easeOut',
+        onUpdate: (tween) => {
+          const percent = tween.targets[0].value;
+          this.updateExpBarVisual(percent);
+        },
+        onComplete: () => {
+          this.expBar.currentPercent = toPercent;
+          console.log(`✅ [ExperienceUI] Animation terminée à ${(toPercent * 100).toFixed(2)}%`);
+          resolve();
+        }
+      });
+    });
+  }
+  
+  updateExpBarVisual(percentage) {
+    const { width, height } = this.expBar;
+    const fillWidth = Math.max(0, width * percentage);
+    
+    this.expBar.fill.clear();
+    
+    if (fillWidth > 0) {
+      // Gradient bleu XP
+      this.expBar.fill.fillGradientStyle(0x42A5F5, 0x42A5F5, 0x1976D2, 0x1976D2);
+      this.expBar.fill.fillRoundedRect(-width/2, -height/2, fillWidth, height, 6);
+      
+      // Brillance
+      this.expBar.fill.fillStyle(0xffffff, 0.3);
+      this.expBar.fill.fillRoundedRect(-width/2, -height/2, Math.max(0, fillWidth), height/3, 4);
+    }
   }
   
   // === ANIMATIONS ===
@@ -224,77 +324,6 @@ export class ExperienceUI {
     });
   }
   
-  async animateSingleProgression(progression) {
-    const finalProgress = progression.finalProgress || {};
-    const targetPercent = finalProgress.progressPercent || 0;
-    
-    this.levelText.setText(`Niveau ${finalProgress.level || '?'}`);
-    
-    await this.animateExpBarFill(0, targetPercent);
-  }
-  
-  async animateMultiLevelProgression(progression) {
-    const levels = progression.levelProgression || [];
-    let currentPercent = 0;
-    
-    for (const levelData of levels) {
-      // Remplir jusqu'à 100% pour ce niveau
-      this.levelText.setText(`Niveau ${levelData.level}`);
-      await this.animateExpBarFill(currentPercent, 1.0);
-      
-      // Si level up, animation spéciale
-      if (levelData.progressAfter >= 1.0) {
-        await this.animateLevelUp(levelData.level);
-        currentPercent = 0; // Reset pour le niveau suivant
-      } else {
-        currentPercent = levelData.progressAfter;
-      }
-    }
-    
-    // Progression finale
-    const finalProgress = progression.finalProgress || {};
-    if (finalProgress.level) {
-      this.levelText.setText(`Niveau ${finalProgress.level}`);
-      await this.animateExpBarFill(currentPercent, finalProgress.progressPercent || 0);
-    }
-  }
-  
-  animateExpBarFill(fromPercent, toPercent) {
-    return new Promise((resolve) => {
-      this.scene.tweens.add({
-        targets: { value: fromPercent },
-        value: toPercent,
-        duration: this.config.expFillDuration,
-        ease: 'Power2.easeOut',
-        onUpdate: (tween) => {
-          const percent = tween.targets[0].value;
-          this.updateExpBarVisual(percent);
-        },
-        onComplete: () => {
-          this.expBar.currentPercent = toPercent;
-          resolve();
-        }
-      });
-    });
-  }
-  
-  updateExpBarVisual(percentage) {
-    const { width, height } = this.expBar;
-    const fillWidth = Math.max(0, width * percentage);
-    
-    this.expBar.fill.clear();
-    
-    if (fillWidth > 0) {
-      // Gradient bleu XP
-      this.expBar.fill.fillGradientStyle(0x42A5F5, 0x42A5F5, 0x1976D2, 0x1976D2);
-      this.expBar.fill.fillRoundedRect(-width/2, -height/2, fillWidth, height, 6);
-      
-      // Brillance
-      this.expBar.fill.fillStyle(0xffffff, 0.3);
-      this.expBar.fill.fillRoundedRect(-width/2, -height/2, Math.max(0, fillWidth), height/3, 4);
-    }
-  }
-  
   animateLevelUp(newLevel) {
     return new Promise((resolve) => {
       console.log('🆙 [ExperienceUI] Animation Level Up:', newLevel);
@@ -320,6 +349,7 @@ export class ExperienceUI {
       });
       
       // Animation du texte niveau
+      this.levelText.setText(`Niveau ${newLevel}`);
       this.scene.tweens.add({
         targets: this.levelText,
         scaleX: 1.3,
