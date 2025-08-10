@@ -1513,21 +1513,8 @@ formatPokemonName(nameKey) {
     }
 }
 
-// ✅ NOUVELLE MÉTHODE: Confirmer l'ajout du Pokémon
-async confirmAddPokemon() {
-    const levelInput = document.getElementById('pokemonLevelInput')
-    const nicknameInput = document.getElementById('pokemonNicknameInput')
-    const genderInput = document.getElementById('pokemonGenderInput')
-    const natureInput = document.getElementById('pokemonNatureInput')
-    const shinyInput = document.getElementById('pokemonShinyInput')
-
-    // Validation du Pokémon sélectionné
-    const selectedPokemon = this.getSelectedPokemon()
-    if (!selectedPokemon) {
-        this.adminPanel.showNotification('Veuillez sélectionner un Pokémon', 'warning')
-        document.getElementById('pokemonSearchInput')?.focus()
-        return
-    }async addPokemonToTeam() {
+// ✅ MÉTHODE PRINCIPALE: Ajouter un Pokémon à l'équipe
+async addPokemonToTeam() {
     if (!this.currentPlayerData) {
         this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
         return
@@ -1550,7 +1537,8 @@ async confirmAddPokemon() {
     // Créer un modal pour sélectionner le Pokémon et son niveau
     this.showAddPokemonModal(pokemonList)
 }
-}
+
+// ✅ MÉTHODE: Charger la liste des Pokémon depuis l'API
 async loadPokemonListFromAPI() {
     try {
         console.log('📋 [PlayersAdvanced] Chargement de la liste des Pokémon...')
@@ -1570,15 +1558,123 @@ async loadPokemonListFromAPI() {
         this.adminPanel.showLoading('pokemonLoading', false)
     }
 }
-    
-// ✅ NOUVELLE MÉTHODE: Fermer le modal d'ajout de Pokémon
+
+// ✅ MÉTHODE COMPLÈTE: Confirmer l'ajout du Pokémon
+async confirmAddPokemon() {
+    const levelInput = document.getElementById('pokemonLevelInput')
+    const nicknameInput = document.getElementById('pokemonNicknameInput')
+    const genderInput = document.getElementById('pokemonGenderInput')
+    const natureInput = document.getElementById('pokemonNatureInput')
+    const shinyInput = document.getElementById('pokemonShinyInput')
+
+    // Validation du Pokémon sélectionné
+    const selectedPokemon = this.getSelectedPokemon()
+    if (!selectedPokemon) {
+        this.adminPanel.showNotification('Veuillez sélectionner un Pokémon', 'warning')
+        document.getElementById('pokemonSearchInput')?.focus()
+        return
+    }
+
+    // Validation du niveau
+    const level = parseInt(levelInput?.value)
+    if (isNaN(level) || level < 1 || level > 100) {
+        this.adminPanel.showNotification('Niveau invalide (1-100)', 'warning')
+        levelInput?.focus()
+        return
+    }
+
+    // Préparer les données de base
+    const pokemonData = {
+        pokemonId: selectedPokemon.nationalDex,
+        level: level
+    }
+
+    // Ajouter les options si spécifiées
+    const nickname = nicknameInput?.value?.trim()
+    if (nickname) {
+        pokemonData.nickname = nickname
+    }
+
+    const gender = genderInput?.value
+    if (gender && gender !== 'random') {
+        pokemonData.gender = gender
+    }
+
+    const nature = natureInput?.value
+    if (nature && nature !== 'random') {
+        pokemonData.nature = nature
+    }
+
+    const isShiny = shinyInput?.checked
+    if (isShiny) {
+        pokemonData.isShiny = true
+    }
+
+    try {
+        // Afficher un état de chargement
+        const confirmBtn = document.querySelector('#addPokemonModal .btn-success')
+        if (confirmBtn) {
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ajout en cours...'
+            confirmBtn.disabled = true
+        }
+
+        // Envoyer la requête à l'API
+        await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/team/add`, {
+            method: 'POST',
+            body: JSON.stringify(pokemonData)
+        })
+
+        // Message de succès
+        const pokemonName = nickname || this.formatPokemonName(selectedPokemon.nameKey)
+        this.adminPanel.showNotification(
+            `${pokemonName} (Niv.${level}) ajouté à l'équipe${isShiny ? ' ✨' : ''}`, 
+            'success'
+        )
+        
+        // Fermer le modal
+        this.closeAddPokemonModal()
+        
+        // Recharger les données et actualiser l'affichage
+        await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+        this.renderTeamContent()
+
+    } catch (error) {
+        // Gestion d'erreur
+        this.adminPanel.showNotification('Erreur lors de l\'ajout: ' + error.message, 'error')
+        
+        // Restaurer le bouton
+        const confirmBtn = document.querySelector('#addPokemonModal .btn-success')
+        if (confirmBtn) {
+            confirmBtn.innerHTML = '<i class="fas fa-plus"></i> Ajouter à l\'Équipe'
+            confirmBtn.disabled = false
+        }
+    }
+}
+
+// ✅ MÉTHODE: Fermer le modal d'ajout de Pokémon
 closeAddPokemonModal() {
     const modal = document.getElementById('addPokemonModal')
     if (modal) {
         modal.classList.remove('active')
         setTimeout(() => modal.remove(), 300)
     }
+    
+    // Nettoyer les références
+    this.selectedPokemonForAdd = null
+    if (this.getSelectedPokemon) {
+        this.getSelectedPokemon = null
+    }
 }
+
+// ✅ MÉTHODE UTILITAIRE: Formater le nom du Pokémon depuis nameKey
+formatPokemonName(nameKey) {
+    if (!nameKey) return 'Pokémon Inconnu'
+    
+    // Extraire le nom depuis la clé (ex: "pokemon.name.pikachu" -> "Pikachu")
+    const name = nameKey.split('.').pop() || nameKey
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+}
+
 
     async healAllPokemon() {
         if (!confirm('Soigner tous les Pokémon de l\'équipe ?')) return
