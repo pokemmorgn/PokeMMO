@@ -19,6 +19,8 @@ import { givePlayerWildXP } from '../../services/ExperienceService';
 export class BattleEndManager {
   
   private gameState: BattleGameState | null = null;
+  // 🆕 CALLBACK POUR ÉMISSION VERS CLIENT
+  private emitToClientCallback: ((eventType: string, data: any) => void) | null = null;
   
   constructor() {
     console.log('🏁 [BattleEndManager] Initialisé avec système XP');
@@ -155,6 +157,9 @@ export class BattleEndManager {
       if (xpResult.success) {
         // 🆕 STOCKER LES DONNÉES XP POUR ENVOI AU CLIENT
         this.storeExperienceDataForClient(xpResult);
+        
+        // 🆕 ÉMETTRE L'ÉVÉNEMENT XP VERS LE CLIENT
+        this.emitToClient('experienceGained', (this.gameState as any).lastExperienceData);
         
         events.push(`🌟 ${playerPokemon.name} a gagné ${xpResult.pokemon.expGained} points d'expérience !`);
         
@@ -549,6 +554,23 @@ export class BattleEndManager {
   }
   
   // === MÉTHODES UTILITAIRES ===
+  
+  /**
+   * 🆕 Configure le callback pour émission vers client
+   */
+  setEmitToClientCallback(callback: (eventType: string, data: any) => void): void {
+    this.emitToClientCallback = callback;
+    console.log('🔗 [BattleEndManager] Callback client configuré');
+  }
+
+  /**
+   * 🆕 Émet un événement vers le client si callback configuré
+   */
+  private emitToClient(eventType: string, data: any): void {
+    if (this.emitToClientCallback) {
+      this.emitToClientCallback(eventType, data);
+    }
+  }
   
   /**
    * Crée un résultat d'erreur
