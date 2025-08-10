@@ -2275,31 +2275,73 @@ case 'bag':
     this.handleNewMovesLearned(data);
   });
   }
+  
+  testExperiencePopup() {
+  console.log('🧪 [BattleScene] Test manuel popup XP...');
+  
+  if (!this.experienceUI) {
+    console.error('❌ [BattleScene] ExperienceUI non initialisé');
+    return;
+  }
+  
+  const mockData = {
+    pokemon: { 
+      id: this.currentPlayerPokemon?.id || "test", 
+      name: this.currentPlayerPokemon?.name || "Pikachu" 
+    },
+    experience: { 
+      gained: 350, 
+      before: 1250, 
+      after: 1600 
+    },
+    progression: {
+      levelBefore: 5,
+      levelAfter: 6,
+      levelsGained: 1,
+      finalProgress: { 
+        level: 6, 
+        progressPercent: 0.3 
+      }
+    }
+  };
+  
+  console.log('🎮 [BattleScene] Déclenchement popup avec:', mockData);
+  this.experienceUI.showExperienceGain(mockData);
+}
+  
 handleExperienceGained(data) {
-  console.log('📈 [BattleScene] Traitement gain XP:', data);
+  console.log('📈 [BattleScene] === TRAITEMENT XP ===');
+  console.log('🔍 Data reçue:', data);
+  console.log('🎮 ExperienceUI disponible:', !!this.experienceUI);
+  console.log('🐾 CurrentPlayerPokemon:', this.currentPlayerPokemon?.id);
+  console.log('🎯 Data pokemon ID:', data?.pokemon?.id);
+  console.log('================================');
   
   if (!data || !data.pokemon) {
     console.warn('⚠️ [BattleScene] Données XP invalides:', data);
     return;
   }
   
-  // Vérifier que c'est le Pokémon du joueur
+  // Vérifier correspondance Pokémon (plus permissif pour debug)
   if (data.pokemon.id !== this.currentPlayerPokemon?.id) {
-    console.log('ℹ️ [BattleScene] XP pour Pokémon non-actuel, ignoré');
-    return;
+    console.warn('⚠️ [BattleScene] ID mismatch:', {
+      received: data.pokemon.id,
+      current: this.currentPlayerPokemon?.id
+    });
+    // 🆕 POUR DEBUG : Continuer quand même
+    console.log('🧪 [DEBUG] Continuant quand même pour test...');
   }
   
-  // Afficher la popup XP si disponible
+  // Afficher la popup XP
   if (this.experienceUI) {
+    console.log('🚀 [BattleScene] Déclenchement popup XP...');
     this.experienceUI.showExperienceGain(data);
   } else {
-    console.warn('⚠️ [BattleScene] ExperienceUI non disponible');
-    // Fallback: message simple
+    console.error('❌ [BattleScene] ExperienceUI non disponible');
     const expGained = data.experience?.gained || 0;
     this.showNarrativeMessage(`${data.pokemon.name} gagne ${expGained} EXP !`, false);
   }
   
-  // Mettre à jour les données locales du Pokémon
   this.updateLocalPokemonData(data);
 }
 
