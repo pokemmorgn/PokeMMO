@@ -2,10 +2,20 @@
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
-import { IPokemonData } from '../models/PokemonData';
+import { IPokemonData, GrowthRate } from '../models/PokemonData';
 import { getPokemonById } from '../data/PokemonData';
 
 // ===== TYPES ET INTERFACES =====
+
+// Interface pour les stats Pokémon (utilisée dans le service)
+interface IPokemonStats {
+  hp: number;
+  attack: number;
+  defense: number;
+  spAttack: number;
+  spDefense: number;
+  speed: number;
+}
 
 export interface ExperienceGainContext {
   // === DONNÉES DE BASE ===
@@ -79,14 +89,7 @@ export interface ExperienceResult {
   }>;
   
   // === AMÉLIORATION DES STATS ===
-  statGains?: {
-    hp: number;
-    attack: number;
-    defense: number;
-    specialAttack: number;
-    specialDefense: number;
-    speed: number;
-  };
+  statGains?: Record<string, number>;
   
   // === NOTIFICATIONS ===
   notifications: string[];
@@ -161,7 +164,7 @@ export class ExperienceService extends EventEmitter {
   };
   
   // Cache des données Pokémon
-  private pokemonDataCache = new Map<number, IPokemonData>();
+  private pokemonDataCache = new Map<number, any>(); // Simplifié pour éviter les conflits de types
   
   // Queue des choix d'apprentissage en attente
   private pendingMoveChoices = new Map<string, MoveLearnChoice[]>();
@@ -288,7 +291,7 @@ export class ExperienceService extends EventEmitter {
         // Vérifier niveau max
         if (ownedPokemon.level >= this.config.maxLevel) {
           return this.createSuccessResult({
-            pokemon: this.createPokemonSummary(ownedPokemon, ownedPokemon, 0),
+            pokemon: this.createPokemonSummary(ownedPokemon as any, ownedPokemon as any, 0),
             leveledUp: false,
             levelsGained: 0,
             newMoves: [],
@@ -296,7 +299,7 @@ export class ExperienceService extends EventEmitter {
           });
         }
         
-        const beforePokemon = { ...ownedPokemon };
+        const beforePokemon = JSON.parse(JSON.stringify(ownedPokemon)); // Deep copy pour éviter les problèmes de référence
         
         // 2. Calculer l'XP à gagner
         const expToGain = await this.calculateExperienceGain(context, ownedPokemon);
@@ -334,7 +337,7 @@ export class ExperienceService extends EventEmitter {
         // 6. Créer le résultat final
         const result: ExperienceResult = {
           success: true,
-          pokemon: this.createPokemonSummary(beforePokemon, ownedPokemon, expToGain),
+          pokemon: this.createPokemonSummary(beforePokemon, ownedPokemon as any, expToGain),
           leveledUp: levelUpResult.leveledUp,
           levelsGained: levelUpResult.levelsGained,
           hasEvolved,
@@ -554,7 +557,7 @@ export class ExperienceService extends EventEmitter {
   private calculateExpForLevel(level: number, ownedPokemon: IOwnedPokemon): number {
     // Récupérer le taux de croissance depuis les données du Pokémon
     // Pour l'instant, utiliser Medium Fast comme défaut
-    const growthRate = 'medium_fast'; // TODO: récupérer depuis les données
+    const growthRate: GrowthRate = 'medium_fast'; // TODO: récupérer depuis les données
     
     switch (growthRate) {
       case 'fast':
@@ -719,7 +722,8 @@ export class ExperienceService extends EventEmitter {
       
       // TODO: Intégrer avec votre EvolutionService existant
       // Pour l'instant, simulation simple
-      this.debugLog(`🌟 Évolution possible: ${pokemonData.name} → #${evolution.evolvesInto}`);
+      const pokemonName = pokemonData.nameKey || `Pokemon #${pokemonData.nationalDex}`;
+      this.debugLog(`🌟 Évolution possible: ${pokemonName} → #${evolution.evolvesInto}`);
       
       // Ici vous intégrerez votre service d'évolution
       // const evolutionResult = await evolutionService.evolve(ownedPokemon._id.toString());
@@ -873,16 +877,16 @@ export class ExperienceService extends EventEmitter {
   }
   
   private createPokemonSummary(
-    before: IOwnedPokemon,
+    before: any, // Simplifié pour éviter les problèmes de type Document
     after: IOwnedPokemon,
     expGained: number
   ): ExperienceResult['pokemon'] {
     return {
-      id: after._id.toString(),
+      id: after._id?.toString() || 'unknown',
       name: after.nickname || `Pokemon #${after.pokemonId}`,
-      beforeLevel: before.level,
+      beforeLevel: before.level || 0,
       afterLevel: after.level,
-      beforeExp: before.experience,
+      beforeExp: before.experience || 0,
       afterExp: after.experience,
       expGained,
       expToNextLevel: this.calculateExpForLevel(after.level + 1, after) - after.experience
@@ -1019,14 +1023,14 @@ export class ExperienceService extends EventEmitter {
   /**
    * Récupère les données d'un Pokémon avec cache
    */
-  private async getPokemonData(pokemonId: number): Promise<IPokemonData | null> {
+  private async getPokemonData(pokemonId: number): Promise<any> { // Simplifié pour éviter les conflits de types
     if (this.pokemonDataCache.has(pokemonId)) {
       return this.pokemonDataCache.get(pokemonId)!;
     }
     
     const data = await getPokemonById(pokemonId);
     if (data) {
-      this.pokemonDataCache.set(pokemonId, data);
+      this.pokemonDataCache.set(pokemonId, data as any);
     }
     
     return data;
