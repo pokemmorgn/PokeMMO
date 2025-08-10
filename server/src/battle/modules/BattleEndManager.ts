@@ -157,12 +157,14 @@ export class BattleEndManager {
       if (xpResult.success) {
         // 🆕 STOCKER LES DONNÉES XP POUR ENVOI AU CLIENT
         this.storeExperienceDataForClient(xpResult);
-        
+        console.log('🚀 [BattleEndManager] Tentative émission XP...', (this.gameState as any).lastExperienceData);
+        console.log('🔗 [BattleEndManager] Callback disponible:', !!this.emitToClientCallback);
+
         // 🆕 ÉMETTRE L'ÉVÉNEMENT XP VERS LE CLIENT
         this.emitToClient('pokemon_experience_gained', (this.gameState as any).lastExperienceData);
         
         events.push(`🌟 ${playerPokemon.name} a gagné ${xpResult.pokemon.expGained} points d'expérience !`);
-        
+        console.log('✅ [BattleEndManager] Événement XP émis');
         if (xpResult.leveledUp) {
           events.push(`🆙 ${playerPokemon.name} est maintenant niveau ${xpResult.pokemon.afterLevel} !`);
         }
