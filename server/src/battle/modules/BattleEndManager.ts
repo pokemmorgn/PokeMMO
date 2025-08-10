@@ -54,7 +54,7 @@ export class BattleEndManager {
       
       // Sauvegarder le Pokémon du joueur 1 (jamais wild)
       if (this.gameState.player1.pokemon && !this.gameState.player1.pokemon.isWild) {
-        const savePromise = this.savePokemonData(
+        const savePromise = this.savePokemonDataBySession(
           this.gameState.player1.pokemon,
           this.gameState.player1.sessionId
         );
@@ -64,7 +64,7 @@ export class BattleEndManager {
       
       // Sauvegarder le Pokémon du joueur 2 (seulement si pas wild)
       if (this.gameState.player2.pokemon && !this.gameState.player2.pokemon.isWild) {
-        const savePromise = this.savePokemonData(
+        const savePromise = this.savePokemonDataBySession(
           this.gameState.player2.pokemon,
           this.gameState.player2.sessionId
         );
@@ -126,8 +126,8 @@ export class BattleEndManager {
         return [];
       }
       
-      // 🎯 RÉCUPÉRER L'OWNEDPOKEMON DU JOUEUR (réutilise la logique existante)
-      const ownedPokemon = await this.findOwnedPokemon(
+      // 🎯 RÉCUPÉRER L'OWNEDPOKEMON DU JOUEUR (avec conversion sessionId -> userId)
+      const ownedPokemon = await this.findOwnedPokemonBySession(
         playerPokemon, 
         this.gameState.player1.sessionId
       );
@@ -169,6 +169,30 @@ export class BattleEndManager {
   
   // === 🔥 MÉTHODES EXISTANTES PRÉSERVÉES ===
   
+  /**
+   * 🆕 Sauvegarde un Pokémon par sessionId (convertit en userId d'abord)
+   */
+  private async savePokemonDataBySession(pokemon: Pokemon, sessionId: string): Promise<void> {
+    try {
+      // 🎯 CONVERTIR sessionId en userId
+      const { JWTManager } = require('../../managers/JWTManager');
+      const jwtManager = JWTManager.getInstance();
+      const userId = jwtManager.getUserId(sessionId);
+      
+      if (!userId) {
+        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId pour sauvegarde`);
+        return;
+      }
+      
+      // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
+      await this.savePokemonData(pokemon, userId);
+      
+    } catch (error) {
+      console.error(`❌ [BattleEndManager] Erreur sauvegarde par session:`, error);
+      throw error;
+    }
+  }
+
   /**
    * Sauvegarde un Pokémon spécifique
    */
@@ -213,6 +237,32 @@ export class BattleEndManager {
     }
   }
   
+  /**
+   * 🆕 Trouve le Pokémon par sessionId (convertit en userId d'abord)
+   */
+  private async findOwnedPokemonBySession(pokemon: Pokemon, sessionId: string): Promise<any> {
+    try {
+      // 🎯 CONVERTIR sessionId en userId via JWTManager
+      const { JWTManager } = require('../../managers/JWTManager');
+      const jwtManager = JWTManager.getInstance();
+      const userId = jwtManager.getUserId(sessionId);
+      
+      if (!userId) {
+        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId`);
+        return null;
+      }
+      
+      console.log(`🔄 [BattleEndManager] Conversion: sessionId ${sessionId} -> userId ${userId}`);
+      
+      // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
+      return await this.findOwnedPokemon(pokemon, userId);
+      
+    } catch (error) {
+      console.error(`❌ [BattleEndManager] Erreur conversion sessionId:`, error);
+      return null;
+    }
+  }
+
   /**
    * Trouve le Pokémon correspondant en base de données
    */
