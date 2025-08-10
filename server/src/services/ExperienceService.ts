@@ -83,6 +83,27 @@ export interface ExperienceResult {
     executionTime: number;
     operationsCount: number;
   };
+  // 🆕 DONNÉES DE PROGRESSION POUR UI
+  progression?: {
+    level?: {
+      current: number;
+      expInLevelBefore: number;
+      expInLevelAfter: number;
+      expNeededForLevel: number;
+      progressBefore: number;
+      progressAfter: number;
+    };
+    levels?: Array<{
+      level: number;
+      expInLevelBefore: number;
+      expInLevelAfter: number;
+      expNeededForLevel: number;
+      progressBefore: number;
+      progressAfter: number;
+    }>;
+    levelUp: boolean;
+    levelsGained?: number;
+  };
 }
 
 export interface LevelUpData {
@@ -850,6 +871,13 @@ export class ExperienceService extends EventEmitter {
             executionTime: Date.now() - startTime,
             operationsCount: 1,
           },
+          // 🆕 CALCUL DES DONNÉES DE PROGRESSION
+          progression: this.calculateProgressionData(
+            beforePokemon.experience || 0,
+            ownedPokemon.experience,
+            beforePokemon.level || 0,
+            ownedPokemon.level
+          )
         };
 
         this.emitEvents(context, result);
@@ -1274,6 +1302,107 @@ export class ExperienceService extends EventEmitter {
       expGained,
       expToNextLevel:
         this.calculateExpForLevel(after.level + 1, after) - after.experience,
+    };
+  }
+
+  /**
+   * 🆕 Calcule les données de progression détaillées pour la barre XP
+   */
+  private calculateProgressionData(
+    beforeExp: number,
+    afterExp: number,
+    beforeLevel: number,
+    afterLevel: number
+  ): any {
+    // Si level up, on traite différemment
+    if (afterLevel > beforeLevel) {
+      return this.calculateMultiLevelProgression(beforeExp, afterExp, beforeLevel, afterLevel);
+    }
+
+    // Cas simple : même niveau
+    const expAtLevelStart = this.calculateExpForLevel(beforeLevel, null as any);
+    const expAtLevelEnd = this.calculateExpForLevel(beforeLevel + 1, null as any);
+    const expNeededForLevel = expAtLevelEnd - expAtLevelStart;
+
+    const expInLevelBefore = beforeExp - expAtLevelStart;
+    const expInLevelAfter = afterExp - expAtLevelStart;
+
+    return {
+      level: {
+        current: beforeLevel,
+        expInLevelBefore: expInLevelBefore,
+        expInLevelAfter: expInLevelAfter,
+        expNeededForLevel: expNeededForLevel,
+        progressBefore: expInLevelBefore / expNeededForLevel,
+        progressAfter: expInLevelAfter / expNeededForLevel
+      },
+      levelUp: false
+    };
+  }
+
+  /**
+   * 🆕 Calcule la progression pour plusieurs niveaux (level up)
+   */
+  private calculateMultiLevelProgression(
+    beforeExp: number,
+    afterExp: number,
+    beforeLevel: number,
+    afterLevel: number
+  ): any {
+    const levels = [];
+
+    // Niveau de départ (progression jusqu'à 100%)
+    const expAtStartLevel = this.calculateExpForLevel(beforeLevel, null as any);
+    const expAtStartLevelEnd = this.calculateExpForLevel(beforeLevel + 1, null as any);
+    const expNeededStartLevel = expAtStartLevelEnd - expAtStartLevel;
+    const expInStartLevel = beforeExp - expAtStartLevel;
+
+    levels.push({
+      level: beforeLevel,
+      expInLevelBefore: expInStartLevel,
+      expInLevelAfter: expNeededStartLevel, // 100% du niveau
+      expNeededForLevel: expNeededStartLevel,
+      progressBefore: expInStartLevel / expNeededStartLevel,
+      progressAfter: 1.0 // 100%
+    });
+
+    // Niveaux intermédiaires (0% → 100%)
+    for (let level = beforeLevel + 1; level < afterLevel; level++) {
+      const expAtLevel = this.calculateExpForLevel(level, null as any);
+      const expAtLevelEnd = this.calculateExpForLevel(level + 1, null as any);
+      const expNeeded = expAtLevelEnd - expAtLevel;
+
+      levels.push({
+        level: level,
+        expInLevelBefore: 0,
+        expInLevelAfter: expNeeded,
+        expNeededForLevel: expNeeded,
+        progressBefore: 0.0,
+        progressAfter: 1.0
+      });
+    }
+
+    // Niveau final (0% → position finale)
+    if (afterLevel > beforeLevel) {
+      const expAtFinalLevel = this.calculateExpForLevel(afterLevel, null as any);
+      const expAtFinalLevelEnd = this.calculateExpForLevel(afterLevel + 1, null as any);
+      const expNeededFinalLevel = expAtFinalLevelEnd - expAtFinalLevel;
+      const expInFinalLevel = afterExp - expAtFinalLevel;
+
+      levels.push({
+        level: afterLevel,
+        expInLevelBefore: 0,
+        expInLevelAfter: expInFinalLevel,
+        expNeededForLevel: expNeededFinalLevel,
+        progressBefore: 0.0,
+        progressAfter: expInFinalLevel / expNeededFinalLevel
+      });
+    }
+
+    return {
+      levels: levels,
+      levelUp: true,
+      levelsGained: afterLevel - beforeLevel
     };
   }
 
