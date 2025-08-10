@@ -26,32 +26,115 @@ this.validator = new NPCValidator({
         this.init()
     }
 
-    async init() {
-        try {
-            console.log('👤 [NPCEditor] Starting initialization...')
-            
-            // Initialiser les zones par défaut immédiatement
-            this.availableZones = [
-                { id: 'beach', name: '🏖️ Beach', description: 'Zone de plage avec touristes' },
-                { id: 'village', name: '🏘️ Village', description: 'Village principal avec habitants' },
-                { id: 'lavandia', name: '🏙️ Lavandia', description: 'Grande ville avec services' },
-                { id: 'road1', name: '🛤️ Route 1', description: 'Route avec dresseurs débutants' },
-                { id: 'road2', name: '🛤️ Route 2', description: 'Route intermédiaire' },
-                { id: 'road3', name: '🛤️ Route 3', description: 'Route avancée' },
-                { id: 'forest', name: '🌲 Forêt', description: 'Forêt mystérieuse' },
-                { id: 'cave', name: '🕳️ Grotte', description: 'Système de grottes' }
-            ]
-            
-            console.log('✅ [NPCEditor] Initialization completed - NPC editor ready with MongoDB')
-        } catch (error) {
-            console.error('❌ [NPCEditor] Initialization failed:', error)
-        }
+async init() {
+    try {
+        console.log('👤 [NPCEditor] Starting initialization...')
+        
+        // ✅ CORRECTION: Charger les zones depuis l'API au lieu de les définir en dur
+        await this.loadAvailableZones()
+        
+        console.log('✅ [NPCEditor] Initialization completed - NPC editor ready with MongoDB')
+    } catch (error) {
+        console.error('❌ [NPCEditor] Initialization failed:', error)
+        
+        // ✅ Fallback avec zones par défaut si API échoue
+        this.availableZones = [
+            { id: 'beach', name: '🏖️ Beach', description: 'Zone de plage avec touristes' },
+            { id: 'village', name: '🏘️ Village', description: 'Village principal avec habitants' },
+            { id: 'lavandia', name: '🏙️ Lavandia', description: 'Grande ville avec services' }
+        ]
     }
+}
 
     // ==============================
     // GESTION DES ZONES ET CHARGEMENT MONGODB
     // ==============================
-
+async loadAvailableZones() {
+    try {
+        console.log('🗺️ [NPCEditor] Loading all available zones from Maps API...')
+        
+        const response = await this.adminPanel.apiCall('/maps/list')
+        
+        if (response.success && response.maps) {
+            // ✅ Convertir le format Maps vers le format NPCEditor
+            this.availableZones = response.maps.map(map => ({
+                id: map.id,
+                name: map.name,
+                description: `Zone ${map.name}` // Description générique
+            }))
+            
+            // ✅ Trier alphabétiquement
+            this.availableZones.sort((a, b) => a.name.localeCompare(b.name))
+            
+            console.log(`✅ [NPCEditor] ${this.availableZones.length} zones loaded from Maps API:`)
+            console.log('📋 [NPCEditor] Available zones:', this.availableZones.map(z => z.id))
+            
+        } else {
+            throw new Error('Aucune zone reçue de l\'API Maps')
+        }
+        
+    } catch (error) {
+        console.error('❌ [NPCEditor] Error loading zones from Maps API:', error)
+        
+        // ✅ FALLBACK COMPLET: Toutes les zones du MapEditor
+        this.availableZones = [
+            // === ZONES PRINCIPALES ===
+            { id: 'beach', name: '🏖️ Beach', description: 'Zone de plage avec touristes' },
+            { id: 'village', name: '🏘️ Village', description: 'Village principal avec habitants' },
+            { id: 'lavandia', name: '🏙️ Lavandia', description: 'Grande ville avec services' },
+            
+            // === ROUTES ===
+            { id: 'road1', name: '🛤️ Route 1', description: 'Route avec dresseurs débutants' },
+            { id: 'road2', name: '🛤️ Route 2', description: 'Route intermédiaire' },
+            { id: 'road3', name: '🛤️ Route 3', description: 'Route avancée' },
+            
+            // === VILLAGE - INTÉRIEURS ===
+            { id: 'villagelab', name: '🧪 Laboratoire du Village', description: 'Laboratoire principal' },
+            { id: 'villagehouse1', name: '🏠 Maison Village 1', description: 'Première maison du village' },
+            { id: 'villagehouse2', name: '🏠 Maison Village 2', description: 'Deuxième maison du village' },
+            { id: 'villageflorist', name: '🌸 Fleuriste du Village', description: 'Magasin de fleurs' },
+            { id: 'villagewindmill', name: '🌾 Moulin du Village', description: 'Moulin à vent du village' },
+            
+            // === ROUTES - INTÉRIEURS ===
+            { id: 'road1house', name: '🏠 Maison Route 1', description: 'Maison isolée sur la route 1' },
+            { id: 'road1hidden', name: '🔍 Passage Caché Route 1', description: 'Passage secret' },
+            
+            // === LAVANDIA - INTÉRIEURS ===
+            { id: 'lavandiaanalysis', name: '🔬 Centre d\'Analyse', description: 'Centre d\'analyse Pokémon' },
+            { id: 'lavandiabossroom', name: '👑 Salle du Boss', description: 'Bureau du dirigeant' },
+            { id: 'lavandiacelebitemple', name: '🍃 Temple de Celebi', description: 'Temple mystique' },
+            { id: 'lavandiaequipment', name: '⚔️ Magasin d\'Équipement', description: 'Équipement de dresseur' },
+            { id: 'lavandiafurniture', name: '🪑 Magasin de Meubles', description: 'Ameublement' },
+            { id: 'lavandiahealingcenter', name: '❤️ Centre Pokémon', description: 'Soins Pokémon' },
+            { id: 'lavandiaresearchlab', name: '🧬 Laboratoire de Recherche', description: 'Recherche avancée' },
+            { id: 'lavandiashop', name: '🛒 Magasin Lavandia', description: 'Magasin général' },
+            
+            // === MAISONS LAVANDIA (1-9) ===
+            { id: 'lavandiahouse1', name: '🏠 Maison Lavandia 1', description: 'Résidence 1' },
+            { id: 'lavandiahouse2', name: '🏠 Maison Lavandia 2', description: 'Résidence 2' },
+            { id: 'lavandiahouse3', name: '🏠 Maison Lavandia 3', description: 'Résidence 3' },
+            { id: 'lavandiahouse4', name: '🏠 Maison Lavandia 4', description: 'Résidence 4' },
+            { id: 'lavandiahouse5', name: '🏠 Maison Lavandia 5', description: 'Résidence 5' },
+            { id: 'lavandiahouse6', name: '🏠 Maison Lavandia 6', description: 'Résidence 6' },
+            { id: 'lavandiahouse7', name: '🏠 Maison Lavandia 7', description: 'Résidence 7' },
+            { id: 'lavandiahouse8', name: '🏠 Maison Lavandia 8', description: 'Résidence 8' },
+            { id: 'lavandiahouse9', name: '🏠 Maison Lavandia 9', description: 'Résidence 9' },
+            
+            // === GROTTES ===
+            { id: 'noctherbcave1', name: '🕳️ Grotte de Noctherb 1', description: 'Première partie de la grotte' },
+            { id: 'noctherbcave2', name: '🕳️ Grotte de Noctherb 2', description: 'Deuxième partie de la grotte' },
+            { id: 'noctherbcave2bis', name: '🕳️ Grotte de Noctherb 2bis', description: 'Passage alternatif' },
+            
+            // === WRAITHMOOR ===
+            { id: 'wraithmoor', name: '👻 Lande Spectrale', description: 'Terre hantée' },
+            { id: 'wraithmoorcimetery', name: '⚰️ Cimetière de la Lande', description: 'Cimetière hanté' },
+            { id: 'wraithmoormanor1', name: '🏚️ Manoir de la Lande 1', description: 'Manoir abandonné' }
+        ]
+        
+        console.log(`✅ [NPCEditor] Using fallback zones: ${this.availableZones.length} zones`)
+    }
+}
+    
     async loadNPCsForZone(zoneId) {
     if (!zoneId) return
 
@@ -705,137 +788,139 @@ async saveCurrentNPCToMongoDB() {
     // INTERFACE UTILISATEUR MONGODB
     // ==============================
 
-    renderMainInterface() {
-        const container = document.querySelector('#npcs')
-        if (!container) return
+   renderMainInterface() {
+    const container = document.querySelector('#npcs')
+    if (!container) return
 
-        container.innerHTML = `
-            <div class="npc-editor-container">
-                <!-- Header avec sélection de zone -->
-                <div class="npc-header">
-                    <div class="header-controls">
-                        <div class="zone-selector">
-                            <label for="npcZoneSelect" class="form-label">🗺️ Zone:</label>
-                            <select id="npcZoneSelect" class="form-select" onchange="adminPanel.npcEditor.selectZone(this.value)">
-                                <option value="">Sélectionner une zone...</option>
-                                ${this.availableZones.map(zone => `
-                                    <option value="${zone.id}" ${zone.id === this.currentZone ? 'selected' : ''}>
-                                        ${zone.name}
-                                    </option>
+    container.innerHTML = `
+        <div class="npc-editor-container">
+            <!-- Header avec sélection de zone -->
+            <div class="npc-header">
+                <div class="header-controls">
+                    <div class="zone-selector">
+                        <label for="npcZoneSelect" class="form-label">🗺️ Zone:</label>
+                        <select id="npcZoneSelect" class="form-select" onchange="adminPanel.npcEditor.selectZone(this.value)">
+                            <option value="">Sélectionner une zone...</option>
+                            ${this.availableZones.map(zone => `
+                                <option value="${zone.id}" ${zone.id === this.currentZone ? 'selected' : ''}>
+                                    ${zone.name}
+                                </option>
+                            `).join('')}
+                        </select>
+                        <small class="form-text text-muted">${this.availableZones.length} zones disponibles</small>
+                    </div>
+                    
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="adminPanel.npcEditor.createNewNPC()" ${!this.currentZone ? 'disabled' : ''}>
+                            <i class="fas fa-plus"></i> Nouveau NPC
+                        </button>
+                        <button class="btn btn-info" onclick="adminPanel.npcEditor.importNPCs()" ${!this.currentZone ? 'disabled' : ''}>
+                            <i class="fas fa-file-import"></i> Importer
+                        </button>
+                        <button class="btn btn-warning" onclick="adminPanel.npcEditor.exportNPCs()" ${!this.currentZone ? 'disabled' : ''}>
+                            <i class="fas fa-file-export"></i> Exporter
+                        </button>
+                        <button class="btn btn-primary" onclick="saveAllNPCs()" ${!this.currentZone ? 'disabled' : ''}>
+                            <i class="fas fa-save"></i> Sauvegarder MongoDB
+                        </button>
+                        <button class="btn btn-secondary" onclick="adminPanel.npcEditor.validateZoneNPCs()" ${!this.currentZone ? 'disabled' : ''}>
+                            <i class="fas fa-check-circle"></i> Valider
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="zone-stats" id="zoneStats">
+                    <!-- Stats de la zone -->
+                </div>
+            </div>
+
+            <!-- Barre de recherche globale -->
+            <div class="search-section">
+                <div class="search-input-group">
+                    <input type="text" class="search-input" id="globalNPCSearch" 
+                           placeholder="🔍 Rechercher NPCs dans toutes les zones..." 
+                           onkeyup="adminPanel.npcEditor.searchNPCs(this.value)">
+                    <button class="btn btn-outline-secondary" onclick="adminPanel.npcEditor.clearSearch()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <!-- Zone principale -->
+            <div class="npc-main-area">
+                <!-- Liste des NPCs -->
+                <div class="npcs-list-panel">
+                    <div class="list-header">
+                        <h3>👥 NPCs de la Zone 
+                            ${this.currentZoneSource === 'mongodb' ? '<span class="badge badge-success">MongoDB</span>' : ''}
+                        </h3>
+                        <div class="list-filters">
+                            <input type="text" class="search-input" id="npcSearch" 
+                                   placeholder="🔍 Rechercher..." onkeyup="adminPanel.npcEditor.filterNPCs(this.value)">
+                            <select class="form-select" id="typeFilter" onchange="adminPanel.npcEditor.filterByType(this.value)">
+                                <option value="">Tous les types</option>
+                                ${Object.entries(NPC_TYPES).map(([type, config]) => `
+                                    <option value="${type}">${config.icon} ${config.name}</option>
                                 `).join('')}
                             </select>
                         </div>
-                        
-                        <div class="header-actions">
-                            <button class="btn btn-success" onclick="adminPanel.npcEditor.createNewNPC()" ${!this.currentZone ? 'disabled' : ''}>
-                                <i class="fas fa-plus"></i> Nouveau NPC
+                    </div>
+                    
+                    <div class="npcs-list" id="npcsList">
+                        <!-- Liste générée dynamiquement -->
+                    </div>
+                </div>
+
+                <!-- Éditeur de NPC -->
+                <div class="npc-editor-panel">
+                    <div class="editor-header">
+                        <h3 id="editorTitle">Sélectionnez un NPC ou créez-en un nouveau</h3>
+                        <div class="editor-actions" id="editorActions" style="display: none;">
+                            <button class="btn btn-success btn-sm" onclick="adminPanel.npcEditor.saveCurrentNPCToMongoDB()">
+                                <i class="fas fa-save"></i> Valider & Sauvegarder
                             </button>
-                            <button class="btn btn-info" onclick="adminPanel.npcEditor.importNPCs()" ${!this.currentZone ? 'disabled' : ''}>
-                                <i class="fas fa-file-import"></i> Importer
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.npcEditor.cancelEdit()">
+                                <i class="fas fa-times"></i> Annuler
                             </button>
-                            <button class="btn btn-warning" onclick="adminPanel.npcEditor.exportNPCs()" ${!this.currentZone ? 'disabled' : ''}>
-                                <i class="fas fa-file-export"></i> Exporter
+                            <button class="btn btn-danger btn-sm" onclick="adminPanel.npcEditor.deleteCurrentNPC()">
+                                <i class="fas fa-trash"></i> Supprimer
                             </button>
-<button class="btn btn-primary" onclick="saveAllNPCs()" ${!this.currentZone ? 'disabled' : ''}>
-                                <i class="fas fa-save"></i> Sauvegarder MongoDB
-                            </button>
-                            <button class="btn btn-secondary" onclick="adminPanel.npcEditor.validateZoneNPCs()" ${!this.currentZone ? 'disabled' : ''}>
-                                <i class="fas fa-check-circle"></i> Valider
+                            <button class="btn btn-info btn-sm" onclick="adminPanel.npcEditor.duplicateNPC(adminPanel.npcEditor.npcs.findIndex(n => n.id === adminPanel.npcEditor.selectedNPC?.id))">
+                                <i class="fas fa-copy"></i> Dupliquer
                             </button>
                         </div>
                     </div>
                     
-                    <div class="zone-stats" id="zoneStats">
-                        <!-- Stats de la zone -->
-                    </div>
-                </div>
-
-                <!-- Barre de recherche globale -->
-                <div class="search-section">
-                    <div class="search-input-group">
-                        <input type="text" class="search-input" id="globalNPCSearch" 
-                               placeholder="🔍 Rechercher NPCs dans toutes les zones..." 
-                               onkeyup="adminPanel.npcEditor.searchNPCs(this.value)">
-                        <button class="btn btn-outline-secondary" onclick="adminPanel.npcEditor.clearSearch()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div id="searchResults" class="search-results"></div>
-                </div>
-
-                <!-- Zone principale -->
-                <div class="npc-main-area">
-                    <!-- Liste des NPCs -->
-                    <div class="npcs-list-panel">
-                        <div class="list-header">
-                            <h3>👥 NPCs de la Zone 
-                                ${this.currentZoneSource === 'mongodb' ? '<span class="badge badge-success">MongoDB</span>' : ''}
-                            </h3>
-                            <div class="list-filters">
-                                <input type="text" class="search-input" id="npcSearch" 
-                                       placeholder="🔍 Rechercher..." onkeyup="adminPanel.npcEditor.filterNPCs(this.value)">
-                                <select class="form-select" id="typeFilter" onchange="adminPanel.npcEditor.filterByType(this.value)">
-                                    <option value="">Tous les types</option>
-                                    ${Object.entries(NPC_TYPES).map(([type, config]) => `
-                                        <option value="${type}">${config.icon} ${config.name}</option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="npcs-list" id="npcsList">
-                            <!-- Liste générée dynamiquement -->
-                        </div>
-                    </div>
-
-                    <!-- Éditeur de NPC -->
-                    <div class="npc-editor-panel">
-                        <div class="editor-header">
-                            <h3 id="editorTitle">Sélectionnez un NPC ou créez-en un nouveau</h3>
-                            <div class="editor-actions" id="editorActions" style="display: none;">
-                                <button class="btn btn-success btn-sm" onclick="adminPanel.npcEditor.saveCurrentNPCToMongoDB()">
-    <i class="fas fa-save"></i> Valider & Sauvegarder
-</button>
-                                <button class="btn btn-secondary btn-sm" onclick="adminPanel.npcEditor.cancelEdit()">
-                                    <i class="fas fa-times"></i> Annuler
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="adminPanel.npcEditor.deleteCurrentNPC()">
-                                    <i class="fas fa-trash"></i> Supprimer
-                                </button>
-                                <button class="btn btn-info btn-sm" onclick="adminPanel.npcEditor.duplicateNPC(adminPanel.npcEditor.npcs.findIndex(n => n.id === adminPanel.npcEditor.selectedNPC?.id))">
-                                    <i class="fas fa-copy"></i> Dupliquer
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="editor-content" id="editorContent">
-                            <div class="no-selection">
-                                <div style="text-align: center; padding: 60px; color: #6c757d;">
-                                    <i class="fas fa-database" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                                    <p>NPCs stockés dans MongoDB</p>
-                                    <p>Créez un nouveau NPC ou sélectionnez-en un dans la liste pour commencer l'édition</p>
-                                    ${this.currentZone ? `
-                                        <button class="btn btn-primary" onclick="adminPanel.npcEditor.createNewNPC()">
-                                            <i class="fas fa-plus"></i> Créer un NPC
-                                        </button>
-                                    ` : ''}
-                                </div>
+                    <div class="editor-content" id="editorContent">
+                        <div class="no-selection">
+                            <div style="text-align: center; padding: 60px; color: #6c757d;">
+                                <i class="fas fa-database" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
+                                <p>NPCs stockés dans MongoDB</p>
+                                <p>Créez un nouveau NPC ou sélectionnez-en un dans la liste pour commencer l'édition</p>
+                                <p><small>📍 ${this.availableZones.length} zones disponibles</small></p>
+                                ${this.currentZone ? `
+                                    <button class="btn btn-primary" onclick="adminPanel.npcEditor.createNewNPC()">
+                                        <i class="fas fa-plus"></i> Créer un NPC
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        `
+        </div>
+    `
 
-        // Initialiser le FormBuilder dans le conteneur éditeur
-        const editorContent = document.getElementById('editorContent')
-        if (editorContent) {
-this.formBuilder = new NPCFormBuilder(editorContent, this.adminPanel)
-            this.formBuilder.onFormChange((npc, field, value) => {
-                this.onNPCDataChange(npc, field, value)
-            })
-        }
+    // Initialiser le FormBuilder dans le conteneur éditeur
+    const editorContent = document.getElementById('editorContent')
+    if (editorContent) {
+        this.formBuilder = new NPCFormBuilder(editorContent, this.adminPanel)
+        this.formBuilder.onFormChange((npc, field, value) => {
+            this.onNPCDataChange(npc, field, value)
+        })
     }
+}
 
     renderZoneStats() {
         const container = document.getElementById('zoneStats')
@@ -908,52 +993,50 @@ this.formBuilder = new NPCFormBuilder(editorContent, this.adminPanel)
     // API PUBLIQUE MONGODB
     // ==============================
 
-    onTabActivated() {
-        console.log('👤 [NPCEditor] Tab activated with MongoDB support')
-        
-        try {
-            // Forcer le rendu immédiatement
-            console.log('👤 [NPCEditor] Rendering interface...')
+ onTabActivated() {
+    console.log('👤 [NPCEditor] Tab activated with MongoDB support')
+    
+    try {
+        // ✅ S'assurer que les zones sont chargées
+        if (!this.availableZones || this.availableZones.length === 0) {
+            console.log('👤 [NPCEditor] Loading zones on tab activation...')
+            this.loadAvailableZones().then(() => {
+                console.log('👤 [NPCEditor] Zones loaded, rendering interface...')
+                this.renderMainInterface()
+            }).catch(error => {
+                console.error('❌ [NPCEditor] Error loading zones on tab activation:', error)
+                // Continuer avec zones par défaut
+                this.renderMainInterface()
+            })
+        } else {
+            // Zones déjà chargées, juste rendre l'interface
             this.renderMainInterface()
-            console.log('👤 [NPCEditor] Interface rendered successfully')
-            
-            // Charger les zones en arrière-plan si nécessaire
-            if (!this.availableZones || this.availableZones.length === 0) {
-                console.log('👤 [NPCEditor] Loading zones...')
-                this.loadAvailableZones().then(() => {
-                    console.log('👤 [NPCEditor] Zones loaded, re-rendering...')
-                    this.renderMainInterface()
-                }).catch(error => {
-                    console.error('❌ [NPCEditor] Error loading zones:', error)
-                    // Continuer quand même avec zones par défaut
-                    this.renderMainInterface()
-                })
-            }
-            
-            // Recharger la zone courante si nécessaire
-            if (this.currentZone) {
-                this.renderNPCsList()
-                this.renderZoneStats()
-            }
-            
-        } catch (error) {
-            console.error('❌ [NPCEditor] Error in onTabActivated:', error)
-            
-            // Fallback - afficher au moins quelque chose
-            const container = document.querySelector('#npcs .panel')
-            if (container) {
-                container.innerHTML = `
-                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
-                        <h3>❌ Erreur de chargement NPC Editor MongoDB</h3>
-                        <p>Erreur: ${error.message}</p>
-                        <button onclick="window.adminPanel.npcEditor.onTabActivated()" class="btn btn-primary">
-                            🔄 Réessayer
-                        </button>
-                    </div>
-                `
-            }
+        }
+        
+        // Recharger la zone courante si nécessaire
+        if (this.currentZone) {
+            this.renderNPCsList()
+            this.renderZoneStats()
+        }
+        
+    } catch (error) {
+        console.error('❌ [NPCEditor] Error in onTabActivated:', error)
+        
+        // Fallback - afficher au moins quelque chose
+        const container = document.querySelector('#npcs .panel')
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                    <h3>❌ Erreur de chargement NPC Editor MongoDB</h3>
+                    <p>Erreur: ${error.message}</p>
+                    <button onclick="window.adminPanel.npcEditor.onTabActivated()" class="btn btn-primary">
+                        🔄 Réessayer
+                    </button>
+                </div>
+            `
         }
     }
+}
 
     // Méthodes publiques pour integration MongoDB
     getCurrentZone() {
