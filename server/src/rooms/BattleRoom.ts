@@ -728,7 +728,7 @@ this.onMessage("attemptFlee", async (client, data) => {
       console.log(`✅ [JOIN] Validation réussie: ${userId} (${jwtData.username})`);
       
       try {
-        await this.jwtManager.registerUser(client.sessionId, jwtData);
+        await this.jwtManager.registerUser(client.sessionId, jwtData, { roomType: 'battle' });
         console.log(`✅ [JOIN] JWT enregistré pour BattleRoom: ${client.sessionId} → ${userId}`);
       } catch (registrationError) {
         console.error(`❌ [JOIN] Erreur registration JWT:`, registrationError);
