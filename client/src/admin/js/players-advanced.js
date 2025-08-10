@@ -755,17 +755,16 @@ export class PlayersAdvancedModule {
 
     // ✅ NOUVELLE MÉTHODE: Mettre à jour le focus des suggestions
     updateSuggestionFocus(suggestions, focusIndex) {
-        suggestions.forEach((suggestion, index) => {
-            if (index === focusIndex) {
-                suggestion.style.backgroundColor = '#007bff'
-                suggestion.style.color = 'white'
-            } else {
-                suggestion.style.backgroundColor = 'white'
-                suggestion.style.color = 'inherit'
-            }
-        })
-    }
-
+    suggestions.forEach((suggestion, index) => {
+        if (index === focusIndex) {
+            suggestion.style.backgroundColor = '#007bff'
+            suggestion.style.color = 'white'
+        } else {
+            suggestion.style.backgroundColor = 'white'
+            suggestion.style.color = 'inherit'
+        }
+    })
+}
     // ✅ NOUVELLE MÉTHODE: Afficher la prévisualisation de l'item
     showItemPreview(item, itemId) {
         const preview = document.getElementById('itemPreview')
@@ -1063,8 +1062,7 @@ export class PlayersAdvancedModule {
     this.showAddPokemonModal()
 }
 
-// ✅ NOUVELLE MÉTHODE: Afficher le modal d'ajout de Pokémon
-showAddPokemonModal() {
+showAddPokemonModal(pokemonList) {
     // Supprimer le modal existant s'il y en a un
     const existingModal = document.getElementById('addPokemonModal')
     if (existingModal) {
@@ -1076,7 +1074,7 @@ showAddPokemonModal() {
     modal.className = 'modal'
     modal.id = 'addPokemonModal'
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 600px;">
             <h3 style="margin-bottom: 25px; color: #2c3e50;">
                 <i class="fas fa-plus-circle"></i> Ajouter un Pokémon à l'Équipe
                 <span style="font-size: 0.8rem; color: #6c757d; font-weight: normal;">
@@ -1086,17 +1084,45 @@ showAddPokemonModal() {
             
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
-                    <i class="fas fa-hashtag"></i> ID du Pokémon (1-151):
+                    <i class="fas fa-search"></i> Choisir un Pokémon:
                 </label>
-                <input type="number" 
-                       id="pokemonIdInput" 
-                       placeholder="Ex: 25 pour Pikachu"
-                       min="1" 
-                       max="151"
-                       style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
-                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">
-                    💡 Exemples: 1=Bulbasaur, 4=Charmander, 7=Squirtle, 25=Pikachu, 150=Mewtwo
+                <div style="position: relative;">
+                    <input type="text" 
+                           id="pokemonSearchInput" 
+                           placeholder="Tapez pour rechercher un Pokémon..."
+                           style="width: 100%; padding: 12px 40px 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;"
+                           autocomplete="off">
+                    <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                    
+                    <!-- Liste d'autocomplétion -->
+                    <div id="pokemonSuggestions" style="
+                        position: absolute;
+                        top: 100%;
+                        left: 0;
+                        right: 0;
+                        background: white;
+                        border: 2px solid #e9ecef;
+                        border-top: none;
+                        border-radius: 0 0 8px 8px;
+                        max-height: 300px;
+                        overflow-y: auto;
+                        z-index: 1000;
+                        display: none;
+                    "></div>
                 </div>
+            </div>
+
+            <!-- Prévisualisation du Pokémon sélectionné -->
+            <div id="pokemonPreview" style="
+                background: #f8f9fa; 
+                border: 2px solid #e9ecef; 
+                border-radius: 8px; 
+                padding: 15px; 
+                margin-bottom: 20px;
+                display: none;
+            ">
+                <h5 style="margin: 0 0 10px 0; color: #2c3e50;">Pokémon sélectionné:</h5>
+                <div id="pokemonPreviewContent"></div>
             </div>
 
             <div style="margin-bottom: 20px;">
@@ -1215,28 +1241,207 @@ showAddPokemonModal() {
     document.body.appendChild(modal)
     modal.classList.add('active')
 
-    // Focus sur le premier champ
+    // Initialiser l'autocomplétion des Pokémon
+    this.initializePokemonAutocomplete(pokemonList)
+
+    // Focus sur le champ de recherche
     setTimeout(() => {
-        document.getElementById('pokemonIdInput')?.focus()
+        document.getElementById('pokemonSearchInput')?.focus()
     }, 100)
 }
 
-// ✅ NOUVELLE MÉTHODE: Confirmer l'ajout du Pokémon
-async confirmAddPokemon() {
-    const pokemonIdInput = document.getElementById('pokemonIdInput')
-    const levelInput = document.getElementById('pokemonLevelInput')
-    const nicknameInput = document.getElementById('pokemonNicknameInput')
-    const genderInput = document.getElementById('pokemonGenderInput')
-    const natureInput = document.getElementById('pokemonNatureInput')
-    const shinyInput = document.getElementById('pokemonShinyInput')
+// ✅ NOUVELLE MÉTHODE: Initialiser l'autocomplétion des Pokémon
+initializePokemonAutocomplete(pokemonList) {
+    const input = document.getElementById('pokemonSearchInput')
+    const suggestions = document.getElementById('pokemonSuggestions')
+    const preview = document.getElementById('pokemonPreview')
+    
+    if (!input || !suggestions) return
 
-    // Validation de l'ID du Pokémon
-    const pokemonId = parseInt(pokemonIdInput?.value)
-    if (isNaN(pokemonId) || pokemonId < 1 || pokemonId > 151) {
-        this.adminPanel.showNotification('ID Pokémon invalide (1-151)', 'warning')
-        pokemonIdInput?.focus()
-        return
+    let currentFocus = -1
+    let selectedPokemon = null
+
+    // Fonction de recherche
+    const searchPokemon = (query) => {
+        if (query.length < 2) {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+            return
+        }
+
+        const matches = pokemonList.filter(pokemon => {
+            const name = this.formatPokemonName(pokemon.nameKey)
+            const dexNumber = pokemon.nationalDex.toString()
+            const types = pokemon.types.join(' ')
+            
+            return name.toLowerCase().includes(query.toLowerCase()) ||
+                   dexNumber.includes(query) ||
+                   types.toLowerCase().includes(query.toLowerCase())
+        }).slice(0, 15) // Limiter à 15 résultats
+
+        if (matches.length === 0) {
+            suggestions.innerHTML = `
+                <div style="padding: 15px; text-align: center; color: #6c757d;">
+                    <i class="fas fa-search"></i> Aucun Pokémon trouvé pour "${query}"
+                </div>
+            `
+            suggestions.style.display = 'block'
+            return
+        }
+
+        suggestions.innerHTML = matches.map((pokemon, index) => `
+            <div class="pokemon-suggestion" 
+                 data-pokemon-id="${pokemon.nationalDex}"
+                 data-index="${index}"
+                 style="
+                    padding: 12px 16px; 
+                    border-bottom: 1px solid #f0f0f0; 
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                 "
+                 onmouseenter="this.style.backgroundColor='#f8f9fa'"
+                 onmouseleave="this.style.backgroundColor='white'">
+                
+                ${pokemon.sprite ? `
+                    <img src="${pokemon.sprite}" 
+                         alt="${this.formatPokemonName(pokemon.nameKey)}" 
+                         style="width: 32px; height: 32px; object-fit: contain;"
+                         onerror="this.style.display='none'">
+                ` : ''}
+                
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 2px;">
+                        #${pokemon.nationalDex.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #6c757d; display: flex; align-items: center; gap: 8px;">
+                        <span>${pokemon.types.join(' • ')}</span>
+                        <span>•</span>
+                        <span>Gén ${pokemon.generation}</span>
+                        <span>•</span>
+                        <span style="text-transform: capitalize;">${pokemon.region}</span>
+                    </div>
+                </div>
+                
+                <div style="color: #007bff;">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+            </div>
+        `).join('')
+
+        suggestions.style.display = 'block'
+        currentFocus = -1
     }
+
+    // Fonction de sélection de Pokémon
+    const selectPokemon = (nationalDex) => {
+        const pokemon = pokemonList.find(p => p.nationalDex === nationalDex)
+        if (!pokemon) return
+
+        selectedPokemon = pokemon
+        input.value = `#${nationalDex.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}`
+        suggestions.style.display = 'none'
+        
+        // Afficher la prévisualisation
+        this.showPokemonPreview(pokemon)
+    }
+
+    // Événements
+    input.addEventListener('input', (e) => {
+        selectedPokemon = null
+        preview.style.display = 'none'
+        searchPokemon(e.target.value.trim())
+    })
+
+    input.addEventListener('keydown', (e) => {
+        const suggestionItems = suggestions.querySelectorAll('.pokemon-suggestion')
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            currentFocus = Math.min(currentFocus + 1, suggestionItems.length - 1)
+            this.updateSuggestionFocus(suggestionItems, currentFocus)
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            currentFocus = Math.max(currentFocus - 1, -1)
+            this.updateSuggestionFocus(suggestionItems, currentFocus)
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (currentFocus >= 0 && suggestionItems[currentFocus]) {
+                const pokemonId = parseInt(suggestionItems[currentFocus].dataset.pokemonId)
+                selectPokemon(pokemonId)
+            }
+        } else if (e.key === 'Escape') {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+        }
+    })
+
+    // Clic sur une suggestion
+    suggestions.addEventListener('click', (e) => {
+        const suggestion = e.target.closest('.pokemon-suggestion')
+        if (suggestion) {
+            const pokemonId = parseInt(suggestion.dataset.pokemonId)
+            selectPokemon(pokemonId)
+        }
+    })
+
+    // Fermer les suggestions en cliquant ailleurs
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+        }
+    })
+
+    // Stocker la référence pour la méthode de confirmation
+    this.selectedPokemonForAdd = null
+    this.getSelectedPokemon = () => selectedPokemon
+}
+
+// ✅ NOUVELLE MÉTHODE: Afficher la prévisualisation du Pokémon
+showPokemonPreview(pokemon) {
+    const preview = document.getElementById('pokemonPreview')
+    const previewContent = document.getElementById('pokemonPreviewContent')
+    
+    if (!preview || !previewContent) return
+
+    previewContent.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+            ${pokemon.sprite ? `
+                <div>
+                    <img src="${pokemon.sprite}" 
+                         alt="${this.formatPokemonName(pokemon.nameKey)}" 
+                         style="width: 64px; height: 64px; object-fit: contain;"
+                         onerror="this.style.display='none'">
+                </div>
+            ` : ''}
+            
+            <div style="flex: 1;">
+                <h6 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 1.2rem;">
+                    #${pokemon.nationalDex.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}
+                </h6>
+                <div style="display: flex; gap: 15px; margin-bottom: 8px; font-size: 0.9rem; color: #495057;">
+                    <span><strong>Types:</strong> ${pokemon.types.join(' • ')}</span>
+                    <span><strong>Génération:</strong> ${pokemon.generation}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #6c757d;">
+                    <span style="text-transform: capitalize;"><strong>Région:</strong> ${pokemon.region}</span>
+                </div>
+            </div>
+        </div>
+    `
+    
+    preview.style.display = 'block'
+}
+
+// ✅ NOUVELLE MÉTHODE: Formater le nom du Pokémon
+formatPokemonName(nameKey) {
+    // Extraire le nom depuis la clé de localisation (ex: "pokemon.name.pikachu" -> "Pikachu")
+    const name = nameKey.split('.').pop() || nameKey
+    return name.charAt(0).toUpperCase() + name.slice(1)
+}
 
     // Validation du niveau
     const level = parseInt(levelInput?.value)
@@ -1248,7 +1453,7 @@ async confirmAddPokemon() {
 
     // Préparer les données
     const pokemonData = {
-        pokemonId: pokemonId,
+        pokemonId: selectedPokemon.nationalDex,
         level: level
     }
 
@@ -1286,7 +1491,7 @@ async confirmAddPokemon() {
             body: JSON.stringify(pokemonData)
         })
 
-        const pokemonName = nickname || `Pokémon #${pokemonId}`
+        const pokemonName = nickname || this.formatPokemonName(selectedPokemon.nameKey)
         this.adminPanel.showNotification(`${pokemonName} (Niv.${level}) ajouté à l'équipe${isShiny ? ' ✨' : ''}`, 'success')
         
         // Fermer le modal
@@ -1308,6 +1513,64 @@ async confirmAddPokemon() {
     }
 }
 
+// ✅ NOUVELLE MÉTHODE: Confirmer l'ajout du Pokémon
+async confirmAddPokemon() {
+    const levelInput = document.getElementById('pokemonLevelInput')
+    const nicknameInput = document.getElementById('pokemonNicknameInput')
+    const genderInput = document.getElementById('pokemonGenderInput')
+    const natureInput = document.getElementById('pokemonNatureInput')
+    const shinyInput = document.getElementById('pokemonShinyInput')
+
+    // Validation du Pokémon sélectionné
+    const selectedPokemon = this.getSelectedPokemon()
+    if (!selectedPokemon) {
+        this.adminPanel.showNotification('Veuillez sélectionner un Pokémon', 'warning')
+        document.getElementById('pokemonSearchInput')?.focus()
+        return
+    }async addPokemonToTeam() {
+    if (!this.currentPlayerData) {
+        this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+        return
+    }
+
+    // Vérifier s'il y a de la place dans l'équipe
+    const currentTeamSize = this.currentPlayerData.team?.pokemon?.length || 0
+    if (currentTeamSize >= 6) {
+        this.adminPanel.showNotification('L\'équipe est déjà complète (6/6)', 'warning')
+        return
+    }
+
+    // Charger la liste des Pokémon depuis l'API
+    const pokemonList = await this.loadPokemonListFromAPI()
+    if (!pokemonList || pokemonList.length === 0) {
+        this.adminPanel.showNotification('Impossible de charger la liste des Pokémon', 'error')
+        return
+    }
+
+    // Créer un modal pour sélectionner le Pokémon et son niveau
+    this.showAddPokemonModal(pokemonList)
+}
+}
+async loadPokemonListFromAPI() {
+    try {
+        console.log('📋 [PlayersAdvanced] Chargement de la liste des Pokémon...')
+        this.adminPanel.showLoading('pokemonLoading', true)
+        
+        // Utiliser une route API qui retourne la liste complète des Pokémon
+        const pokemonData = await this.adminPanel.apiCall('/pokemon?fields=nationalDex,nameKey,types,sprite,generation,region')
+        
+        console.log(`✅ [PlayersAdvanced] ${pokemonData.length} Pokémon chargés`)
+        return pokemonData
+        
+    } catch (error) {
+        console.error('❌ [PlayersAdvanced] Erreur chargement Pokémon:', error)
+        this.adminPanel.showNotification('Erreur chargement Pokémon: ' + error.message, 'error')
+        return []
+    } finally {
+        this.adminPanel.showLoading('pokemonLoading', false)
+    }
+}
+    
 // ✅ NOUVELLE MÉTHODE: Fermer le modal d'ajout de Pokémon
 closeAddPokemonModal() {
     const modal = document.getElementById('addPokemonModal')
@@ -1316,6 +1579,7 @@ closeAddPokemonModal() {
         setTimeout(() => modal.remove(), 300)
     }
 }
+
     async healAllPokemon() {
         if (!confirm('Soigner tous les Pokémon de l\'équipe ?')) return
 
