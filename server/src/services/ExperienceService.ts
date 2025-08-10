@@ -2,7 +2,7 @@
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
-import { IPokemonData, GrowthRate } from '../models/PokemonData';
+import { IPokemonData } from '../models/PokemonData';
 import { getPokemonById } from '../data/PokemonData';
 
 // ===== TYPES ET INTERFACES =====
@@ -557,7 +557,7 @@ export class ExperienceService extends EventEmitter {
   private calculateExpForLevel(level: number, ownedPokemon: IOwnedPokemon): number {
     // Récupérer le taux de croissance depuis les données du Pokémon
     // Pour l'instant, utiliser Medium Fast comme défaut
-    const growthRate: GrowthRate = 'medium_fast'; // TODO: récupérer depuis les données
+    const growthRate: string = 'medium_fast'; // TODO: récupérer depuis les données
     
     switch (growthRate) {
       case 'fast':
@@ -607,16 +607,16 @@ export class ExperienceService extends EventEmitter {
       if (movesAtLevel.length === 0) {
         // Fallback: rechercher dans learnset complet
         const learnsetMoves = pokemonData.learnset
-          .filter(move => move.method === 'level' && move.level === level)
-          .map(move => move.moveId);
+          .filter((move: any) => move.method === 'level' && move.level === level)
+          .map((move: any) => move.moveId);
         
-        return learnsetMoves.map(moveId => ({
+        return learnsetMoves.map((moveId: string) => ({
           moveId,
           moveName: moveId // TODO: récupérer le nom réel du sort
         }));
       }
       
-      return movesAtLevel.map(moveId => ({
+      return movesAtLevel.map((moveId: string) => ({
         moveId,
         moveName: moveId // TODO: récupérer le nom réel du sort
       }));
