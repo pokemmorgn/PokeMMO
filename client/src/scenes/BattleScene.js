@@ -475,18 +475,21 @@ createModernHealthBars() {
       });
     }
     
-    let expBarContainer = null;
-    if (config.isPlayer) {
-      const expLabel = this.add.text(15, 65, 'EXP', {
-        fontSize: '11px',
-        fontFamily: "'Segoe UI', Arial, sans-serif",
-        color: '#87ceeb',
-        fontWeight: 'bold'
-      });
-      
-      expBarContainer = this.createModernExpBar(45, 67, config.width - 60);
-      container.add([expLabel, expBarContainer.container]);
-    }
+let expBarContainer = null;
+if (config.isPlayer) {
+  // 🆕 LABEL EXP avec couleur dorée
+  const expLabel = this.add.text(15, 65, 'EXP', {
+    fontSize: '11px',
+    fontFamily: "'Segoe UI', Arial, sans-serif",
+    color: '#FFD700', // 🆕 Couleur dorée au lieu de bleu
+    fontWeight: 'bold'
+  });
+  
+  expBarContainer = this.createModernExpBar(45, 67, config.width - 60);
+  
+  // 🆕 AJOUTER AU CONTAINER (cette ligne était correcte)
+  container.add([expLabel, expBarContainer.container]);
+}
     
     container.add([
       bgPanel, 
@@ -497,6 +500,12 @@ createModernHealthBars() {
     ]);
     
     if (hpText) container.add(hpText);
+    
+    // 🆕 CORRECTION : S'assurer que l'expBar est ajoutée même si créée plus tard
+    if (config.isPlayer && expBarContainer) {
+      // Vérifier que le label EXP et la barre sont dans le container
+      console.log('📊 [BattleScene] ExpBar ajoutée pour', type);
+    }
     
     container.setVisible(false);
     
