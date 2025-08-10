@@ -1,4 +1,4 @@
-// server/src/services/EvolutionService.ts
+// server/src/services/EvolutionService.ts - Version corrigée
 import { EventEmitter } from 'events';
 import { pokedexIntegrationService } from './PokedexIntegrationService';
 import { getPokemonById } from '../data/PokemonData';
@@ -112,7 +112,6 @@ export class EvolutionService extends EventEmitter {
     }
   }
 
-    // Dans EvolutionService.ts
   async getEvolutionHistory(playerId: string, limit: number = 10): Promise<Array<{
     date: Date;
     fromPokemon: { id: number; name: string };
@@ -124,6 +123,7 @@ export class EvolutionService extends EventEmitter {
     // Pour l'instant, retourner un tableau vide
     return [];
   }
+  
   // ===== MÉTHODE PRINCIPALE =====
   
   /**
@@ -182,7 +182,7 @@ export class EvolutionService extends EventEmitter {
       // Marquer le cooldown
       this.markCooldown(playerId);
       
-      // Intégration automatique au Pokédx
+      // Intégration automatique au Pokédex
       let isNewForm = false;
       if (this.config.enableAutoIntegration) {
         try {
@@ -198,12 +198,12 @@ export class EvolutionService extends EventEmitter {
           
           isNewForm = integrationResult.isNewForm || false;
         } catch (integrationError) {
-          console.warn('⚠️ Erreur intégration Pokédx:', integrationError);
+          console.warn('⚠️ Erreur intégration Pokédex:', integrationError);
           // Continue même si l'intégration échoue
         }
       }
       
-      // Générer les notifications
+      // Générer les notifications avec noms corrects
       const notifications = this.generateNotifications(fromPokemonData, toPokemonData, isNewForm);
       
       // Créer le résultat
@@ -211,12 +211,12 @@ export class EvolutionService extends EventEmitter {
         success: true,
         fromPokemon: {
           id: ownedPokemon.pokemonId,
-          name: fromPokemonData.name,
+          name: this.getPokemonDisplayName(fromPokemonData),
           level: ownedPokemon.level
         },
         toPokemon: {
           id: evolution.evolvesInto,
-          name: toPokemonData.name,
+          name: this.getPokemonDisplayName(toPokemonData),
           level: transformedPokemon.level
         },
         ownedPokemon: transformedPokemon,
@@ -229,11 +229,12 @@ export class EvolutionService extends EventEmitter {
         playerId,
         fromPokemonId: ownedPokemon.pokemonId,
         toPokemonId: evolution.evolvesInto,
+        ownedPokemonId: request.ownedPokemonId,
         result
       });
       
       this.stats.successfulEvolutions++;
-      this.debugLog(`✅ ${fromPokemonData.name} → ${toPokemonData.name}`);
+      this.debugLog(`✅ ${this.getPokemonDisplayName(fromPokemonData)} → ${this.getPokemonDisplayName(toPokemonData)}`);
       
       return result;
       
@@ -315,16 +316,16 @@ export class EvolutionService extends EventEmitter {
       // Sauvegarder les données importantes
       const originalLevel = ownedPokemon.level;
       const originalExp = ownedPokemon.experience;
-      const originalStats = ownedPokemon.stats;
+      const originalStats = ownedPokemon.calculatedStats || ownedPokemon.stats;
       
-      // Transformation
-      ownedPokemon.pokemonId = toPokemonData.id;
-      ownedPokemon.name = toPokemonData.name;
+      // Transformation - Utiliser les bonnes propriétés
+      ownedPokemon.pokemonId = toPokemonData.nationalDex; // ✅ Correction: utiliser nationalDex
       
       // Recalculer les stats avec les nouvelles stats de base
       if (toPokemonData.baseStats && originalStats) {
         // TODO: Recalculer les stats selon la formule Pokémon
         // Pour l'instant, on garde les mêmes stats relatives
+        // await ownedPokemon.recalculateStats(); // Si méthode disponible
       }
       
       // Conserver le niveau et l'expérience
@@ -345,6 +346,30 @@ export class EvolutionService extends EventEmitter {
   // ===== UTILITAIRES =====
   
   /**
+   * Récupère le nom d'affichage d'un Pokémon depuis ses données
+   */
+  private getPokemonDisplayName(pokemonData: any): string {
+    // Essayer plusieurs propriétés pour récupérer le nom
+    if (pokemonData.nameKey) {
+      // Extraire le nom depuis la clé de localisation
+      const nameMatch = pokemonData.nameKey.match(/\.([^.]+)$/);
+      if (nameMatch) {
+        return nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+      }
+    }
+    
+    if (pokemonData.name) {
+      return pokemonData.name;
+    }
+    
+    if (pokemonData.species) {
+      return pokemonData.species;
+    }
+    
+    return `Pokemon #${pokemonData.nationalDex || pokemonData.id || 'Unknown'}`;
+  }
+  
+  /**
    * Map les méthodes vers le format du service d'intégration
    */
   private mapMethodToIntegration(method: string): 'level' | 'stone' | 'trade' | 'friendship' | 'special' {
@@ -358,15 +383,18 @@ export class EvolutionService extends EventEmitter {
   }
   
   /**
-   * Génère les notifications d'évolution
+   * Génère les notifications d'évolution avec noms corrects
    */
   private generateNotifications(fromPokemon: any, toPokemon: any, isNewForm: boolean): string[] {
+    const fromName = this.getPokemonDisplayName(fromPokemon);
+    const toName = this.getPokemonDisplayName(toPokemon);
+    
     const notifications = [
-      `🌟 ${fromPokemon.name} a évolué en ${toPokemon.name} !`
+      `🌟 ${fromName} a évolué en ${toName} !`
     ];
     
     if (isNewForm) {
-      notifications.push('📝 Nouvelle forme ajoutée au Pokédx !');
+      notifications.push('📝 Nouvelle forme ajoutée au Pokédex !');
     }
     
     return notifications;
@@ -377,11 +405,12 @@ export class EvolutionService extends EventEmitter {
    */
   private async getOwnedPokemon(ownedPokemonId: string): Promise<any> {
     // TODO: Remplacer par la vraie requête à la base de données
+    // return await OwnedPokemon.findById(ownedPokemonId);
+    
     // Pour l'instant, simulation
     return {
       _id: ownedPokemonId,
       pokemonId: 1, // Bulbasaur par exemple
-      name: 'Bulbasaur',
       level: 20,
       owner: 'player123',
       friendship: 150,
@@ -500,27 +529,3 @@ export class EvolutionService extends EventEmitter {
 // ===== EXPORT SINGLETON =====
 export const evolutionService = EvolutionService.getInstance();
 export default evolutionService;
-
-// ===== GUIDE D'UTILISATION SIMPLIFIÉ =====
-//
-// // Évolution basique
-// const success = await evolutionService.evolve(ownedPokemonId);
-//
-// // Évolution avec pierre
-// const success = await evolutionService.evolveWithItem(ownedPokemonId, "fire_stone");
-//
-// // Évolution par échange
-// const success = await evolutionService.evolveByTrade(ownedPokemonId, partnerPlayerId);
-//
-// // Vérifier si peut évoluer
-// const check = await evolutionService.canEvolve(ownedPokemonId);
-// if (check.canEvolve) {
-//   console.log("Peut évoluer !");
-// } else {
-//   console.log("Conditions manquantes:", check.missingRequirements);
-// }
-//
-// // Écouter les évolutions
-// evolutionService.on('pokemonEvolved', (data) => {
-//   console.log(`Évolution: ${data.fromPokemonId} → ${data.toPokemonId}`);
-// });
