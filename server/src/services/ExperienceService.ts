@@ -1497,25 +1497,42 @@ export class ExperienceService extends EventEmitter {
 
   // ===== ACCÈS DONNÉES (adaptez à votre modèle) =====
 
-  private async getOwnedPokemon(pokemonId: string): Promise<IOwnedPokemon | null> {
-    // TODO: remplacer par la vraie requête DB
-    // return await OwnedPokemon.findById(pokemonId);
+private async getOwnedPokemon(pokemonIdOrObject: string | IOwnedPokemon): Promise<IOwnedPokemon | null> {
+  try {
+    // 🆕 CAS 1: Si c'est déjà un objet OwnedPokemon, le retourner directement
+    if (typeof pokemonIdOrObject === 'object' && pokemonIdOrObject !== null) {
+      console.log(`✅ [ExperienceService] OwnedPokemon object reçu directement`);
+      return pokemonIdOrObject as IOwnedPokemon;
+    }
+    
+    // 🆕 CAS 2: Si c'est un string ID, chercher en DB
+    if (typeof pokemonIdOrObject === 'string') {
+      console.log(`🔍 [ExperienceService] Recherche par ID: ${pokemonIdOrObject}`);
+      
+      // Importer le modèle OwnedPokemon
+      const { OwnedPokemon } = require('../models/OwnedPokemon');
+      
+      // Chercher par MongoDB _id
+      const foundPokemon = await OwnedPokemon.findById(pokemonIdOrObject);
+      
+      if (foundPokemon) {
+        console.log(`✅ [ExperienceService] Pokémon trouvé par ID: ${foundPokemon.nickname || foundPokemon.pokemonId}`);
+        return foundPokemon;
+      } else {
+        console.warn(`⚠️ [ExperienceService] Pokémon introuvable par ID: ${pokemonIdOrObject}`);
+        return null;
+      }
+    }
+    
+    // 🆕 CAS 3: Type inattendu
+    console.error(`❌ [ExperienceService] Type inattendu pour pokemonId:`, typeof pokemonIdOrObject);
+    return null;
+    
+  } catch (error) {
+    console.error('❌ [ExperienceService] Erreur getOwnedPokemon:', error);
     return null;
   }
-
-  private async saveOwnedPokemon(_ownedPokemon: IOwnedPokemon): Promise<void> {
-    // TODO: remplacer par la vraie sauvegarde
-    this.debugLog(`💾 Sauvegarde simulée du Pokémon`);
-  }
-
-  private async getPokemonData(pokemonId: number): Promise<any> {
-    if (this.pokemonDataCache.has(pokemonId)) {
-      return this.pokemonDataCache.get(pokemonId)!;
-    }
-    const data = await getPokemonById(pokemonId);
-    if (data) this.pokemonDataCache.set(pokemonId, data as any);
-    return data;
-  }
+}
 
   // ===== INTÉGRATION EVOLUTIONSERVICE =====
 
