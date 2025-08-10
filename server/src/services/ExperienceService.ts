@@ -4,8 +4,6 @@ import { IOwnedPokemon } from '../models/OwnedPokemon';
 import { getPokemonById } from '../data/PokemonData';
 import { evolutionService } from './EvolutionService';
 
-// ===== TYPES =====
-
 interface IPokemonStats {
   hp: number;
   attack: number;
@@ -119,8 +117,6 @@ export interface ExperienceServiceConfig {
   batchProcessing: boolean;
 }
 
-// ===== SERVICE =====
-
 export class ExperienceService extends EventEmitter {
   private static instance: ExperienceService;
 
@@ -169,145 +165,9 @@ export class ExperienceService extends EventEmitter {
       console.error('❌ [ExperienceService] Erreur service:', error);
     });
     this.setupEvolutionServiceIntegration();
-    this.debugLog("Service d'expérience initialisé avec succès");
   }
 
-  // ===== CONFIG & STATS =====
-
-  updateConfig(newConfig: Partial<ExperienceServiceConfig>): void {
-    this.config = { ...this.config, ...newConfig };
-    this.debugLog('⚙️ Configuration mise à jour');
-  }
-
-  getConfig(): ExperienceServiceConfig {
-    return { ...this.config };
-  }
-
-  getStats(): typeof this.stats {
-    return { ...this.stats };
-  }
-
-  setAutoEvolution(enabled: boolean): void {
-    this.config.autoEvolution = enabled;
-    console.log(
-      `${enabled ? '✅' : '❌'} [ExperienceService] Auto-évolution ${
-        enabled ? 'activée' : 'désactivée'
-      }`
-    );
-  }
-
-  setAutoMoveLearn(enabled: boolean): void {
-    this.config.autoMoveLearn = enabled;
-    console.log(
-      `${enabled ? '✅' : '❌'} [ExperienceService] Auto-apprentissage ${
-        enabled ? 'activé' : 'désactivé'
-      }`
-    );
-  }
-
-  clearPendingChoices(pokemonId?: string): void {
-    if (pokemonId) this.pendingMoveChoices.delete(pokemonId);
-    else this.pendingMoveChoices.clear();
-    console.log(
-      `🧹 [ExperienceService] Choix en attente nettoyés${
-        pokemonId ? ` pour ${pokemonId}` : ''
-      }`
-    );
-  }
-}
-
-// ===== EXPORT SINGLETON =====
-export const experienceService = ExperienceService.getInstance();
-export default experienceService;
-
-// ===== 🎯 EXPORTS DIRECTS API SIMPLE =====
-
-export const givePlayerWildXP = (
-  playerPokemon: string | IOwnedPokemon,
-  pokemonAdvanced: { pokemonId: number; level: number } | number,
-  level?: number
-): Promise<boolean> =>
-  experienceService.givePlayerWildXP(playerPokemon, pokemonAdvanced, level);
-
-export const givePlayerXP = (
-  playerPokemon: string | IOwnedPokemon,
-  amount: number
-): Promise<boolean> => experienceService.givePlayerXP(playerPokemon, amount);
-
-export const givePlayerTrainerXP = (
-  playerPokemon: string | IOwnedPokemon,
-  trainerPokemon: { pokemonId: number; level: number } | number,
-  trainerLevel?: number
-): Promise<boolean> =>
-  experienceService.givePlayerTrainerXP(playerPokemon, trainerPokemon, trainerLevel);
-
-export const useRareCandy = (
-  playerPokemon: string | IOwnedPokemon
-): Promise<boolean> => experienceService.useRareCandy(playerPokemon);
-
-export const giveTeamWildXP = (
-  playerPokemonIds: string[],
-  defeatedPokemon: { pokemonId: number; level: number },
-  isWildBattle?: boolean
-): Promise<{ success: boolean; results: boolean[] }> =>
-  experienceService.giveTeamWildXP(playerPokemonIds, defeatedPokemon, isWildBattle);
-
-export const giveXPWithLuckyEgg = (
-  playerPokemon: string | IOwnedPokemon,
-  defeatedPokemon: { pokemonId: number; level: number }
-): Promise<boolean> =>
-  experienceService.giveXPWithLuckyEgg(playerPokemon, defeatedPokemon);
-
-export const giveTradedPokemonXP = (
-  tradedPokemon: string | IOwnedPokemon,
-  defeatedPokemon: { pokemonId: number; level: number },
-  isInternational?: boolean
-): Promise<boolean> =>
-  experienceService.giveTradedPokemonXP(tradedPokemon, defeatedPokemon, isInternational);
-
-export const evolvePokemon = (
-  playerPokemon: string | IOwnedPokemon,
-  location?: string
-): Promise<boolean> => experienceService.evolvePokemon(playerPokemon, location);
-
-export const evolveWithStone = (
-  playerPokemon: string | IOwnedPokemon,
-  stone: string,
-  location?: string
-): Promise<boolean> => experienceService.evolveWithStone(playerPokemon, stone, location);
-
-export const canEvolve = (
-  playerPokemon: string | IOwnedPokemon
-): Promise<{
-  canEvolve: boolean;
-  method?: string;
-  requirement?: any;
-  missingRequirements?: string[];
-}> => experienceService.canEvolve(playerPokemon);
-
-export const learnMove = (
-  playerPokemon: string | IOwnedPokemon,
-  newMove: string,
-  forgetMove?: string
-): Promise<boolean> => experienceService.learnMove(playerPokemon, newMove, forgetMove);
-
-export const getPokemonStatus = (
-  playerPokemon: string | IOwnedPokemon
-): Promise<{
-  level: number;
-  experience: number;
-  expToNext: number;
-  canLevelUp: boolean;
-  canEvolve: boolean;
-  pendingMoves: number;
-  evolutionMethod?: string;
-  missingRequirements?: string[];
-}> => experienceService.getPokemonStatus(playerPokemon);
-
-export const setLevel = (
-  playerPokemon: string | IOwnedPokemon,
-  targetLevel: number
-): Promise<boolean> => experienceService.setLevel(playerPokemon, targetLevel);== 🎯 API PUBLIQUE ULTRA-SIMPLE =====
+  // === API PUBLIQUE ULTRA-SIMPLE ===
 
   async givePlayerWildXP(
     playerPokemon: string | IOwnedPokemon,
@@ -326,10 +186,6 @@ export const setLevel = (
       } else {
         defeatedPokemon = pokemonAdvanced;
       }
-
-      this.debugLog(
-        `🎯 givePlayerWildXP: ${pokemonId} vs #${defeatedPokemon.pokemonId} niveau ${defeatedPokemon.level}`
-      );
 
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
@@ -365,8 +221,6 @@ export const setLevel = (
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
 
-      this.debugLog(`🎯 givePlayerXP: ${pokemonId} +${amount} XP`);
-
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
         source: 'special_event',
@@ -399,10 +253,6 @@ export const setLevel = (
         defeatedPokemon = trainerPokemon;
       }
 
-      this.debugLog(
-        `🎯 givePlayerTrainerXP: ${pokemonId} vs Dresseur #${defeatedPokemon.pokemonId}`
-      );
-
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
         source: 'trainer_battle',
@@ -423,26 +273,18 @@ export const setLevel = (
 
       return result.success;
     } catch (error) {
-      console.error(
-        `❌ [ExperienceService] givePlayerTrainerXP failed:`,
-        error
-      );
+      console.error(`❌ [ExperienceService] givePlayerTrainerXP failed:`, error);
       return false;
     }
   }
 
-  async useRareCandy(
-    playerPokemon: string | IOwnedPokemon
-  ): Promise<boolean> {
+  async useRareCandy(playerPokemon: string | IOwnedPokemon): Promise<boolean> {
     try {
       const pokemonId =
         typeof playerPokemon === 'string'
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
 
-      this.debugLog(`🎯 useRareCandy: ${pokemonId}`);
-
-      // TODO: remplacer par calcul exact en fonction du taux de croissance
       const expForNextLevel = 1000;
 
       const result = await this.processExperienceGain({
@@ -465,10 +307,6 @@ export const setLevel = (
     isWildBattle: boolean = true
   ): Promise<{ success: boolean; results: boolean[] }> {
     try {
-      this.debugLog(
-        `🎯 giveTeamWildXP: ${playerPokemonIds.length} Pokémon vs #${defeatedPokemon.pokemonId}`
-      );
-
       const results = await Promise.all(
         playerPokemonIds.map((pokemonId) =>
           isWildBattle
@@ -478,13 +316,6 @@ export const setLevel = (
       );
 
       const success = results.every((r) => r);
-
-      this.debugLog(
-        `✅ giveTeamWildXP: ${results.filter((r) => r).length}/${
-          results.length
-        } succès`
-      );
-
       return { success, results };
     } catch (error) {
       console.error(`❌ [ExperienceService] giveTeamWildXP failed:`, error);
@@ -498,10 +329,6 @@ export const setLevel = (
     defeatedPokemon: { pokemonId: number; level: number }
   ): Promise<{ success: boolean; activeResult: boolean; teamResults: boolean[] }> {
     try {
-      this.debugLog(
-        `🎯 giveXPWithExpShare: Actif ${activePokemon} + ${teamPokemonIds.length} équipiers`
-      );
-
       const activeResult = await this.processExperienceGain({
         gainedBy: activePokemon,
         source: 'wild_battle',
@@ -545,12 +372,6 @@ export const setLevel = (
       const teamSuccess = teamResults.map((r) => r.success);
       const success = activeResult.success && teamSuccess.every((s) => s);
 
-      this.debugLog(
-        `✅ giveXPWithExpShare: Actif=${activeResult.success}, Équipe=${
-          teamSuccess.filter((s) => s).length
-        }/${teamSuccess.length}`
-      );
-
       return { success, activeResult: activeResult.success, teamResults: teamSuccess };
     } catch (error) {
       console.error(`❌ [ExperienceService] giveXPWithExpShare failed:`, error);
@@ -567,8 +388,6 @@ export const setLevel = (
         typeof playerPokemon === 'string'
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
-
-      this.debugLog(`🎯 giveXPWithLuckyEgg: ${pokemonId} avec Œuf Chance`);
 
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
@@ -606,12 +425,6 @@ export const setLevel = (
           ? tradedPokemon
           : tradedPokemon._id?.toString() || '';
 
-      this.debugLog(
-        `🎯 giveTradedPokemonXP: ${pokemonId} échangé ${
-          isInternational ? '(international)' : ''
-        }`
-      );
-
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
         source: 'wild_battle',
@@ -633,10 +446,7 @@ export const setLevel = (
 
       return result.success;
     } catch (error) {
-      console.error(
-        `❌ [ExperienceService] giveTradedPokemonXP failed:`,
-        error
-      );
+      console.error(`❌ [ExperienceService] giveTradedPokemonXP failed:`, error);
       return false;
     }
   }
@@ -674,8 +484,7 @@ export const setLevel = (
       const expNeeded = expForNextLevel - ownedPokemon.experience;
 
       return {
-        canLevel:
-          ownedPokemon.level < this.config.maxLevel && expNeeded > 0,
+        canLevel: ownedPokemon.level < this.config.maxLevel && expNeeded > 0,
         currentLevel: ownedPokemon.level,
         currentExp: ownedPokemon.experience,
         expNeeded: Math.max(0, expNeeded),
@@ -704,8 +513,6 @@ export const setLevel = (
           : playerPokemon._id?.toString() || '';
       const level = Math.max(1, Math.min(this.config.maxLevel, targetLevel));
 
-      this.debugLog(`🎯 setLevel: ${pokemonId} → niveau ${level}`);
-
       const ownedPokemon = await this.getOwnedPokemon(pokemonId);
       if (!ownedPokemon) return false;
 
@@ -724,7 +531,7 @@ export const setLevel = (
     }
   }
 
-  // ===== 🌟 API ÉVOLUTION INTÉGRÉE (dans la classe) =====
+  // === API ÉVOLUTION INTÉGRÉE ===
 
   async evolvePokemon(
     playerPokemon: string | IOwnedPokemon,
@@ -735,8 +542,6 @@ export const setLevel = (
         typeof playerPokemon === 'string'
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
-
-      this.debugLog(`🎯 evolvePokemon: ${pokemonId}`);
 
       return await evolutionService.evolve(pokemonId, location);
     } catch (error) {
@@ -756,14 +561,9 @@ export const setLevel = (
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
 
-      this.debugLog(`🎯 evolveWithStone: ${pokemonId} avec ${stone}`);
-
       return await evolutionService.evolveWithItem(pokemonId, stone, location);
     } catch (error) {
-      console.error(
-        `❌ [ExperienceService] evolveWithStone failed:`,
-        error
-      );
+      console.error(`❌ [ExperienceService] evolveWithStone failed:`, error);
       return false;
     }
   }
@@ -796,7 +596,7 @@ export const setLevel = (
     }
   }
 
-  // ===== 📚 API APPRENTISSAGE DE SORTS =====
+  // === API APPRENTISSAGE DE SORTS ===
 
   getPendingMoves(
     playerPokemon: string | IOwnedPokemon
@@ -825,12 +625,6 @@ export const setLevel = (
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
 
-      this.debugLog(
-        `🎯 learnMove: ${pokemonId} apprend ${newMove}${
-          forgetMove ? ` (oublie ${forgetMove})` : ''
-        }`
-      );
-
       const result = await this.processMoveChoice(
         pokemonId,
         newMove,
@@ -850,14 +644,13 @@ export const setLevel = (
           ? playerPokemon
           : playerPokemon._id?.toString() || '';
 
-      this.debugLog(`🎯 rejectMove: ${pokemonId} rejette ${moveId}`);
       this.rejectMoveChoice(pokemonId, moveId);
     } catch (error) {
       console.error(`❌ [ExperienceService] rejectMove failed:`, error);
     }
   }
 
-  // ===== 📊 STATUS & TOOLS =====
+  // === STATUS & TOOLS ===
 
   async getPokemonStatus(
     playerPokemon: string | IOwnedPokemon
@@ -957,7 +750,7 @@ export const setLevel = (
 
       let newMovesCount = 0;
       if (willLevelUp) {
-        newMovesCount = levelsGained; // approx
+        newMovesCount = levelsGained;
       }
 
       return {
@@ -979,12 +772,10 @@ export const setLevel = (
     }
   }
 
-  // ===== COEUR DU TRAITEMENT =====
+  // === COEUR DU TRAITEMENT ===
 
   async processExperienceGain(context: ExperienceGainContext): Promise<ExperienceResult> {
     const startTime = Date.now();
-
-    this.debugLog(`📈 Début traitement XP: ${context.gainedBy} (${context.source})`);
 
     try {
       if (!this.config.enabled) return this.createFailureResult('Service désactivé');
@@ -1022,10 +813,6 @@ export const setLevel = (
             notifications: ['Aucune expérience gagnée'],
           });
         }
-
-        this.debugLog(
-          `💎 XP calculée: ${expToGain} pour ${ownedPokemon.nickname || 'Pokemon'}`
-        );
 
         const levelUpResult = await this.applyExperienceAndLevelUp(
           ownedPokemon,
@@ -1067,10 +854,6 @@ export const setLevel = (
 
         this.emitEvents(context, result);
         this.updateStats(expToGain, levelUpResult.levelsGained, hasEvolved, levelUpResult.newMoves.length);
-
-        this.debugLog(
-          `✅ XP traitée: +${expToGain} XP, ${levelUpResult.levelsGained} niveaux, ${levelUpResult.newMoves.length} sorts`
-        );
 
         return result;
       } finally {
@@ -1176,10 +959,6 @@ export const setLevel = (
       ownedPokemon.level++;
       totalLevelsGained++;
 
-      this.debugLog(
-        `🆙 Niveau up! ${ownedPokemon.nickname || 'Pokemon'} niveau ${ownedPokemon.level}`
-      );
-
       await ownedPokemon.recalculateStats();
       ownedPokemon.currentHp = ownedPokemon.maxHp;
 
@@ -1217,7 +996,7 @@ export const setLevel = (
   }
 
   private calculateExpForLevel(level: number, _ownedPokemon: IOwnedPokemon): number {
-    const growthRate: string = 'medium_fast'; // TODO: lire depuis les data du Pokémon
+    const growthRate: string = 'medium_fast';
 
     switch (growthRate) {
       case 'fast':
@@ -1228,32 +1007,12 @@ export const setLevel = (
         return Math.floor((6 / 5) * Math.pow(level, 3) - 15 * Math.pow(level, 2) + 100 * level - 140);
       case 'slow':
         return Math.floor((5 * Math.pow(level, 3)) / 4);
-      case 'erratic':
-        if (level <= 50) {
-          return Math.floor((Math.pow(level, 3) * (100 - level)) / 50);
-        } else if (level <= 68) {
-          return Math.floor((Math.pow(level, 3) * (150 - level)) / 100);
-        } else if (level <= 98) {
-          return Math.floor(
-            (Math.pow(level, 3) * Math.floor((1911 - 10 * level) / 3)) / 500
-          );
-        } else {
-          return Math.floor((Math.pow(level, 3) * (160 - level)) / 100);
-        }
-      case 'fluctuating':
-        if (level <= 15) {
-          return Math.floor(Math.pow(level, 3) * ((Math.floor((level + 1) / 3) + 24) / 50));
-        } else if (level <= 36) {
-          return Math.floor(Math.pow(level, 3) * ((level + 14) / 50));
-        } else {
-          return Math.floor(Math.pow(level, 3) * ((Math.floor(level / 2) + 32) / 50));
-        }
       default:
         return Math.pow(level, 3);
     }
   }
 
-  // ===== APPRENTISSAGE DE SORTS (helpers) =====
+  // === APPRENTISSAGE DE SORTS ===
 
   private async checkNewMovesAtLevel(
     ownedPokemon: IOwnedPokemon,
@@ -1272,13 +1031,13 @@ export const setLevel = (
 
         return learnsetMoves.map((moveId: string) => ({
           moveId,
-          moveName: moveId, // TODO: nom réel via table des moves
+          moveName: moveId,
         }));
       }
 
       return movesAtLevel.map((moveId: string) => ({
         moveId,
-        moveName: moveId, // TODO: nom réel
+        moveName: moveId,
       }));
     } catch (error) {
       console.error('❌ Erreur checkNewMovesAtLevel:', error);
@@ -1291,19 +1050,16 @@ export const setLevel = (
     moveData: { moveId: string; moveName: string }
   ): Promise<boolean> {
     if (ownedPokemon.moves.some((m) => m.moveId === moveData.moveId)) {
-      this.debugLog(`🔄 Sort déjà connu: ${moveData.moveName}`);
       return false;
     }
 
     if (ownedPokemon.moves.length < 4) {
       await this.addMoveInternal(ownedPokemon, moveData.moveId);
-      this.debugLog(`✅ Sort appris: ${moveData.moveName}`);
       return true;
     }
 
     if (this.config.autoMoveLearn) {
       await this.replaceMove(ownedPokemon, 0, moveData.moveId);
-      this.debugLog(`🔄 Sort remplacé automatiquement: ${moveData.moveName}`);
       return true;
     } else {
       this.addPendingMoveChoice(ownedPokemon._id.toString(), {
@@ -1313,7 +1069,6 @@ export const setLevel = (
         level: ownedPokemon.level,
         autoLearn: false,
       });
-      this.debugLog(`⏳ Sort en attente de choix: ${moveData.moveName}`);
       return false;
     }
   }
@@ -1321,7 +1076,7 @@ export const setLevel = (
   private async addMoveInternal(ownedPokemon: IOwnedPokemon, moveId: string): Promise<void> {
     const newMove = {
       moveId,
-      currentPp: 20, // TODO: PP réel depuis data moves
+      currentPp: 20,
       maxPp: 20,
     };
     ownedPokemon.moves.push(newMove);
@@ -1335,14 +1090,14 @@ export const setLevel = (
     if (slotIndex >= 0 && slotIndex < ownedPokemon.moves.length) {
       const newMove = {
         moveId: newMoveId,
-        currentPp: 20, // TODO: PP réel
+        currentPp: 20,
         maxPp: 20,
       };
       ownedPokemon.moves[slotIndex] = newMove;
     }
   }
 
-  // ===== EVOLUTIONS (helpers) =====
+  // === EVOLUTIONS ===
 
   private async checkAndProcessEvolution(
     ownedPokemon: IOwnedPokemon
@@ -1356,10 +1111,6 @@ export const setLevel = (
       const canEvolve = this.checkEvolutionConditions(ownedPokemon, evolution);
       if (!canEvolve) return { evolved: false };
 
-      this.debugLog(
-        `🌟 Évolution détectée: ${pokemonData.nameKey} → #${evolution.evolvesInto}`
-      );
-
       try {
         const evolutionSuccess = await evolutionService.evolve(
           ownedPokemon._id?.toString() || 'unknown',
@@ -1367,7 +1118,6 @@ export const setLevel = (
         );
 
         if (evolutionSuccess) {
-          this.debugLog(`🎉 Évolution réussie via EvolutionService !`);
           this.emit('pokemonEvolvedFromLevelUp', {
             ownedPokemonId: ownedPokemon._id?.toString(),
             fromPokemonId: ownedPokemon.pokemonId,
@@ -1385,7 +1135,6 @@ export const setLevel = (
             },
           };
         } else {
-          this.debugLog(`❌ Évolution échouée via EvolutionService`);
           return { evolved: false };
         }
       } catch (evolutionError) {
@@ -1410,7 +1159,7 @@ export const setLevel = (
     }
   }
 
-  // ===== API PUBLIQUE CHOIX DE SORTS =====
+  // === API PUBLIQUE CHOIX DE SORTS ===
 
   getPendingMoveChoices(pokemonId: string): MoveLearnChoice[] {
     return this.pendingMoveChoices.get(pokemonId) || [];
@@ -1451,7 +1200,6 @@ export const setLevel = (
       pendingChoices.splice(choiceIndex, 1);
       if (pendingChoices.length === 0) this.pendingMoveChoices.delete(pokemonId);
 
-      this.debugLog(`✅ Choix de sort traité: ${choice.moveName}`);
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur processMoveChoice:', error);
@@ -1469,12 +1217,11 @@ export const setLevel = (
       if (choiceIndex !== -1) {
         pendingChoices.splice(choiceIndex, 1);
         if (pendingChoices.length === 0) this.pendingMoveChoices.delete(pokemonId);
-        this.debugLog(`❌ Choix de sort rejeté: ${moveId}`);
       }
     }
   }
 
-  // ===== UTILITAIRES =====
+  // === UTILITAIRES ===
 
   private addPendingMoveChoice(pokemonId: string, choice: MoveLearnChoice): void {
     if (!this.pendingMoveChoices.has(pokemonId)) {
@@ -1613,50 +1360,35 @@ export const setLevel = (
     };
   }
 
-  private debugLog(message: string): void {
-    if (this.config.debugMode) {
-      console.log(`🔧 [ExperienceService] ${message}`);
-    }
-  }
-
   private cleanupService(): void {
     for (const [pokemonId, choices] of this.pendingMoveChoices.entries()) {
       if (choices.length === 0) {
         this.pendingMoveChoices.delete(pokemonId);
       }
     }
-    this.debugLog(
-      `🧹 Service nettoyé - Choix en attente: ${this.pendingMoveChoices.size}`
-    );
   }
 
-  // ===== 🚀 FIX ACCÈS DONNÉES (CORRECTION PRINCIPALE) =====
+  // === 🆕 ACCÈS DONNÉES CORRIGÉ ===
 
-  /**
-   * 🚀 MÉTHODE CORRIGÉE: getOwnedPokemon avec support objet direct
-   */
-  private async getOwnedPokemon(pokemonId: string | IOwnedPokemon): Promise<IOwnedPokemon | null> {
+  private async getOwnedPokemon(pokemonIdentifier: string | IOwnedPokemon): Promise<IOwnedPokemon | null> {
     try {
-      // 🆕 SI C'EST DÉJÀ UN OBJET OWNEDPOKEMON, LE RETOURNER DIRECTEMENT
-      if (typeof pokemonId === 'object' && pokemonId._id) {
-        console.log(`✅ [ExperienceService] OwnedPokemon objet reçu directement: ${pokemonId.nickname || 'Pokemon'}`);
-        return pokemonId as IOwnedPokemon;
+      // Si c'est déjà un objet OwnedPokemon, le retourner directement
+      if (typeof pokemonIdentifier === 'object' && pokemonIdentifier._id) {
+        console.log(`✅ [ExperienceService] Pokémon objet utilisé directement: ${pokemonIdentifier.nickname || 'Pokemon'}`);
+        return pokemonIdentifier as IOwnedPokemon;
       }
-      
-      // 🆕 SINON, CHERCHER PAR ID MONGODB
-      console.log(`🔍 [ExperienceService] Recherche OwnedPokemon par ID: ${pokemonId}`);
-      
+
+      // Sinon, chercher par ID MongoDB
       const { OwnedPokemon } = require('../models/OwnedPokemon');
-      const found = await OwnedPokemon.findById(pokemonId);
+      const found = await OwnedPokemon.findById(pokemonIdentifier);
       
       if (found) {
-        console.log(`✅ [ExperienceService] OwnedPokemon trouvé: ${found.nickname || 'Pokemon'} (owner: ${found.owner})`);
-        return found;
+        console.log(`✅ [ExperienceService] Pokémon trouvé par ID: ${found.nickname || 'Pokemon'}`);
       } else {
-        console.log(`❌ [ExperienceService] OwnedPokemon non trouvé pour ID: ${pokemonId}`);
-        return null;
+        console.log(`❌ [ExperienceService] Pokémon non trouvé pour ID: ${pokemonIdentifier}`);
       }
       
+      return found;
     } catch (error) {
       console.error('❌ [ExperienceService] Erreur getOwnedPokemon:', error);
       return null;
@@ -1666,7 +1398,7 @@ export const setLevel = (
   private async saveOwnedPokemon(ownedPokemon: IOwnedPokemon): Promise<void> {
     try {
       await ownedPokemon.save();
-      this.debugLog(`💾 Pokémon sauvegardé: ${ownedPokemon.nickname || 'Pokemon'}`);
+      console.log(`💾 [ExperienceService] Pokémon sauvegardé: ${ownedPokemon.nickname || 'Pokemon'}`);
     } catch (error) {
       console.error('❌ [ExperienceService] Erreur sauvegarde:', error);
       throw error;
@@ -1682,7 +1414,7 @@ export const setLevel = (
     return data;
   }
 
-  // ===== INTÉGRATION EVOLUTIONSERVICE =====
+  // === INTÉGRATION EVOLUTIONSERVICE ===
 
   async checkLevelEvolutionRequirements(
     ownedPokemonId: string
@@ -1797,9 +1529,6 @@ export const setLevel = (
 
   private setupEvolutionServiceIntegration(): void {
     evolutionService.on('pokemonEvolved', (data: any) => {
-      this.debugLog(
-        `🔄 Évolution détectée par EvolutionService: ${data.fromPokemonId} → ${data.toPokemonId}`
-      );
       this.stats.totalEvolutions++;
       this.emit('evolutionCompleted', {
         source: 'evolution_service',
@@ -1809,8 +1538,140 @@ export const setLevel = (
         result: data.result,
       });
     });
-
-    this.debugLog('🔗 Intégration avec EvolutionService configurée');
   }
 
-  // ===
+  // === CONFIG & STATS ===
+
+  updateConfig(newConfig: Partial<ExperienceServiceConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+  }
+
+  getConfig(): ExperienceServiceConfig {
+    return { ...this.config };
+  }
+
+  getStats(): typeof this.stats {
+    return { ...this.stats };
+  }
+
+  setAutoEvolution(enabled: boolean): void {
+    this.config.autoEvolution = enabled;
+    console.log(
+      `${enabled ? '✅' : '❌'} [ExperienceService] Auto-évolution ${
+        enabled ? 'activée' : 'désactivée'
+      }`
+    );
+  }
+
+  setAutoMoveLearn(enabled: boolean): void {
+    this.config.autoMoveLearn = enabled;
+    console.log(
+      `${enabled ? '✅' : '❌'} [ExperienceService] Auto-apprentissage ${
+        enabled ? 'activé' : 'désactivé'
+      }`
+    );
+  }
+
+  clearPendingChoices(pokemonId?: string): void {
+    if (pokemonId) this.pendingMoveChoices.delete(pokemonId);
+    else this.pendingMoveChoices.clear();
+    console.log(
+      `🧹 [ExperienceService] Choix en attente nettoyés${
+        pokemonId ? ` pour ${pokemonId}` : ''
+      }`
+    );
+  }
+}
+
+// === EXPORT SINGLETON ===
+export const experienceService = ExperienceService.getInstance();
+export default experienceService;
+
+// === EXPORTS DIRECTS API SIMPLE ===
+
+export const givePlayerWildXP = (
+  playerPokemon: string | IOwnedPokemon,
+  pokemonAdvanced: { pokemonId: number; level: number } | number,
+  level?: number
+): Promise<boolean> =>
+  experienceService.givePlayerWildXP(playerPokemon, pokemonAdvanced, level);
+
+export const givePlayerXP = (
+  playerPokemon: string | IOwnedPokemon,
+  amount: number
+): Promise<boolean> => experienceService.givePlayerXP(playerPokemon, amount);
+
+export const givePlayerTrainerXP = (
+  playerPokemon: string | IOwnedPokemon,
+  trainerPokemon: { pokemonId: number; level: number } | number,
+  trainerLevel?: number
+): Promise<boolean> =>
+  experienceService.givePlayerTrainerXP(playerPokemon, trainerPokemon, trainerLevel);
+
+export const useRareCandy = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<boolean> => experienceService.useRareCandy(playerPokemon);
+
+export const giveTeamWildXP = (
+  playerPokemonIds: string[],
+  defeatedPokemon: { pokemonId: number; level: number },
+  isWildBattle?: boolean
+): Promise<{ success: boolean; results: boolean[] }> =>
+  experienceService.giveTeamWildXP(playerPokemonIds, defeatedPokemon, isWildBattle);
+
+export const giveXPWithLuckyEgg = (
+  playerPokemon: string | IOwnedPokemon,
+  defeatedPokemon: { pokemonId: number; level: number }
+): Promise<boolean> =>
+  experienceService.giveXPWithLuckyEgg(playerPokemon, defeatedPokemon);
+
+export const giveTradedPokemonXP = (
+  tradedPokemon: string | IOwnedPokemon,
+  defeatedPokemon: { pokemonId: number; level: number },
+  isInternational?: boolean
+): Promise<boolean> =>
+  experienceService.giveTradedPokemonXP(tradedPokemon, defeatedPokemon, isInternational);
+
+export const evolvePokemon = (
+  playerPokemon: string | IOwnedPokemon,
+  location?: string
+): Promise<boolean> => experienceService.evolvePokemon(playerPokemon, location);
+
+export const evolveWithStone = (
+  playerPokemon: string | IOwnedPokemon,
+  stone: string,
+  location?: string
+): Promise<boolean> => experienceService.evolveWithStone(playerPokemon, stone, location);
+
+export const canEvolve = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<{
+  canEvolve: boolean;
+  method?: string;
+  requirement?: any;
+  missingRequirements?: string[];
+}> => experienceService.canEvolve(playerPokemon);
+
+export const learnMove = (
+  playerPokemon: string | IOwnedPokemon,
+  newMove: string,
+  forgetMove?: string
+): Promise<boolean> => experienceService.learnMove(playerPokemon, newMove, forgetMove);
+
+export const getPokemonStatus = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<{
+  level: number;
+  experience: number;
+  expToNext: number;
+  canLevelUp: boolean;
+  canEvolve: boolean;
+  pendingMoves: number;
+  evolutionMethod?: string;
+  missingRequirements?: string[];
+}> => experienceService.getPokemonStatus(playerPokemon);
+
+export const setLevel = (
+  playerPokemon: string | IOwnedPokemon,
+  targetLevel: number
+): Promise<boolean> => experienceService.setLevel(playerPokemon, targetLevel);
