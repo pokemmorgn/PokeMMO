@@ -1,6 +1,9 @@
-// client/src/Battle/ExperienceUI.js - Version CORRIGÉE pour nouveau format serveur
+// client/src/Battle/ExperienceUI.js - VERSION CORRIGÉE avec système de traductions
 // 🎮 Interface d'expérience qui apparaît après les combats
 // ✨ Animations fluides et effets visuels
+// 🌐 NOUVEAU: Support complet système de traductions
+
+import { getLocalizationManager, getPokemonNameT, battleT } from '../managers/LocalizationManager.js';
 
 export class ExperienceUI {
   constructor(scene) {
@@ -10,6 +13,9 @@ export class ExperienceUI {
     this.isVisible = false;
     this.isAnimating = false;
     this.currentQueue = [];
+    
+    // 🌐 NOUVEAU: Gestionnaire de traductions
+    this.localizationManager = getLocalizationManager();
     
     // Éléments Phaser
     this.container = null;
@@ -30,7 +36,7 @@ export class ExperienceUI {
       showDuration: 3000
     };
     
-    console.log('🎮 [ExperienceUI] Instance créée');
+    console.log('🎮 [ExperienceUI] Instance créée avec support traductions');
   }
   
   // === INITIALISATION ===
@@ -140,14 +146,140 @@ export class ExperienceUI {
     this.container.add(this.expBar.container);
   }
   
-  // === AFFICHAGE PUBLIC ===
+  // === 🌐 NOUVELLES MÉTHODES DE TRADUCTION ===
+  
+  /**
+   * 🌐 Obtenir le nom traduit d'un Pokémon
+   * @param {Object} pokemon - Données pokémon du serveur
+   * @returns {string} Nom traduit
+   */
+  getPokemonDisplayName(pokemon) {
+    try {
+      // 1. Essayer avec l'ID si disponible
+      if (pokemon.id) {
+        const translatedName = getPokemonNameT(pokemon.id);
+        if (translatedName && translatedName !== `Pokémon #${pokemon.id}`) {
+          console.log(`🌐 [ExperienceUI] Nom traduit via ID ${pokemon.id}: ${translatedName}`);
+          return translatedName;
+        }
+      }
+      
+      // 2. Essayer avec le nom si c'est un ID numérique
+      if (pokemon.name && /^\d+$/.test(pokemon.name)) {
+        const translatedName = getPokemonNameT(pokemon.name);
+        if (translatedName && translatedName !== `Pokémon #${pokemon.name}`) {
+          console.log(`🌐 [ExperienceUI] Nom traduit via name-ID ${pokemon.name}: ${translatedName}`);
+          return translatedName;
+        }
+      }
+      
+      // 3. Essayer d'extraire l'ID depuis "POKEMON #7"
+      if (pokemon.name && pokemon.name.includes('#')) {
+        const idMatch = pokemon.name.match(/#(\d+)/);
+        if (idMatch) {
+          const id = idMatch[1];
+          const translatedName = getPokemonNameT(id);
+          if (translatedName && translatedName !== `Pokémon #${id}`) {
+            console.log(`🌐 [ExperienceUI] Nom traduit via extraction ID ${id}: ${translatedName}`);
+            return translatedName;
+          }
+        }
+      }
+      
+      // 4. Fallback: utiliser le nom du serveur si pas de #
+      if (pokemon.name && !pokemon.name.includes('#')) {
+        console.log(`🌐 [ExperienceUI] Utilisation nom serveur: ${pokemon.name}`);
+        return pokemon.name;
+      }
+      
+      // 5. Dernier fallback
+      const fallbackName = battleT('messages.pokemon_unknown', {}, 'Pokémon inconnu');
+      console.warn(`⚠️ [ExperienceUI] Aucune traduction trouvée pour:`, pokemon);
+      return fallbackName;
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur traduction nom pokémon:', error);
+      return pokemon.name || 'Pokémon';
+    }
+  }
+  
+  /**
+   * 🌐 Obtenir le texte d'expérience traduit
+   * @param {number} expGained - XP gagnée
+   * @returns {string} Texte traduit
+   */
+  getExpGainedText(expGained) {
+    try {
+      // Utiliser la traduction avec variable
+      const message = battleT('messages.exp_gained', { exp: expGained });
+      
+      // Si pas trouvé, fallback manuel
+      if (message === 'battle.ui.messages.exp_gained') {
+        return `+${expGained} EXP!`;
+      }
+      
+      return message;
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur traduction XP:', error);
+      return `+${expGained} EXP!`;
+    }
+  }
+  
+  /**
+   * 🌐 Obtenir le texte de niveau traduit
+   * @param {number} level - Niveau
+   * @returns {string} Texte traduit
+   */
+  getLevelText(level) {
+    try {
+      // Utiliser le format de niveau depuis battle UI
+      const levelFormat = battleT('health.level_format', { level });
+      
+      // Si pas trouvé, utiliser format par défaut
+      if (levelFormat === 'battle.ui.health.level_format') {
+        return `Niveau ${level}`;
+      }
+      
+      return levelFormat;
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur traduction niveau:', error);
+      return `Niveau ${level}`;
+    }
+  }
+  
+  /**
+   * 🌐 Obtenir le texte de level up traduit
+   * @param {number} newLevel - Nouveau niveau
+   * @returns {string} Texte traduit
+   */
+  getLevelUpText(newLevel) {
+    try {
+      // Utiliser la traduction avec variable
+      const message = battleT('messages.level_up', { level: newLevel });
+      
+      // Si pas trouvé, fallback manuel
+      if (message === 'battle.ui.messages.level_up') {
+        return `Niveau ${newLevel} atteint !`;
+      }
+      
+      return message;
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur traduction level up:', error);
+      return `Niveau ${newLevel} atteint !`;
+    }
+  }
+  
+  // === AFFICHAGE PUBLIC (MODIFIÉ) ===
   
   /**
    * Afficher les gains d'expérience
    * @param {Object} data - Données d'expérience depuis le serveur (nouveau format)
    */
   async showExperienceGain(data) {
-    console.log('📈 [ExperienceUI] Affichage gain XP:', data);
+    console.log('📈 [ExperienceUI] Affichage gain XP avec traductions:', data);
     
     if (this.isAnimating) {
       console.log('⏳ [ExperienceUI] Ajout à la queue');
@@ -172,7 +304,7 @@ export class ExperienceUI {
   }
   
   async playExperienceSequence(data) {
-    console.log('🎮 [ExperienceUI] === SÉQUENCE XP (NOUVEAU FORMAT) ===');
+    console.log('🎮 [ExperienceUI] === SÉQUENCE XP AVEC TRADUCTIONS ===');
     console.log('📊 Données complètes:', data);
     
     // 🆕 ADAPTATION AU NOUVEAU FORMAT
@@ -181,22 +313,27 @@ export class ExperienceUI {
     const progression = data.progression || {};
     const levelData = progression.level || {};
     
-    console.log('🐾 Pokémon:', {
+    console.log('🐾 Pokémon brut:', {
       name: pokemon.name,
+      id: pokemon.id,
       niveau: levelData.current
     });
     
-    console.log('💰 Expérience:', {
-      gained: experience.gained,
-      expInLevel: `${levelData.expInLevelBefore} → ${levelData.expInLevelAfter}`,
-      expNeeded: levelData.expNeededForLevel,
-      progress: `${(levelData.progressBefore * 100).toFixed(2)}% → ${(levelData.progressAfter * 100).toFixed(2)}%`
+    // 🌐 NOUVEAU: Utiliser les traductions
+    const displayName = this.getPokemonDisplayName(pokemon);
+    const expText = this.getExpGainedText(experience.gained || 0);
+    const levelText = this.getLevelText(levelData.current || 1);
+    
+    console.log('🌐 Traductions appliquées:', {
+      displayName,
+      expText,
+      levelText
     });
     
-    // Mettre à jour les textes
-    this.pokemonNameText.setText(pokemon.name?.toUpperCase() || 'POKÉMON');
-    this.expGainedText.setText(`+${experience.gained || 0} EXP!`);
-    this.levelText.setText(`Niveau ${levelData.current || '?'}`);
+    // Mettre à jour les textes AVEC TRADUCTIONS
+    this.pokemonNameText.setText(displayName.toUpperCase());
+    this.expGainedText.setText(expText);
+    this.levelText.setText(levelText);
     
     // Animation d'entrée
     await this.animateEntry();
@@ -225,30 +362,35 @@ export class ExperienceUI {
     await this.animateExpBarFill(fromPercent, toPercent);
   }
   
-  // 🆕 NOUVELLE MÉTHODE : Animation avec level up
+  // 🆕 NOUVELLE MÉTHODE : Animation avec level up (MODIFIÉ AVEC TRADUCTIONS)
   async animateLevelUpSequence(data) {
     console.log('🆙 [ExperienceUI] Animation avec level up');
     
     const levelData = data.progression.level;
     const levelUp = data.levelUp;
+    const pokemon = data.pokemon || {};
     
     // Remplir jusqu'à 100% du niveau actuel
     await this.animateExpBarFill(levelData.progressBefore, 1.0);
     
-    // Animation level up
-    await this.animateLevelUp(levelData.current + 1);
+    // Animation level up AVEC TRADUCTIONS
+    const newLevel = levelData.current + 1;
+    await this.animateLevelUp(newLevel, pokemon);
     
     // Si plusieurs niveaux gagnés
     if (levelUp.levelsGained > 1) {
       for (let i = 1; i < levelUp.levelsGained; i++) {
         await this.animateExpBarFill(0, 1.0);
-        await this.animateLevelUp(levelData.current + i + 1);
+        await this.animateLevelUp(levelData.current + i + 1, pokemon);
       }
     }
     
-    // Position finale dans le nouveau niveau
+    // Position finale dans le nouveau niveau AVEC TRADUCTIONS
+    const finalLevel = levelData.current + levelUp.levelsGained;
+    const finalLevelText = this.getLevelText(finalLevel);
+    this.levelText.setText(finalLevelText);
+    
     const finalProgress = levelData.progressAfter || 0;
-    this.levelText.setText(`Niveau ${levelData.current + levelUp.levelsGained}`);
     await this.animateExpBarFill(0, finalProgress);
   }
   
@@ -295,7 +437,7 @@ export class ExperienceUI {
     }
   }
   
-  // === ANIMATIONS ===
+  // === ANIMATIONS (MODIFIÉ) ===
   
   animateEntry() {
     return new Promise((resolve) => {
@@ -324,7 +466,8 @@ export class ExperienceUI {
     });
   }
   
-  animateLevelUp(newLevel) {
+  // 🌐 MODIFIÉ: Animation level up avec traductions
+  animateLevelUp(newLevel, pokemon = {}) {
     return new Promise((resolve) => {
       console.log('🆙 [ExperienceUI] Animation Level Up:', newLevel);
       
@@ -348,8 +491,10 @@ export class ExperienceUI {
         }
       });
       
-      // Animation du texte niveau
-      this.levelText.setText(`Niveau ${newLevel}`);
+      // 🌐 Animation du texte niveau AVEC TRADUCTIONS
+      const levelText = this.getLevelText(newLevel);
+      this.levelText.setText(levelText);
+      
       this.scene.tweens.add({
         targets: this.levelText,
         scaleX: 1.3,
@@ -465,6 +610,30 @@ export class ExperienceUI {
       setTimeout(() => {
         this.showExperienceGain(nextData);
       }, 500);
+    }
+  }
+  
+  // === 🌐 NOUVELLES MÉTHODES DE MISE À JOUR ===
+  
+  /**
+   * 🌐 Mettre à jour la langue
+   */
+  updateLanguage() {
+    console.log('🌐 [ExperienceUI] Mise à jour langue');
+    
+    // Pré-charger les traductions pokémon si nécessaire
+    const manager = this.localizationManager;
+    if (manager && manager.getCurrentLanguage) {
+      const currentLang = manager.getCurrentLanguage();
+      
+      // Charger pokémon pour la langue actuelle
+      if (manager.loadPokemonForLanguage) {
+        manager.loadPokemonForLanguage(currentLang).then(() => {
+          console.log('🌐 [ExperienceUI] Pokémon chargés pour:', currentLang);
+        }).catch(error => {
+          console.warn('⚠️ [ExperienceUI] Erreur chargement pokémon:', error);
+        });
+      }
     }
   }
   
