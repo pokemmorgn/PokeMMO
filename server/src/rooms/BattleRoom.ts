@@ -60,7 +60,6 @@ export class BattleRoom extends Room<BattleState> {
       this.broadcast(eventType, data);
     });
     
-    this.configureBattleEndManager(this.battleEndManager);
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
     
