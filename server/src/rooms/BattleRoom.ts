@@ -673,6 +673,31 @@ this.onMessage("attemptFlee", async (client, data) => {
       });
     });
 
+        // 🎯 NOUVEAUX ÉVÉNEMENTS XP
+    this.battleEngine.on('pokemon_experience_gained', (data: any) => {
+      console.log(`🌟 [BattleRoom] XP gagnée: ${data.pokemon.name} +${data.experience.gained}`);
+      
+      this.broadcast('pokemon_experience_gained', data);
+    });
+    
+    this.battleEngine.on('pokemon_level_up', (data: any) => {
+      console.log(`🆙 [BattleRoom] Level up: ${data.pokemonId} niveau ${data.toLevel}`);
+      
+      this.broadcast('pokemon_level_up', data);
+    });
+    
+    this.battleEngine.on('pokemon_evolution_started', (data: any) => {
+      console.log(`🌟 [BattleRoom] Évolution: ${data.fromPokemonId} → ${data.toPokemonId}`);
+      
+      this.broadcast('pokemon_evolution_started', data);
+    });
+    
+    this.battleEngine.on('pokemon_new_moves_learned', (data: any) => {
+      console.log(`📚 [BattleRoom] Nouveaux sorts: ${data.newMoves.length} pour ${data.pokemonId}`);
+      
+      this.broadcast('pokemon_new_moves_learned', data);
+    });
+    
     console.log('✅ [BattleRoom] Tous les événements Pokémon authentique configurés');
   }
   
