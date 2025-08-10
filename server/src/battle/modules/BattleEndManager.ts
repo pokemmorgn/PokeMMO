@@ -562,7 +562,8 @@ export class BattleEndManager {
    */
   setEmitToClientCallback(callback: (eventType: string, data: any) => void): void {
     this.emitToClientCallback = callback;
-    console.log('🔗 [BattleEndManager] Callback client configuré');
+    console.log('🔗 [BattleEndManager] Callback client configuré - Fonction reçue:', !!callback);
+    console.log('🔗 [BattleEndManager] Callback stocké:', !!this.emitToClientCallback);
   }
 
   /**
