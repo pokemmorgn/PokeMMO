@@ -16,7 +16,7 @@ import {
 } from '../managers/LocalizationManager.js';
 import { createPokemonTeamSwitchUI, setupTeamSwitchEvents } from '../Battle/PokemonTeamSwitchUI.js';
 import { createCaptureManager } from '../Battle/CaptureManager.js';
-
+import { ExperienceUI } from './ExperienceUI.js';
 let pokemonSpriteConfig = null;
 
 export class BattleScene extends Phaser.Scene {
@@ -39,7 +39,7 @@ export class BattleScene extends Phaser.Scene {
     this.switchingAvailable = false;
     this.availableSwitchCount = 0;
     this.battleType = 'wild';
-    
+    this.experienceUI = null;
     // 🆕 ÉTAT UNIVERSAL SWITCH
     this.isMultiPokemonBattle = false;
     this.canSwitch = false;
@@ -123,7 +123,7 @@ export class BattleScene extends Phaser.Scene {
       this.createModernBattleDialog();
       this.setupBattleNetworkEvents();
       this.setupLanguageListener(); // Nouvelle méthode
-      
+      this.initializeExperienceUI();
       this.isActive = true;
       this.isReadyForActivation = true;
       this.initializeCaptureManager();
@@ -2254,8 +2254,145 @@ case 'bag':
     this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
     });
+      // === ÉVÉNEMENTS XP ===
+  this.battleNetworkHandler.on('pokemon_experience_gained', (data) => {
+    console.log('📈 [BattleScene] XP reçu:', data);
+    this.handleExperienceGained(data);
+  });
+  
+  this.battleNetworkHandler.on('pokemon_level_up', (data) => {
+    console.log('🆙 [BattleScene] Level up reçu:', data);
+    this.handleLevelUp(data);
+  });
+  
+  this.battleNetworkHandler.on('pokemon_evolution_started', (data) => {
+    console.log('✨ [BattleScene] Évolution reçue:', data);
+    this.handleEvolution(data);
+  });
+  
+  this.battleNetworkHandler.on('pokemon_new_moves_learned', (data) => {
+    console.log('⚡ [BattleScene] Nouvelles attaques reçues:', data);
+    this.handleNewMovesLearned(data);
+  });
   }
+handleExperienceGained(data) {
+  console.log('📈 [BattleScene] Traitement gain XP:', data);
+  
+  if (!data || !data.pokemon) {
+    console.warn('⚠️ [BattleScene] Données XP invalides:', data);
+    return;
+  }
+  
+  // Vérifier que c'est le Pokémon du joueur
+  if (data.pokemon.id !== this.currentPlayerPokemon?.id) {
+    console.log('ℹ️ [BattleScene] XP pour Pokémon non-actuel, ignoré');
+    return;
+  }
+  
+  // Afficher la popup XP si disponible
+  if (this.experienceUI) {
+    this.experienceUI.showExperienceGain(data);
+  } else {
+    console.warn('⚠️ [BattleScene] ExperienceUI non disponible');
+    // Fallback: message simple
+    const expGained = data.experience?.gained || 0;
+    this.showNarrativeMessage(`${data.pokemon.name} gagne ${expGained} EXP !`, false);
+  }
+  
+  // Mettre à jour les données locales du Pokémon
+  this.updateLocalPokemonData(data);
+}
 
+/**
+ * Traitement level up simple
+ */
+handleLevelUp(data) {
+  console.log('🆙 [BattleScene] Level up:', data);
+  
+  if (!data || !data.pokemon) {
+    console.warn('⚠️ [BattleScene] Données level up invalides');
+    return;
+  }
+  
+  // Message de level up
+  const pokemonName = data.pokemon.name || 'Pokémon';
+  const newLevel = data.newLevel || data.level || '?';
+  
+  // Si pas de popup XP active, afficher message
+  if (!this.experienceUI?.isAnimating) {
+    this.showNarrativeMessage(`🆙 ${pokemonName} monte au niveau ${newLevel} !`, false);
+  }
+}
+
+/**
+ * Traitement évolution
+ */
+handleEvolution(data) {
+  console.log('✨ [BattleScene] Évolution:', data);
+  
+  if (!data || !data.pokemon) {
+    console.warn('⚠️ [BattleScene] Données évolution invalides');
+    return;
+  }
+  
+  const pokemonName = data.pokemon.name || 'Pokémon';
+  this.showNarrativeMessage(`✨ ${pokemonName} évolue !`, false);
+  
+  // TODO: ÉTAPE 3 - Animation d'évolution complète
+}
+
+/**
+ * Traitement nouveaux sorts
+ */
+handleNewMovesLearned(data) {
+  console.log('⚡ [BattleScene] Nouvelles attaques:', data);
+  
+  if (!data || !data.newMoves || !Array.isArray(data.newMoves)) {
+    console.warn('⚠️ [BattleScene] Données moves invalides');
+    return;
+  }
+  
+  const pokemonName = data.pokemon?.name || 'Pokémon';
+  
+  // Afficher message pour chaque nouveau sort
+  data.newMoves.forEach((move, index) => {
+    const moveName = move.moveName || move.moveId || 'une nouvelle attaque';
+    
+    setTimeout(() => {
+      this.showNarrativeMessage(`⚡ ${pokemonName} apprend ${moveName} !`, false);
+    }, index * 2000); // Espacer les messages
+  });
+  
+  // TODO: ÉTAPE 4 - Interface d'apprentissage des sorts
+}
+
+/**
+ * Mettre à jour les données locales du Pokémon
+ */
+updateLocalPokemonData(expData) {
+  if (!this.currentPlayerPokemon || !expData.pokemon) {
+    return;
+  }
+  
+  console.log('🔄 [BattleScene] Mise à jour données locales Pokémon');
+  
+  // Mettre à jour le niveau si changé
+  if (expData.progression?.levelAfter) {
+    this.currentPlayerPokemon.level = expData.progression.levelAfter;
+  }
+  
+  // Mettre à jour l'expérience
+  if (expData.experience) {
+    this.currentPlayerPokemon.experience = expData.experience;
+  }
+  
+  // Mettre à jour la barre de vie avec nouveau niveau
+  setTimeout(() => {
+    if (this.modernHealthBars.player1) {
+      this.updateModernHealthBar('player1', this.currentPlayerPokemon);
+    }
+  }, 1000); // Attendre que l'animation XP soit visible
+}
   // === 🆕 HANDLERS UNIVERSAL SWITCH ===
 
   /**
@@ -2933,6 +3070,19 @@ initializeCaptureManager() {
     Object.keys(this.battleNetworkHandler.eventCallbacks || {}));
 }
 
+  initializeExperienceUI() {
+  console.log('📈 [BattleScene] Initialisation ExperienceUI...');
+  
+  try {
+    this.experienceUI = new ExperienceUI(this);
+    this.experienceUI.initialize();
+    console.log('✅ [BattleScene] ExperienceUI initialisé');
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur initialisation ExperienceUI:', error);
+    this.experienceUI = null;
+  }
+}
+  
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
       try {
