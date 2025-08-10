@@ -126,16 +126,25 @@ export class BattleEndManager {
         return [];
       }
       
-      // 🎯 RÉCUPÉRER L'OWNEDPOKEMON DU JOUEUR (avec conversion sessionId -> userId)
-      const ownedPokemon = await this.findOwnedPokemonBySession(
-        playerPokemon, 
-        this.gameState.player1.sessionId
-      );
+      // 🎯 IDENTIFIER L'OWNER (userId directement depuis sessionId si c'est déjà l'userId)
+      const ownerIdentifier = this.gameState.player1.sessionId;
+      console.log(`🔍 [BattleEndManager] Recherche Pokémon avec owner: ${ownerIdentifier}`);
+      
+      // 🎯 ESSAYER RECHERCHE DIRECTE D'ABORD
+      let ownedPokemon = await this.findOwnedPokemon(playerPokemon, ownerIdentifier);
+      
+      // 🎯 SI ÉCHEC, ESSAYER CONVERSION sessionId -> userId
+      if (!ownedPokemon) {
+        console.log(`🔄 [BattleEndManager] Recherche directe échouée, tentative conversion sessionId...`);
+        ownedPokemon = await this.findOwnedPokemonBySession(playerPokemon, ownerIdentifier);
+      }
       
       if (!ownedPokemon) {
         console.warn('⚠️ [BattleEndManager] OwnedPokemon introuvable - XP ignorée');
         return ['⚠️ Impossible d\'attribuer l\'expérience (Pokémon introuvable)'];
       }
+      
+      console.log(`✅ [BattleEndManager] OwnedPokemon trouvé: ${ownedPokemon.nickname || 'Pokemon'} (owner: ${ownedPokemon.owner})`);
       
       // 🎯 DONNÉES DU POKÉMON VAINCU
       const defeatedPokemonData = {
@@ -177,12 +186,21 @@ export class BattleEndManager {
       // 🎯 CONVERTIR sessionId en userId
       const { JWTManager } = require('../../managers/JWTManager');
       const jwtManager = JWTManager.getInstance();
-      const userId = jwtManager.getUserId(sessionId);
+      
+      let userId = jwtManager.getUserId(sessionId);
+      
+      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
+      if (!userId && this.gameState?.player1?.name) {
+        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust pour sauvegarde avec playerName: ${this.gameState.player1.name}`);
+        userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
+      }
       
       if (!userId) {
         console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId pour sauvegarde`);
         return;
       }
+      
+      console.log(`✅ [BattleEndManager] Conversion sauvegarde: sessionId ${sessionId} -> userId ${userId}`);
       
       // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
       await this.savePokemonData(pokemon, userId);
@@ -245,14 +263,25 @@ export class BattleEndManager {
       // 🎯 CONVERTIR sessionId en userId via JWTManager
       const { JWTManager } = require('../../managers/JWTManager');
       const jwtManager = JWTManager.getInstance();
-      const userId = jwtManager.getUserId(sessionId);
+      
+      console.log(`🔍 [BattleEndManager] Debug sessionId: ${sessionId}`);
+      
+      let userId = jwtManager.getUserId(sessionId);
+      
+      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
+      if (!userId && this.gameState?.player1?.name) {
+        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust avec playerName: ${this.gameState.player1.name}`);
+        userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
+      }
       
       if (!userId) {
         console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId`);
+        console.log(`🔍 [BattleEndManager] Debug JWTManager mappings:`);
+        jwtManager.debugMappings();
         return null;
       }
       
-      console.log(`🔄 [BattleEndManager] Conversion: sessionId ${sessionId} -> userId ${userId}`);
+      console.log(`✅ [BattleEndManager] Conversion réussie: sessionId ${sessionId} -> userId ${userId}`);
       
       // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
       return await this.findOwnedPokemon(pokemon, userId);
