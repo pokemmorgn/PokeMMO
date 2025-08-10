@@ -156,7 +156,7 @@ export class ExperienceService {
     
     try {
       // 1. Calculer l'XP de base
-      const baseExp = this.calculateBaseExperience(params);
+      const baseExp = await this.calculateBaseExperience(params);
       
       // 2. Appliquer les modificateurs
       const finalExp = this.applyExperienceModifiers(baseExp, params);
@@ -271,11 +271,21 @@ export class ExperienceService {
   /**
    * Calcule l'XP de base selon la formule Gen V moderne
    */
-  private calculateBaseExperience(params: ExperienceParams): number {
+  private async calculateBaseExperience(params: ExperienceParams): Promise<number> {
     const { winnerPokemon, loserPokemon, battleType } = params;
     
-    // Récupérer l'XP de base du Pokémon vaincu
-    const baseExpYield = loserPokemon.baseExperience || 100;
+    // Récupérer l'XP de base du Pokémon vaincu depuis PokemonData
+    let baseExpYield = 100; // Valeur par défaut
+    
+    try {
+      const pokemonData = await PokemonData.findByNationalDex(loserPokemon.id);
+      if (pokemonData) {
+        baseExpYield = pokemonData.baseExperience || pokemonData.baseExperienceYield || 100;
+      }
+    } catch (error) {
+      console.warn(`⚠️ [ExperienceService] Impossible de récupérer baseExperience pour ${loserPokemon.name}, utilisation valeur par défaut`);
+    }
+    
     const levelDefender = loserPokemon.level;
     const levelAttacker = winnerPokemon.level;
     
@@ -328,14 +338,22 @@ export class ExperienceService {
   /**
    * Calcule l'XP nécessaire pour un niveau donné
    */
-  private getExperienceForLevel(pokemonId: number, level: number): number {
-    // TODO: Récupérer le growth rate depuis PokemonData
-    // Pour l'instant, on utilise medium_fast par défaut
-    const growthRate = 'medium_fast';
-    
+  private async getExperienceForLevel(pokemonId: number, level: number): Promise<number> {
     if (level <= 1) return 0;
     if (level > EXPERIENCE_CONSTANTS.MAX_LEVEL) {
       level = EXPERIENCE_CONSTANTS.MAX_LEVEL;
+    }
+    
+    // Récupérer le growth rate depuis PokemonData
+    let growthRate: GrowthRate = 'medium_fast'; // Défaut
+    
+    try {
+      const pokemonData = await PokemonData.findByNationalDex(pokemonId);
+      if (pokemonData && pokemonData.growthRate) {
+        growthRate = pokemonData.growthRate;
+      }
+    } catch (error) {
+      console.warn(`⚠️ [ExperienceService] Impossible de récupérer growthRate pour ${pokemonId}, utilisation medium_fast`);
     }
     
     const formula = GROWTH_RATE_FORMULAS[growthRate];
@@ -358,7 +376,7 @@ export class ExperienceService {
     
     // Calculer le nouveau niveau
     while (newLevel < EXPERIENCE_CONSTANTS.MAX_LEVEL) {
-      const expRequired = this.getExperienceForLevel(ownedPokemon.pokemonId, newLevel + 1);
+      const expRequired = await this.getExperienceForLevel(ownedPokemon.pokemonId, newLevel + 1);
       if (ownedPokemon.experience >= expRequired) {
         newLevel++;
       } else {
@@ -639,13 +657,22 @@ export class ExperienceService {
     if (!leveledUp) return;
     
     try {
-      // Notifier le Pokédex de la montée de niveau
-      await pokedexIntegrationService.handlePokemonLevelUp({
+      // Notifier le Pokédex de la progression (utilise la méthode existante)
+      await pokedexIntegrationService.handlePokemonEncounter({
         playerId: ownedPokemon.owner,
         pokemonId: ownedPokemon.pokemonId,
-        oldLevel: ownedPokemon.level - 1,
-        newLevel: ownedPokemon.level,
-        sessionId: ownedPokemon.sessionId || ownedPokemon.owner
+        level: ownedPokemon.level,
+        location: 'Level Up',
+        method: 'level_up',
+        sessionId: ownedPokemon.sessionId || ownedPokemon.owner,
+        biome: 'training',
+        isEvent: false,
+        // Données additionnelles pour le level up
+        additionalData: {
+          oldLevel: ownedPokemon.level - 1,
+          newLevel: ownedPokemon.level,
+          experienceGained: true
+        }
       });
       
     } catch (error) {
@@ -795,15 +822,15 @@ export class ExperienceService {
   /**
    * Calcule l'XP nécessaire pour le prochain niveau
    */
-  public getExpForNextLevel(pokemonId: number, currentLevel: number): number {
-    return this.getExperienceForLevel(pokemonId, currentLevel + 1);
+  public async getExpForNextLevel(pokemonId: number, currentLevel: number): Promise<number> {
+    return await this.getExperienceForLevel(pokemonId, currentLevel + 1);
   }
   
   /**
    * Calcule l'XP restante avant le prochain niveau
    */
-  public getExpToNextLevel(pokemonId: number, currentLevel: number, currentExp: number): number {
-    const nextLevelExp = this.getExpForNextLevel(pokemonId, currentLevel);
+  public async getExpToNextLevel(pokemonId: number, currentLevel: number, currentExp: number): Promise<number> {
+    const nextLevelExp = await this.getExpForNextLevel(pokemonId, currentLevel);
     return Math.max(0, nextLevelExp - currentExp);
   }
   
