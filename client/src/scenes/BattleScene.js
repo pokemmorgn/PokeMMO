@@ -549,26 +549,28 @@ createModernHealthBars() {
     };
   }
 
-  createModernExpBar(x, y, maxWidth) {
-    const container = this.add.container(x, y);
-    
-    const background = this.add.graphics();
-    background.fillStyle(0x000000, 0.3);
-    background.fillRoundedRect(0, 0, maxWidth, 10, 3);
-    background.lineStyle(1, 0x4a90e2, 0.5);
-    background.strokeRoundedRect(0, 0, maxWidth, 10, 3);
-    
-    const expBar = this.add.graphics();
-    
-    container.add([background, expBar]);
-    
-    return {
-      container,
-      background,
-      expBar,
-      maxWidth
-    };
-  }
+createModernExpBar(x, y, maxWidth) {
+  const container = this.add.container(x, y);
+  
+  const background = this.add.graphics();
+  background.fillStyle(0x000000, 0.4);
+  background.fillRoundedRect(0, 0, maxWidth, 10, 3);
+  // 🆕 Bordure dorée pour XP (comme les vrais jeux Pokémon)
+  background.lineStyle(1, 0xFFD700, 0.8);
+  background.strokeRoundedRect(0, 0, maxWidth, 10, 3);
+  
+  const expBar = this.add.graphics();
+  
+  container.add([background, expBar]);
+  
+  return {
+    container,
+    background,
+    expBar,
+    maxWidth,
+    currentPercentage: 0.0 // 🆕 Initialiser à 0 au lieu d'undefined
+  };
+}
 
 updateModernHealthBar(type, pokemonData) {
   console.log(`🩺 [BattleScene] Mise à jour barre de vie ${type}:`, pokemonData);
