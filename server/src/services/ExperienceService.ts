@@ -1,9 +1,10 @@
-// server/src/services/ExperienceService.ts
+// ===== API PUBLIQUE DE CONFIGURATION =====// server/src/services/ExperienceService.ts
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
 import { IPokemonData } from '../models/PokemonData';
 import { getPokemonById } from '../data/PokemonData';
+import { evolutionService } from './EvolutionService';
 
 // ===== TYPES ET INTERFACES =====
 
@@ -193,6 +194,9 @@ export class ExperienceService extends EventEmitter {
     this.on('error', (error) => {
       console.error('❌ [ExperienceService] Erreur service:', error);
     });
+    
+    // ✅ INTEGRATION AVEC EVOLUTIONSERVICE
+    this.setupEvolutionServiceIntegration();
     
     this.debugLog('Service d\'expérience initialisé avec succès');
   }
@@ -700,7 +704,7 @@ export class ExperienceService extends EventEmitter {
   // ===== GESTION DES ÉVOLUTIONS =====
   
   /**
-   * Vérifie et traite les évolutions possibles
+   * Vérifie et traite les évolutions possibles avec intégration complète
    */
   private async checkAndProcessEvolution(ownedPokemon: IOwnedPokemon): Promise<{
     evolved: boolean;
@@ -720,22 +724,44 @@ export class ExperienceService extends EventEmitter {
         return { evolved: false };
       }
       
-      // TODO: Intégrer avec votre EvolutionService existant
-      // Pour l'instant, simulation simple
-      const pokemonName = pokemonData.nameKey || `Pokemon #${pokemonData.nationalDex}`;
-      this.debugLog(`🌟 Évolution possible: ${pokemonName} → #${evolution.evolvesInto}`);
+      this.debugLog(`🌟 Évolution détectée: ${pokemonData.nameKey} → #${evolution.evolvesInto}`);
       
-      // Ici vous intégrerez votre service d'évolution
-      // const evolutionResult = await evolutionService.evolve(ownedPokemon._id.toString());
-      
-      return {
-        evolved: false, // Sera true quand intégré
-        evolutionData: {
-          fromPokemonId: ownedPokemon.pokemonId,
-          toPokemonId: evolution.evolvesInto,
-          evolutionMethod: evolution.method
+      // ✅ INTÉGRATION AVEC VOTRE EVOLUTIONSERVICE
+      try {
+        const evolutionSuccess = await evolutionService.evolve(
+          ownedPokemon._id?.toString() || 'unknown',
+          'Level Up'
+        );
+        
+        if (evolutionSuccess) {
+          this.debugLog(`🎉 Évolution réussie via EvolutionService !`);
+          
+          // Émettre événement personnalisé pour l'ExperienceService
+          this.emit('pokemonEvolvedFromLevelUp', {
+            ownedPokemonId: ownedPokemon._id?.toString(),
+            fromPokemonId: ownedPokemon.pokemonId,
+            toPokemonId: evolution.evolvesInto,
+            level: ownedPokemon.level,
+            method: 'level'
+          });
+          
+          return {
+            evolved: true,
+            evolutionData: {
+              fromPokemonId: ownedPokemon.pokemonId,
+              toPokemonId: evolution.evolvesInto,
+              evolutionMethod: evolution.method
+            }
+          };
+        } else {
+          this.debugLog(`❌ Évolution échouée via EvolutionService`);
+          return { evolved: false };
         }
-      };
+        
+      } catch (evolutionError) {
+        console.error('❌ Erreur lors de l\'évolution:', evolutionError);
+        return { evolved: false };
+      }
       
     } catch (error) {
       console.error('❌ Erreur checkAndProcessEvolution:', error);
@@ -1036,7 +1062,146 @@ export class ExperienceService extends EventEmitter {
     return data;
   }
   
-  // ===== API PUBLIQUE DE CONFIGURATION =====
+  // ===== API PUBLIQUE POUR INTEGRATION AVEC EVOLUTIONSERVICE =====
+  
+  /**
+   * Vérifie si un Pokémon peut évoluer par niveau (appelé depuis EvolutionService)
+   */
+  async checkLevelEvolutionRequirements(ownedPokemonId: string): Promise<{
+    canEvolve: boolean;
+    evolutionData?: any;
+    missingRequirements?: string[];
+  }> {
+    try {
+      const ownedPokemon = await this.getOwnedPokemon(ownedPokemonId);
+      if (!ownedPokemon) {
+        return { canEvolve: false };
+      }
+      
+      const pokemonData = await this.getPokemonData(ownedPokemon.pokemonId);
+      if (!pokemonData?.evolution?.canEvolve) {
+        return { canEvolve: false };
+      }
+      
+      const evolution = pokemonData.evolution;
+      const requirements: string[] = [];
+      
+      // Vérifier uniquement les évolutions par niveau
+      if (evolution.method === 'level') {
+        if (typeof evolution.requirement === 'number' && ownedPokemon.level < evolution.requirement) {
+          requirements.push(`Niveau ${evolution.requirement} requis (actuellement ${ownedPokemon.level})`);
+        }
+      } else {
+        return { canEvolve: false }; // Pas une évolution par niveau
+      }
+      
+      return {
+        canEvolve: requirements.length === 0,
+        evolutionData: evolution,
+        missingRequirements: requirements.length > 0 ? requirements : undefined
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur checkLevelEvolutionRequirements:', error);
+      return { canEvolve: false };
+    }
+  }
+  
+  /**
+   * Donne de l'XP et tente une évolution si conditions remplies
+   */
+  async giveExperienceWithEvolutionCheck(
+    pokemonId: string,
+    amount: number,
+    source: 'battle' | 'candy' | 'special' = 'battle',
+    location: string = 'Unknown'
+  ): Promise<{
+    success: boolean;
+    leveledUp: boolean;
+    evolved: boolean;
+    newLevel?: number;
+    evolutionData?: any;
+    notifications: string[];
+  }> {
+    try {
+      // 1. Donner l'expérience
+      const expResult = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: source === 'battle' ? 'wild_battle' : source === 'candy' ? 'rare_candy' : 'special_event',
+        amount,
+        location
+      });
+      
+      if (!expResult.success) {
+        return {
+          success: false,
+          leveledUp: false,
+          evolved: false,
+          notifications: [expResult.error || 'Erreur lors du gain d\'expérience']
+        };
+      }
+      
+      // 2. Tenter l'évolution si montée de niveau et auto-évolution désactivée
+      let evolved = false;
+      let evolutionData: any = undefined;
+      const notifications = [...expResult.notifications];
+      
+      if (expResult.leveledUp && !this.config.autoEvolution) {
+        // Vérifier manuellement l'évolution
+        const evolutionCheck = await this.checkLevelEvolutionRequirements(pokemonId);
+        if (evolutionCheck.canEvolve) {
+          const evolutionSuccess = await evolutionService.evolve(pokemonId, location);
+          if (evolutionSuccess) {
+            evolved = true;
+            evolutionData = evolutionCheck.evolutionData;
+            notifications.push('🌟 Évolution déclenchée !');
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        leveledUp: expResult.leveledUp,
+        evolved: evolved || (expResult.hasEvolved || false),
+        newLevel: expResult.pokemon.afterLevel,
+        evolutionData: evolutionData || expResult.evolutionData,
+        notifications
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur giveExperienceWithEvolutionCheck:', error);
+      return {
+        success: false,
+        leveledUp: false,
+        evolved: false,
+        notifications: [error instanceof Error ? error.message : 'Erreur inconnue']
+      };
+    }
+  }
+  
+  /**
+   * Écoute les événements d'évolution du service d'évolution
+   */
+  private setupEvolutionServiceIntegration(): void {
+    // Écouter les évolutions réussies
+    evolutionService.on('pokemonEvolved', (data: any) => {
+      this.debugLog(`🔄 Évolution détectée par EvolutionService: ${data.fromPokemonId} → ${data.toPokemonId}`);
+      
+      // Mettre à jour nos stats
+      this.stats.totalEvolutions++;
+      
+      // Réémettre l'événement avec notre contexte
+      this.emit('evolutionCompleted', {
+        source: 'evolution_service',
+        ownedPokemonId: data.ownedPokemonId,
+        fromPokemonId: data.fromPokemonId,
+        toPokemonId: data.toPokemonId,
+        result: data.result
+      });
+    });
+    
+    this.debugLog('🔗 Intégration avec EvolutionService configurée');
+  }
   
   updateConfig(newConfig: Partial<ExperienceServiceConfig>): void {
     this.config = { ...this.config, ...newConfig };
