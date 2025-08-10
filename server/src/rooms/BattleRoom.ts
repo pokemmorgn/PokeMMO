@@ -8,6 +8,7 @@ import { TeamManager } from "../managers/TeamManager";
 import { PokemonMoveService } from "../services/PokemonMoveService";
 import { BattlePhase } from '../battle/types/BattleTypes';
 import { JWTManager } from "../managers/JWTManager";
+import BattleEndManager from '../battle/modules/BattleEndManager';
 
 export interface BattleInitData {
   battleType: "wild" | "pvp";
@@ -34,7 +35,7 @@ export class BattleRoom extends Room<BattleState> {
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
   private jwtManager = JWTManager.getInstance();
-
+  private battleEndManager: BattleEndManager | null = null;
   maxClients = 2;
   
   async onCreate(options: BattleInitData) {
@@ -957,6 +958,21 @@ private async startBattleAuthentic() {
   private cleanupPlayer(sessionId: string) {
     this.teamManagers.delete(sessionId);
   }
+  
+  /**
+ * 🎯 Configure le BattleEndManager avec callback pour événements XP
+ */
+configureBattleEndManager(battleEndManager: BattleEndManager): void {
+  this.battleEndManager = battleEndManager;
+  
+  // Configuration du callback pour émettre vers les clients
+  battleEndManager.setEmitToClientCallback((eventType: string, data: any) => {
+    console.log(`📤 [BattleRoom] Émission événement XP: ${eventType}`);
+    this.broadcast(eventType, data);
+  });
+  
+  console.log('🎯 [BattleRoom] BattleEndManager configuré avec callback XP');
+}
   
   async onDispose() {
     console.log(`💀 [BattleRoom] Pokémon authentique ${this.roomId} en cours de destruction`);
