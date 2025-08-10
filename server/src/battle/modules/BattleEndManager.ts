@@ -126,11 +126,15 @@ export class BattleEndManager {
         return [];
       }
       
-      // 🎯 IDENTIFIER LE POKÉMON DU JOUEUR (via combatId)
-      const playerPokemonId = playerPokemon.combatId || 'unknown';
-      if (playerPokemonId === 'unknown') {
-        console.warn('⚠️ [BattleEndManager] CombatId manquant - XP ignorée');
-        return ['⚠️ Impossible d\'attribuer l\'expérience (ID manquant)'];
+      // 🎯 RÉCUPÉRER L'OWNEDPOKEMON DU JOUEUR (réutilise la logique existante)
+      const ownedPokemon = await this.findOwnedPokemon(
+        playerPokemon, 
+        this.gameState.player1.sessionId
+      );
+      
+      if (!ownedPokemon) {
+        console.warn('⚠️ [BattleEndManager] OwnedPokemon introuvable - XP ignorée');
+        return ['⚠️ Impossible d\'attribuer l\'expérience (Pokémon introuvable)'];
       }
       
       // 🎯 DONNÉES DU POKÉMON VAINCU
@@ -141,9 +145,9 @@ export class BattleEndManager {
       
       console.log(`🌟 [BattleEndManager] Attribution XP: ${playerPokemon.name} vs ${wildPokemon.name} (niveau ${wildPokemon.level})`);
       
-      // 🚀 APPEL DU SERVICE XP (API SIMPLE)
+      // 🚀 APPEL DU SERVICE XP AVEC L'OWNEDPOKEMON DIRECTEMENT
       const xpSuccess = await givePlayerWildXP(
-        playerPokemonId,
+        ownedPokemon, // ← Passer l'objet entier au lieu de l'ID
         defeatedPokemonData
       );
       
