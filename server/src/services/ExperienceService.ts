@@ -1,868 +1,1104 @@
 // server/src/services/ExperienceService.ts
-// 🌟 SERVICE D'EXPÉRIENCE POKÉMON COMPLET - INSPIRÉ GEN V
-// Gestion XP, montée de niveau, évolutions, apprentissage moves
+import { EventEmitter } from 'events';
+import { Types } from 'mongoose';
+import { IOwnedPokemon } from '../models/OwnedPokemon';
+import { IPokemonData } from '../models/PokemonData';
+import { getPokemonById } from '../data/PokemonData';
 
-import { Pokemon } from '../battle/types/BattleTypes';
-import { OwnedPokemon } from '../models/OwnedPokemon';
-import { PokemonData, GrowthRate } from '../models/PokemonData';
-import { pokedexIntegrationService } from './PokedexIntegrationService';
+// ===== TYPES ET INTERFACES =====
 
-// === INTERFACES ===
+export interface ExperienceGainContext {
+  // === DONNÉES DE BASE ===
+  gainedBy: string;                    // ID du Pokémon qui gagne l'XP
+  source: 'wild_battle' | 'trainer_battle' | 'evolution' | 'rare_candy' | 'day_care' | 'trade' | 'special_event';
+  amount?: number;                     // XP spécifique (pour rare candy, etc.)
+  
+  // === CONTEXTE DE COMBAT ===
+  defeatedPokemon?: {
+    pokemonId: number;
+    level: number;
+    baseExperience: number;
+    isWild: boolean;
+    isTrainerOwned: boolean;
+    trainerLevel?: number;
+  };
+  
+  // === MODIFICATEURS D'XP ===
+  modifiers?: {
+    isTraded?: boolean;                // +50% XP si échangé
+    hasLuckyEgg?: boolean;            // +50% XP avec Œuf Chance
+    isInternational?: boolean;         // +70% XP si échangé international
+    affectionLevel?: number;           // +20% XP niveau affection max
+    expShare?: boolean;                // Partage XP activé
+    isParticipant?: boolean;           // A participé au combat
+    modernExpShare?: boolean;          // Système moderne (Gen 6+)
+  };
+  
+  // === CONTEXTE ADDITIONNEL ===
+  location?: string;
+  battleType?: 'single' | 'double' | 'triple' | 'rotation' | 'horde';
+  participants?: string[];             // IDs des autres Pokémon participants
+  isCriticalHit?: boolean;
+  isTypeAdvantage?: boolean;
+}
 
-export interface ExperienceGainResult {
+export interface ExperienceResult {
+  // === RÉSULTAT PRINCIPAL ===
   success: boolean;
   error?: string;
-  pokemonName: string;
-  expGained: number;
-  oldLevel: number;
-  newLevel: number;
+  
+  // === CHANGEMENTS DU POKÉMON ===
+  pokemon: {
+    id: string;
+    name: string;
+    beforeLevel: number;
+    afterLevel: number;
+    beforeExp: number;
+    afterExp: number;
+    expGained: number;
+    expToNextLevel: number;
+  };
+  
+  // === ÉVÉNEMENTS DÉCLENCHÉS ===
   leveledUp: boolean;
-  events: ExperienceEvent[];
-  data?: {
-    oldExp: number;
-    newExp: number;
-    newMoves?: LearnedMove[];
-    canEvolve?: EvolutionOpportunity;
-    statGains?: StatGains;
-    nextLevelExp?: number;
+  levelsGained: number;
+  hasEvolved?: boolean;
+  evolutionData?: {
+    fromPokemonId: number;
+    toPokemonId: number;
+    evolutionMethod: string;
+  };
+  
+  // === APPRENTISSAGE DE SORTS ===
+  newMoves: Array<{
+    moveId: string;
+    moveName: string;
+    learnedAtLevel: number;
+    replacedMove?: string;
+    wasLearned: boolean;
+  }>;
+  
+  // === AMÉLIORATION DES STATS ===
+  statGains?: {
+    hp: number;
+    attack: number;
+    defense: number;
+    specialAttack: number;
+    specialDefense: number;
+    speed: number;
+  };
+  
+  // === NOTIFICATIONS ===
+  notifications: string[];
+  achievements: string[];
+  
+  // === MÉTADONNÉES ===
+  performance?: {
+    executionTime: number;
+    operationsCount: number;
   };
 }
 
-export interface ExperienceEvent {
-  type: 'exp_gain' | 'level_up' | 'move_learned' | 'move_skipped' | 'evolution_available' | 'stat_increase';
-  message: string;
-  data?: any;
-  timing?: number; // Pour animations
+export interface LevelUpData {
+  pokemon: IOwnedPokemon;
+  fromLevel: number;
+  toLevel: number;
+  newMoves: string[];
+  canEvolve: boolean;
+  evolutionData?: any;
+  statIncreases: Record<string, number>;
 }
 
-export interface ExperienceParams {
-  winnerPokemon: Pokemon;
-  loserPokemon: Pokemon;
-  battleType: 'wild' | 'trainer' | 'pvp';
-  wasWildEncounter?: boolean;
-  trainerLevel?: number;
-  participantCount?: number; // Combien de Pokémon ont participé
-  usedExpShare?: boolean;
-  isLucky?: boolean; // Lucky Egg ou équivalent
-  isForeigner?: boolean; // Pokémon échangé (bonus XP)
-}
-
-export interface LearnedMove {
+export interface MoveLearnChoice {
+  pokemonId: string;
   moveId: string;
   moveName: string;
   level: number;
-  wasReplaced?: boolean;
-  replacedMove?: string;
+  forgetMove?: string;        // Move à oublier si limite de 4 atteinte
+  autoLearn?: boolean;        // Apprentissage automatique
 }
 
-export interface EvolutionOpportunity {
-  canEvolve: boolean;
-  evolutionId?: number;
-  evolutionName?: string;
-  method: string;
-  requirement: string | number;
-  meetsRequirements: boolean;
+export interface ExperienceServiceConfig {
+  enabled: boolean;
+  debugMode: boolean;
+  autoEvolution: boolean;        // Évolution automatique
+  autoMoveLearn: boolean;        // Apprentissage automatique des sorts
+  modernExpFormula: boolean;     // Utilise la formule moderne d'XP
+  expShareMode: 'classic' | 'modern';  // Mode partage XP
+  maxLevel: number;
+  enableNotifications: boolean;
+  enableAchievements: boolean;
+  batchProcessing: boolean;      // Traitement en lot pour performances
 }
 
-export interface StatGains {
-  hp: number;
-  attack: number;
-  defense: number;
-  specialAttack: number;
-  specialDefense: number;
-  speed: number;
-}
+// ===== SERVICE D'EXPÉRIENCE PRINCIPAL =====
 
-export interface BattleExperienceContext {
-  battleId: string;
-  battleType: 'wild' | 'trainer' | 'pvp';
-  participatingPokemon: Pokemon[];
-  defeatedPokemon: Pokemon[];
-  victorLevel: number;
-  isTrainerBattle: boolean;
-  expShareEnabled?: boolean;
-}
-
-// === CONSTANTES GEN V ===
-
-const EXPERIENCE_CONSTANTS = {
-  // Modificateurs Gen V
-  BASE_EXPERIENCE_MODIFIER: 1.0,
-  TRADED_POKEMON_BONUS: 1.5,        // +50% pour Pokémon échangés
-  LUCKY_EGG_BONUS: 1.5,             // +50% avec Lucky Egg
-  TRAINER_BATTLE_BONUS: 1.5,        // +50% combats dresseurs
-  EVOLUTION_LEVEL_THRESHOLD: 0.8,   // Seuil pour suggestion évolution
+export class ExperienceService extends EventEmitter {
+  private static instance: ExperienceService;
   
-  // Formule Gen V moderne (plus équilibrée)
-  LEVEL_DIFFERENCE_IMPACT: 2.0,     // Impact de la différence de niveau
-  PARTICIPATION_BONUS: 1.2,         // +20% participation directe
+  // Configuration du service
+  private config: ExperienceServiceConfig = {
+    enabled: true,
+    debugMode: false,
+    autoEvolution: true,
+    autoMoveLearn: false,        // Choix du joueur par défaut
+    modernExpFormula: true,      // Utilise Gen 5+ par défaut
+    expShareMode: 'modern',      // Partage moderne par défaut
+    maxLevel: 100,
+    enableNotifications: true,
+    enableAchievements: true,
+    batchProcessing: true
+  };
   
-  // Limites de sécurité
-  MAX_LEVEL: 100,
-  MIN_EXP_GAIN: 1,
-  MAX_EXP_GAIN: 100000,
+  // Statistiques du service
+  private stats = {
+    totalExpGained: 0,
+    totalLevelsGained: 0,
+    totalEvolutions: 0,
+    totalMovesLearned: 0,
+    operationsCount: 0,
+    averageProcessingTime: 0
+  };
   
-  // Timings pour animations
-  EXP_GAIN_TIMING: 1500,
-  LEVEL_UP_TIMING: 2000,
-  MOVE_LEARN_TIMING: 2500,
-  EVOLUTION_TIMING: 3000
-};
-
-const GROWTH_RATE_FORMULAS = {
-  slow: (level: number) => (5 * Math.pow(level, 3)) / 4,
-  medium_slow: (level: number) => 
-    (6/5) * Math.pow(level, 3) - 15 * Math.pow(level, 2) + 100 * level - 140,
-  medium_fast: (level: number) => Math.pow(level, 3),
-  fast: (level: number) => (4 * Math.pow(level, 3)) / 5,
-  erratic: (level: number) => {
-    if (level <= 50) return (Math.pow(level, 3) * (100 - level)) / 50;
-    if (level <= 68) return (Math.pow(level, 3) * (150 - level)) / 100;
-    if (level <= 98) return (Math.pow(level, 3) * ((1911 - 10 * level) / 3)) / 500;
-    return (Math.pow(level, 3) * (160 - level)) / 100;
-  },
-  fluctuating: (level: number) => {
-    if (level <= 15) return Math.pow(level, 3) * ((Math.floor((level + 1) / 3) + 24) / 50);
-    if (level <= 35) return Math.pow(level, 3) * ((level + 14) / 50);
-    return Math.pow(level, 3) * ((Math.floor(level / 2) + 32) / 50);
-  }
-};
-
-/**
- * SERVICE D'EXPÉRIENCE POKÉMON COMPLET
- * 
- * Fonctionnalités Gen V:
- * - Formule d'XP moderne avec scaling intelligent
- * - Bonus pour Pokémon échangés, Lucky Egg, etc.
- * - Gestion montée de niveau avec stats
- * - Apprentissage automatique des moves
- * - Détection opportunités d'évolution
- * - Support Exp. Share pour équipes
- * - Événements détaillés pour animations
- */
-export class ExperienceService {
+  // Cache des données Pokémon
+  private pokemonDataCache = new Map<number, IPokemonData>();
+  
+  // Queue des choix d'apprentissage en attente
+  private pendingMoveChoices = new Map<string, MoveLearnChoice[]>();
+  
+  // Opérations en cours pour éviter les conflits
+  private ongoingOperations = new Set<string>();
   
   constructor() {
-    console.log('🌟 [ExperienceService] Service d\'expérience Gen V initialisé');
+    super();
+    this.initializeService();
+    console.log('📈 [ExperienceService] Service d\'expérience initialisé');
   }
   
-  // === MÉTHODE PRINCIPALE ===
+  static getInstance(): ExperienceService {
+    if (!ExperienceService.instance) {
+      ExperienceService.instance = new ExperienceService();
+    }
+    return ExperienceService.instance;
+  }
+  
+  private initializeService(): void {
+    // Nettoyage périodique
+    setInterval(() => this.cleanupService(), 10 * 60 * 1000); // 10 minutes
+    
+    // Gestion des erreurs
+    this.on('error', (error) => {
+      console.error('❌ [ExperienceService] Erreur service:', error);
+    });
+    
+    this.debugLog('Service d\'expérience initialisé avec succès');
+  }
+  
+  // ===== API PUBLIQUE SIMPLE =====
   
   /**
-   * Donne de l'expérience à un Pokémon après un combat
+   * API ultra-simple pour donner de l'XP
    */
-  async giveExperience(params: ExperienceParams): Promise<ExperienceGainResult> {
-    console.log(`🌟 [ExperienceService] Attribution XP: ${params.winnerPokemon.name} vs ${params.loserPokemon.name}`);
-    
+  async giveExperience(
+    pokemonId: string,
+    amount: number,
+    source: 'battle' | 'candy' | 'special' = 'battle'
+  ): Promise<boolean> {
     try {
-      // 1. Calculer l'XP de base
-      const baseExp = await this.calculateBaseExperience(params);
-      
-      // 2. Appliquer les modificateurs
-      const finalExp = this.applyExperienceModifiers(baseExp, params);
-      
-      // 3. Trouver le Pokémon en base
-      const ownedPokemon = await this.findOwnedPokemon(params.winnerPokemon);
-      if (!ownedPokemon) {
-        return this.createErrorResult(params.winnerPokemon.name, 'Pokémon non trouvé en base');
-      }
-      
-      // 4. Sauvegarder état initial
-      const oldLevel = ownedPokemon.level;
-      const oldExp = ownedPokemon.experience;
-      
-      // 5. Appliquer l'expérience
-      ownedPokemon.experience += finalExp;
-      
-      // 6. Vérifier montée de niveau
-      const levelUpResult = await this.checkLevelUp(ownedPokemon);
-      
-      // 7. Gérer apprentissage moves
-      const moveResults = await this.handleMovelearning(ownedPokemon, oldLevel, levelUpResult.newLevel);
-      
-      // 8. Vérifier évolution
-      const evolutionCheck = await this.checkEvolutionOpportunity(ownedPokemon);
-      
-      // 9. Sauvegarder
-      await ownedPokemon.save();
-      
-      // 10. Mettre à jour Pokédex
-      await this.updatePokedexProgress(ownedPokemon, levelUpResult.leveledUp);
-      
-      // 11. Générer événements
-      const events = this.generateExperienceEvents({
-        expGained: finalExp,
-        leveledUp: levelUpResult.leveledUp,
-        oldLevel,
-        newLevel: levelUpResult.newLevel,
-        newMoves: moveResults,
-        evolutionOpportunity: evolutionCheck,
-        statGains: levelUpResult.statGains
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: source === 'battle' ? 'wild_battle' : source === 'candy' ? 'rare_candy' : 'special_event',
+        amount
       });
-      
-      console.log(`✅ [ExperienceService] ${params.winnerPokemon.name}: +${finalExp} XP, ${oldLevel} → ${levelUpResult.newLevel}`);
-      
-      return {
-        success: true,
-        pokemonName: params.winnerPokemon.name,
-        expGained: finalExp,
-        oldLevel,
-        newLevel: levelUpResult.newLevel,
-        leveledUp: levelUpResult.leveledUp,
-        events,
-        data: {
-          oldExp,
-          newExp: ownedPokemon.experience,
-          newMoves: moveResults,
-          canEvolve: evolutionCheck,
-          statGains: levelUpResult.statGains,
-          nextLevelExp: this.getExperienceForLevel(ownedPokemon.pokemonId, levelUpResult.newLevel + 1)
-        }
-      };
-      
+      return result.success;
     } catch (error) {
-      console.error('❌ [ExperienceService] Erreur attribution XP:', error);
-      return this.createErrorResult(
-        params.winnerPokemon.name, 
-        error instanceof Error ? error.message : 'Erreur inconnue'
+      console.error(`❌ [ExperienceService] giveExperience failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * API simple pour XP de combat sauvage
+   */
+  async giveWildBattleExperience(
+    participantPokemonIds: string[],
+    defeatedPokemon: { pokemonId: number; level: number },
+    location: string = 'Wild Area'
+  ): Promise<boolean> {
+    try {
+      const results = await Promise.all(
+        participantPokemonIds.map(pokemonId => 
+          this.processExperienceGain({
+            gainedBy: pokemonId,
+            source: 'wild_battle',
+            defeatedPokemon: {
+              pokemonId: defeatedPokemon.pokemonId,
+              level: defeatedPokemon.level,
+              baseExperience: 0, // Sera calculé
+              isWild: true,
+              isTrainerOwned: false
+            },
+            modifiers: {
+              isParticipant: true,
+              expShare: false
+            },
+            location
+          })
+        )
       );
+      
+      return results.every(result => result.success);
+    } catch (error) {
+      console.error(`❌ [ExperienceService] giveWildBattleExperience failed:`, error);
+      return false;
     }
   }
   
-  /**
-   * Distribue l'XP à toute une équipe (Exp. Share)
-   */
-  async distributeTeamExperience(
-    context: BattleExperienceContext,
-    baseParams: Omit<ExperienceParams, 'winnerPokemon'>
-  ): Promise<ExperienceGainResult[]> {
-    console.log(`🌟 [ExperienceService] Distribution XP équipe: ${context.participatingPokemon.length} Pokémon`);
-    
-    const results: ExperienceGainResult[] = [];
-    
-    for (const pokemon of context.participatingPokemon) {
-      // Calculer participation
-      const participationBonus = pokemon.id === context.participatingPokemon[0].id ? 
-        EXPERIENCE_CONSTANTS.PARTICIPATION_BONUS : 1.0;
-      
-      const expParams: ExperienceParams = {
-        ...baseParams,
-        winnerPokemon: pokemon,
-        participantCount: context.participatingPokemon.length,
-        usedExpShare: context.expShareEnabled
-      };
-      
-      const result = await this.giveExperience(expParams);
-      
-      // Ajuster XP pour Exp. Share
-      if (context.expShareEnabled && participationBonus === 1.0) {
-        result.expGained = Math.floor(result.expGained * 0.5); // 50% pour non-participants
-      }
-      
-      results.push(result);
-    }
-    
-    console.log(`✅ [ExperienceService] Distribution terminée: ${results.length} résultats`);
-    return results;
-  }
-  
-  // === CALCULS D'EXPÉRIENCE ===
+  // ===== MÉTHODE PRINCIPALE DE TRAITEMENT =====
   
   /**
-   * Calcule l'XP de base selon la formule Gen V moderne
+   * Traite le gain d'expérience avec toute la logique associée
    */
-  private async calculateBaseExperience(params: ExperienceParams): Promise<number> {
-    const { winnerPokemon, loserPokemon, battleType } = params;
+  async processExperienceGain(context: ExperienceGainContext): Promise<ExperienceResult> {
+    const startTime = Date.now();
+    const operationId = `exp_${context.gainedBy}_${Date.now()}`;
     
-    // Récupérer l'XP de base du Pokémon vaincu depuis PokemonData
-    let baseExpYield = 100; // Valeur par défaut
+    this.debugLog(`📈 Début traitement XP: ${context.gainedBy} (${context.source})`);
     
     try {
-      const pokemonData = await PokemonData.findByNationalDex(loserPokemon.id);
-      if (pokemonData) {
-        baseExpYield = pokemonData.baseExperience || pokemonData.baseExperienceYield || 100;
+      // Validation et sécurité
+      if (!this.config.enabled) {
+        return this.createFailureResult('Service désactivé');
       }
+      
+      if (this.ongoingOperations.has(context.gainedBy)) {
+        return this.createFailureResult('Opération en cours pour ce Pokémon');
+      }
+      
+      this.ongoingOperations.add(context.gainedBy);
+      this.stats.operationsCount++;
+      
+      try {
+        // 1. Récupérer le Pokémon
+        const ownedPokemon = await this.getOwnedPokemon(context.gainedBy);
+        if (!ownedPokemon) {
+          throw new Error('Pokémon introuvable');
+        }
+        
+        // Vérifier niveau max
+        if (ownedPokemon.level >= this.config.maxLevel) {
+          return this.createSuccessResult({
+            pokemon: this.createPokemonSummary(ownedPokemon, ownedPokemon, 0),
+            leveledUp: false,
+            levelsGained: 0,
+            newMoves: [],
+            notifications: ['Ce Pokémon est déjà au niveau maximum !']
+          });
+        }
+        
+        const beforePokemon = { ...ownedPokemon };
+        
+        // 2. Calculer l'XP à gagner
+        const expToGain = await this.calculateExperienceGain(context, ownedPokemon);
+        if (expToGain <= 0) {
+          return this.createSuccessResult({
+            pokemon: this.createPokemonSummary(beforePokemon, ownedPokemon, 0),
+            leveledUp: false,
+            levelsGained: 0,
+            newMoves: [],
+            notifications: ['Aucune expérience gagnée']
+          });
+        }
+        
+        this.debugLog(`💎 XP calculée: ${expToGain} pour ${ownedPokemon.nickname || 'Pokemon'}`);
+        
+        // 3. Appliquer l'XP et gérer les montées de niveau
+        const levelUpResult = await this.applyExperienceAndLevelUp(ownedPokemon, expToGain);
+        
+        // 4. Traiter les évolutions si auto-évolution activée
+        let evolutionData: any = undefined;
+        let hasEvolved = false;
+        
+        if (this.config.autoEvolution && levelUpResult.leveledUp) {
+          const evolutionResult = await this.checkAndProcessEvolution(ownedPokemon);
+          if (evolutionResult.evolved) {
+            hasEvolved = true;
+            evolutionData = evolutionResult.evolutionData;
+            levelUpResult.notifications.push(`🌟 ${ownedPokemon.nickname || 'Votre Pokémon'} a évolué !`);
+          }
+        }
+        
+        // 5. Sauvegarder les changements
+        await this.saveOwnedPokemon(ownedPokemon);
+        
+        // 6. Créer le résultat final
+        const result: ExperienceResult = {
+          success: true,
+          pokemon: this.createPokemonSummary(beforePokemon, ownedPokemon, expToGain),
+          leveledUp: levelUpResult.leveledUp,
+          levelsGained: levelUpResult.levelsGained,
+          hasEvolved,
+          evolutionData,
+          newMoves: levelUpResult.newMoves,
+          statGains: levelUpResult.statGains,
+          notifications: levelUpResult.notifications,
+          achievements: await this.checkAchievements(context, levelUpResult),
+          performance: {
+            executionTime: Date.now() - startTime,
+            operationsCount: 1
+          }
+        };
+        
+        // 7. Émettre les événements
+        this.emitEvents(context, result);
+        
+        // 8. Mettre à jour les statistiques
+        this.updateStats(expToGain, levelUpResult.levelsGained, hasEvolved, levelUpResult.newMoves.length);
+        
+        this.debugLog(`✅ XP traitée: +${expToGain} XP, ${levelUpResult.levelsGained} niveaux, ${levelUpResult.newMoves.length} sorts`);
+        
+        return result;
+        
+      } finally {
+        this.ongoingOperations.delete(context.gainedBy);
+      }
+      
     } catch (error) {
-      console.warn(`⚠️ [ExperienceService] Impossible de récupérer baseExperience pour ${loserPokemon.name}, utilisation valeur par défaut`);
+      this.emit('error', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error(`❌ [ExperienceService] Erreur processExperienceGain:`, error);
+      
+      return this.createFailureResult(errorMessage);
+    }
+  }
+  
+  // ===== CALCUL D'EXPÉRIENCE =====
+  
+  /**
+   * Calcule l'XP à gagner selon les différentes sources et modificateurs
+   */
+  private async calculateExperienceGain(
+    context: ExperienceGainContext,
+    ownedPokemon: IOwnedPokemon
+  ): Promise<number> {
+    
+    // XP fixe pour certaines sources
+    if (context.amount !== undefined) {
+      return Math.max(0, context.amount);
     }
     
-    const levelDefender = loserPokemon.level;
-    const levelAttacker = winnerPokemon.level;
-    
-    // Formule Gen V moderne (plus équilibrée que les anciennes)
-    let exp = (baseExpYield * levelDefender) / 7;
-    
-    // Facteur de niveau (évite le power-leveling)
-    const levelDiff = levelDefender - levelAttacker;
-    const levelFactor = Math.pow(2 * levelDefender + 10, 2.5) / 
-                       Math.pow(levelDefender + levelAttacker + 10, 2.5);
-    
-    exp = exp * levelFactor;
-    
-    // Bonus combat dresseur
-    if (battleType === 'trainer') {
-      exp *= EXPERIENCE_CONSTANTS.TRAINER_BATTLE_BONUS;
+    // XP de combat
+    if (context.source === 'wild_battle' || context.source === 'trainer_battle') {
+      return await this.calculateBattleExperience(context, ownedPokemon);
     }
     
-    // Limitation pour éviter les abus
-    return Math.max(
-      EXPERIENCE_CONSTANTS.MIN_EXP_GAIN,
-      Math.min(Math.floor(exp), EXPERIENCE_CONSTANTS.MAX_EXP_GAIN)
-    );
+    // XP d'évolution (bonus)
+    if (context.source === 'evolution') {
+      return Math.floor(ownedPokemon.level * 5); // Bonus d'évolution
+    }
+    
+    // Autres sources
+    return 0;
   }
   
   /**
-   * Applique tous les modificateurs d'XP
+   * Calcule l'XP de combat avec la formule moderne
    */
-  private applyExperienceModifiers(baseExp: number, params: ExperienceParams): number {
-    let finalExp = baseExp;
+  private async calculateBattleExperience(
+    context: ExperienceGainContext,
+    ownedPokemon: IOwnedPokemon
+  ): Promise<number> {
     
-    // Pokémon échangé
-    if (params.isForeigner) {
-      finalExp *= EXPERIENCE_CONSTANTS.TRADED_POKEMON_BONUS;
+    if (!context.defeatedPokemon) return 0;
+    
+    const defeated = context.defeatedPokemon;
+    
+    // Récupérer les données du Pokémon vaincu
+    const defeatedData = await this.getPokemonData(defeated.pokemonId);
+    if (!defeatedData) return 0;
+    
+    // Base XP du Pokémon vaincu
+    let baseExp = defeated.baseExperience || defeatedData.baseExperience || 60;
+    
+    // Formule moderne (Gen 5+) ou classique
+    let experience: number;
+    
+    if (this.config.modernExpFormula) {
+      // Formule Gen 5+: plus équilibrée
+      const levelRatio = (defeated.level * 2 + 10) / (defeated.level + ownedPokemon.level + 10);
+      experience = Math.floor((baseExp * defeated.level * levelRatio) / 5);
+    } else {
+      // Formule classique Gen 1-4
+      experience = Math.floor((baseExp * defeated.level) / 7);
     }
     
-    // Lucky Egg
-    if (params.isLucky) {
-      finalExp *= EXPERIENCE_CONSTANTS.LUCKY_EGG_BONUS;
+    // Aplicar modificadores
+    const modifiers = context.modifiers || {};
+    
+    // Combat de dresseur (+50%)
+    if (context.source === 'trainer_battle' || defeated.isTrainerOwned) {
+      experience = Math.floor(experience * 1.5);
     }
     
-    // Exp. Share (réduction si multiple participants)
-    if (params.usedExpShare && params.participantCount && params.participantCount > 1) {
-      finalExp *= 0.7; // Réduction pour compensation
+    // Pokémon échangé (+50%)
+    if (modifiers.isTraded) {
+      experience = Math.floor(experience * 1.5);
     }
     
-    return Math.floor(finalExp);
+    // Œuf Chance (+100%)
+    if (modifiers.hasLuckyEgg) {
+      experience = Math.floor(experience * 2.0);
+    }
+    
+    // Échange international (+70%)
+    if (modifiers.isInternational) {
+      experience = Math.floor(experience * 1.7);
+    }
+    
+    // Affection maximale (+20%)
+    if (modifiers.affectionLevel && modifiers.affectionLevel >= 5) {
+      experience = Math.floor(experience * 1.2);
+    }
+    
+    // Partage d'expérience (réduction si pas participant direct)
+    if (modifiers.expShare && !modifiers.isParticipant) {
+      if (this.config.expShareMode === 'modern') {
+        // Mode moderne: XP complète pour tous
+        // Pas de réduction
+      } else {
+        // Mode classique: division de l'XP
+        experience = Math.floor(experience * 0.5);
+      }
+    }
+    
+    return Math.max(1, experience);
+  }
+  
+  // ===== GESTION DES MONTÉES DE NIVEAU =====
+  
+  /**
+   * Applique l'XP et gère les montées de niveau successives
+   */
+  private async applyExperienceAndLevelUp(
+    ownedPokemon: IOwnedPokemon,
+    expToGain: number
+  ): Promise<{
+    leveledUp: boolean;
+    levelsGained: number;
+    newMoves: Array<{ moveId: string; moveName: string; learnedAtLevel: number; wasLearned: boolean }>;
+    statGains?: Record<string, number>;
+    notifications: string[];
+  }> {
+    
+    const initialLevel = ownedPokemon.level;
+    const initialExp = ownedPokemon.experience;
+    
+    // Ajouter l'expérience
+    ownedPokemon.experience += expToGain;
+    
+    const notifications: string[] = [];
+    const newMoves: Array<{ moveId: string; moveName: string; learnedAtLevel: number; wasLearned: boolean }> = [];
+    let totalLevelsGained = 0;
+    
+    // Vérifier les montées de niveau successives
+    while (ownedPokemon.level < this.config.maxLevel) {
+      const expForNextLevel = this.calculateExpForLevel(ownedPokemon.level + 1, ownedPokemon);
+      
+      if (ownedPokemon.experience < expForNextLevel) {
+        break; // Plus assez d'XP pour le niveau suivant
+      }
+      
+      // Montée de niveau !
+      ownedPokemon.level++;
+      totalLevelsGained++;
+      
+      this.debugLog(`🆙 Niveau up! ${ownedPokemon.nickname || 'Pokemon'} niveau ${ownedPokemon.level}`);
+      
+      // Recalculer les stats
+      await ownedPokemon.recalculateStats();
+      
+      // Soigner le Pokémon (HP complet)
+      ownedPokemon.currentHp = ownedPokemon.maxHp;
+      
+      // Vérifier les nouveaux sorts
+      const movesThisLevel = await this.checkNewMovesAtLevel(ownedPokemon, ownedPokemon.level);
+      for (const moveData of movesThisLevel) {
+        const learned = await this.handleMoveLearn(ownedPokemon, moveData);
+        newMoves.push({
+          moveId: moveData.moveId,
+          moveName: moveData.moveName,
+          learnedAtLevel: ownedPokemon.level,
+          wasLearned: learned
+        });
+      }
+      
+      // Notification de niveau
+      notifications.push(`🆙 ${ownedPokemon.nickname || 'Votre Pokémon'} est maintenant niveau ${ownedPokemon.level} !`);
+    }
+    
+    // Calculer les gains de stats (estimation)
+    const statGains = totalLevelsGained > 0 ? await this.estimateStatGains(ownedPokemon, totalLevelsGained) : undefined;
+    
+    return {
+      leveledUp: totalLevelsGained > 0,
+      levelsGained: totalLevelsGained,
+      newMoves,
+      statGains,
+      notifications
+    };
   }
   
   /**
    * Calcule l'XP nécessaire pour un niveau donné
    */
-  private async getExperienceForLevel(pokemonId: number, level: number): Promise<number> {
-    if (level <= 1) return 0;
-    if (level > EXPERIENCE_CONSTANTS.MAX_LEVEL) {
-      level = EXPERIENCE_CONSTANTS.MAX_LEVEL;
+  private calculateExpForLevel(level: number, ownedPokemon: IOwnedPokemon): number {
+    // Récupérer le taux de croissance depuis les données du Pokémon
+    // Pour l'instant, utiliser Medium Fast comme défaut
+    const growthRate = 'medium_fast'; // TODO: récupérer depuis les données
+    
+    switch (growthRate) {
+      case 'fast':
+        return Math.floor((4 * Math.pow(level, 3)) / 5);
+      case 'medium_fast':
+        return Math.pow(level, 3);
+      case 'medium_slow':
+        return Math.floor((6/5) * Math.pow(level, 3) - 15 * Math.pow(level, 2) + 100 * level - 140);
+      case 'slow':
+        return Math.floor((5 * Math.pow(level, 3)) / 4);
+      case 'erratic':
+        if (level <= 50) {
+          return Math.floor((Math.pow(level, 3) * (100 - level)) / 50);
+        } else if (level <= 68) {
+          return Math.floor((Math.pow(level, 3) * (150 - level)) / 100);
+        } else if (level <= 98) {
+          return Math.floor((Math.pow(level, 3) * Math.floor((1911 - 10 * level) / 3)) / 500);
+        } else {
+          return Math.floor((Math.pow(level, 3) * (160 - level)) / 100);
+        }
+      case 'fluctuating':
+        if (level <= 15) {
+          return Math.floor(Math.pow(level, 3) * ((Math.floor((level + 1) / 3) + 24) / 50));
+        } else if (level <= 36) {
+          return Math.floor(Math.pow(level, 3) * ((level + 14) / 50));
+        } else {
+          return Math.floor(Math.pow(level, 3) * ((Math.floor(level / 2) + 32) / 50));
+        }
+      default:
+        return Math.pow(level, 3); // Medium Fast par défaut
     }
-    
-    // Récupérer le growth rate depuis PokemonData
-    let growthRate: GrowthRate = 'medium_fast'; // Défaut
-    
+  }
+  
+  // ===== GESTION DE L'APPRENTISSAGE DE SORTS =====
+  
+  /**
+   * Vérifie les nouveaux sorts disponibles à un niveau
+   */
+  private async checkNewMovesAtLevel(ownedPokemon: IOwnedPokemon, level: number): Promise<Array<{ moveId: string; moveName: string }>> {
     try {
-      const pokemonData = await PokemonData.findByNationalDex(pokemonId);
-      if (pokemonData && pokemonData.growthRate) {
-        growthRate = pokemonData.growthRate;
-      }
-    } catch (error) {
-      console.warn(`⚠️ [ExperienceService] Impossible de récupérer growthRate pour ${pokemonId}, utilisation medium_fast`);
-    }
-    
-    const formula = GROWTH_RATE_FORMULAS[growthRate];
-    return Math.floor(formula(level));
-  }
-  
-  // === GESTION NIVEAU ===
-  
-  /**
-   * Vérifie et applique les montées de niveau
-   */
-  private async checkLevelUp(ownedPokemon: any): Promise<{
-    leveledUp: boolean;
-    newLevel: number;
-    statGains?: StatGains;
-  }> {
-    const oldLevel = ownedPokemon.level;
-    let newLevel = oldLevel;
-    let statGains: StatGains | undefined;
-    
-    // Calculer le nouveau niveau
-    while (newLevel < EXPERIENCE_CONSTANTS.MAX_LEVEL) {
-      const expRequired = await this.getExperienceForLevel(ownedPokemon.pokemonId, newLevel + 1);
-      if (ownedPokemon.experience >= expRequired) {
-        newLevel++;
-      } else {
-        break;
-      }
-    }
-    
-    const leveledUp = newLevel > oldLevel;
-    
-    if (leveledUp) {
-      console.log(`📈 [ExperienceService] ${ownedPokemon.nickname || 'Pokémon'}: ${oldLevel} → ${newLevel}`);
-      
-      // Calculer gains de stats
-      statGains = await this.calculateStatGains(ownedPokemon, oldLevel, newLevel);
-      
-      // Mettre à jour le Pokémon
-      ownedPokemon.level = newLevel;
-      await this.updatePokemonStats(ownedPokemon, statGains);
-    }
-    
-    return { leveledUp, newLevel, statGains };
-  }
-  
-  /**
-   * Calcule les gains de stats pour la montée de niveau
-   */
-  private async calculateStatGains(
-    ownedPokemon: any,
-    oldLevel: number,
-    newLevel: number
-  ): Promise<StatGains> {
-    // Récupérer les stats de base depuis PokemonData
-    const pokemonData = await PokemonData.findByNationalDex(ownedPokemon.pokemonId);
-    
-    if (!pokemonData) {
-      // Stats par défaut si pas de données
-      return {
-        hp: newLevel - oldLevel,
-        attack: 1,
-        defense: 1,
-        specialAttack: 1,
-        specialDefense: 1,
-        speed: 1
-      };
-    }
-    
-    // Calculer stats au nouveau niveau vs ancien niveau
-    const oldStats = this.calculateStatsAtLevel(pokemonData, oldLevel, ownedPokemon);
-    const newStats = this.calculateStatsAtLevel(pokemonData, newLevel, ownedPokemon);
-    
-    return {
-      hp: newStats.hp - oldStats.hp,
-      attack: newStats.attack - oldStats.attack,
-      defense: newStats.defense - oldStats.defense,
-      specialAttack: newStats.specialAttack - oldStats.specialAttack,
-      specialDefense: newStats.specialDefense - oldStats.specialDefense,
-      speed: newStats.speed - oldStats.speed
-    };
-  }
-  
-  /**
-   * Calcule les stats d'un Pokémon à un niveau donné
-   */
-  private calculateStatsAtLevel(pokemonData: any, level: number, ownedPokemon: any): any {
-    const baseStats = pokemonData.baseStats;
-    
-    // IVs et EVs (ou valeurs par défaut)
-    const ivs = ownedPokemon.ivs || { hp: 31, attack: 31, defense: 31, specialAttack: 31, specialDefense: 31, speed: 31 };
-    const evs = ownedPokemon.evs || { hp: 0, attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0 };
-    
-    return {
-      hp: this.calculateStat('hp', baseStats.hp, level, ivs.hp, evs.hp),
-      attack: this.calculateStat('attack', baseStats.attack, level, ivs.attack, evs.attack),
-      defense: this.calculateStat('defense', baseStats.defense, level, ivs.defense, evs.defense),
-      specialAttack: this.calculateStat('specialAttack', baseStats.specialAttack, level, ivs.specialAttack, evs.specialAttack),
-      specialDefense: this.calculateStat('specialDefense', baseStats.specialDefense, level, ivs.specialDefense, evs.specialDefense),
-      speed: this.calculateStat('speed', baseStats.speed, level, ivs.speed, evs.speed)
-    };
-  }
-  
-  /**
-   * Formule de calcul d'une stat individuelle
-   */
-  private calculateStat(statName: string, base: number, level: number, iv: number, ev: number): number {
-    if (statName === 'hp') {
-      // Formule HP
-      return Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + level + 10;
-    } else {
-      // Formule autres stats
-      return Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5;
-    }
-  }
-  
-  /**
-   * Met à jour les stats du Pokémon
-   */
-  private async updatePokemonStats(ownedPokemon: any, statGains: StatGains): Promise<void> {
-    // Mettre à jour HP max et current
-    const oldMaxHp = ownedPokemon.maxHp;
-    ownedPokemon.maxHp += statGains.hp;
-    
-    // Maintenir le ratio HP si blessé
-    if (ownedPokemon.currentHp < oldMaxHp && ownedPokemon.currentHp > 0) {
-      const hpRatio = ownedPokemon.currentHp / oldMaxHp;
-      ownedPokemon.currentHp = Math.floor(ownedPokemon.maxHp * hpRatio);
-    } else if (ownedPokemon.currentHp === oldMaxHp) {
-      // Si pleine santé, mettre à jour
-      ownedPokemon.currentHp = ownedPokemon.maxHp;
-    }
-    
-    // Mettre à jour autres stats si elles sont stockées
-    if (ownedPokemon.stats) {
-      ownedPokemon.stats.attack = (ownedPokemon.stats.attack || 0) + statGains.attack;
-      ownedPokemon.stats.defense = (ownedPokemon.stats.defense || 0) + statGains.defense;
-      ownedPokemon.stats.specialAttack = (ownedPokemon.stats.specialAttack || 0) + statGains.specialAttack;
-      ownedPokemon.stats.specialDefense = (ownedPokemon.stats.specialDefense || 0) + statGains.specialDefense;
-      ownedPokemon.stats.speed = (ownedPokemon.stats.speed || 0) + statGains.speed;
-    }
-  }
-  
-  // === APPRENTISSAGE MOVES ===
-  
-  /**
-   * Gère l'apprentissage automatique des moves
-   */
-  private async handleMovelearning(
-    ownedPokemon: any,
-    oldLevel: number,
-    newLevel: number
-  ): Promise<LearnedMove[]> {
-    if (newLevel <= oldLevel) return [];
-    
-    console.log(`📚 [ExperienceService] Vérification moves: ${oldLevel} → ${newLevel}`);
-    
-    const learnedMoves: LearnedMove[] = [];
-    
-    try {
-      // Récupérer les données Pokémon
-      const pokemonData = await PokemonData.findByNationalDex(ownedPokemon.pokemonId);
+      const pokemonData = await this.getPokemonData(ownedPokemon.pokemonId);
       if (!pokemonData) return [];
       
-      // Trouver tous les moves appris entre oldLevel+1 et newLevel
-      for (let level = oldLevel + 1; level <= newLevel; level++) {
-        const movesAtLevel = pokemonData.getMovesAtLevel(level);
+      // Récupérer les sorts de ce niveau depuis levelMoves optimisé
+      const movesAtLevel = pokemonData.levelMoves?.[level] || [];
+      
+      if (movesAtLevel.length === 0) {
+        // Fallback: rechercher dans learnset complet
+        const learnsetMoves = pokemonData.learnset
+          .filter(move => move.method === 'level' && move.level === level)
+          .map(move => move.moveId);
         
-        for (const moveId of movesAtLevel) {
-          const learned = await this.learnMove(ownedPokemon, moveId, level);
-          if (learned) {
-            learnedMoves.push(learned);
-          }
-        }
+        return learnsetMoves.map(moveId => ({
+          moveId,
+          moveName: moveId // TODO: récupérer le nom réel du sort
+        }));
       }
       
-      console.log(`📚 [ExperienceService] ${learnedMoves.length} moves appris`);
-      return learnedMoves;
+      return movesAtLevel.map(moveId => ({
+        moveId,
+        moveName: moveId // TODO: récupérer le nom réel du sort
+      }));
       
     } catch (error) {
-      console.error('❌ [ExperienceService] Erreur apprentissage moves:', error);
+      console.error('❌ Erreur checkNewMovesAtLevel:', error);
       return [];
     }
   }
   
   /**
-   * Apprend un move spécifique
+   * Gère l'apprentissage d'un nouveau sort
    */
-  private async learnMove(
-    ownedPokemon: any,
-    moveId: string,
-    level: number
-  ): Promise<LearnedMove | null> {
+  private async handleMoveLearn(
+    ownedPokemon: IOwnedPokemon,
+    moveData: { moveId: string; moveName: string }
+  ): Promise<boolean> {
     
-    // Vérifier si le Pokémon connaît déjà ce move
-    if (ownedPokemon.moves && ownedPokemon.moves.includes(moveId)) {
-      return null;
+    // Vérifier si le Pokémon connaît déjà ce sort
+    if (ownedPokemon.moves.some(move => move.moveId === moveData.moveId)) {
+      this.debugLog(`🔄 Sort déjà connu: ${moveData.moveName}`);
+      return false;
     }
     
-    // TODO: Récupérer le nom du move depuis MoveData
-    const moveName = this.getMoveDisplayName(moveId);
-    
-    // Si moins de 4 moves, apprendre directement
-    if (!ownedPokemon.moves || ownedPokemon.moves.length < 4) {
-      if (!ownedPokemon.moves) ownedPokemon.moves = [];
-      ownedPokemon.moves.push(moveId);
-      
-      console.log(`📚 [ExperienceService] Move appris: ${moveName}`);
-      
-      return {
-        moveId,
-        moveName,
-        level,
-        wasReplaced: false
-      };
+    // Si moins de 4 sorts, apprendre directement
+    if (ownedPokemon.moves.length < 4) {
+      await this.learnMove(ownedPokemon, moveData.moveId);
+      this.debugLog(`✅ Sort appris: ${moveData.moveName}`);
+      return true;
     }
     
-    // Si 4 moves, il faudra demander au joueur de choisir
-    // Pour l'instant, on saute (TODO: intégrer avec le système de choix)
-    console.log(`📚 [ExperienceService] Move ${moveName} sauté (4 moves max)`);
-    
-    return {
+    // 4 sorts déjà connus
+    if (this.config.autoMoveLearn) {
+      // Remplacer le premier sort automatiquement
+      await this.replaceMove(ownedPokemon, 0, moveData.moveId);
+      this.debugLog(`🔄 Sort remplacé automatiquement: ${moveData.moveName}`);
+      return true;
+    } else {
+      // Ajouter à la queue des choix en attente
+      this.addPendingMoveChoice(ownedPokemon._id.toString(), {
+        pokemonId: ownedPokemon._id.toString(),
+        moveId: moveData.moveId,
+        moveName: moveData.moveName,
+        level: ownedPokemon.level,
+        autoLearn: false
+      });
+      this.debugLog(`⏳ Sort en attente de choix: ${moveData.moveName}`);
+      return false;
+    }
+  }
+  
+  /**
+   * Apprend un nouveau sort (slot libre)
+   */
+  private async learnMove(ownedPokemon: IOwnedPokemon, moveId: string): Promise<void> {
+    // TODO: Récupérer les données du sort pour les PP
+    const newMove = {
       moveId,
-      moveName,
-      level,
-      wasReplaced: false
+      currentPp: 20, // TODO: récupérer PP réel
+      maxPp: 20
     };
+    
+    ownedPokemon.moves.push(newMove);
   }
   
   /**
-   * Nom d'affichage temporaire pour les moves
+   * Remplace un sort existant
    */
-  private getMoveDisplayName(moveId: string): string {
-    // TODO: Intégrer avec MoveData quand disponible
-    const names: Record<string, string> = {
-      'tackle': 'Charge',
-      'scratch': 'Griffe',
-      'growl': 'Rugissement',
-      'vine_whip': 'Fouet Lianes',
-      'razor_leaf': 'Tranch\'Herbe'
-    };
-    return names[moveId] || moveId;
-  }
-  
-  // === ÉVOLUTION ===
-  
-  /**
-   * Vérifie si le Pokémon peut évoluer
-   */
-  private async checkEvolutionOpportunity(ownedPokemon: any): Promise<EvolutionOpportunity> {
-    try {
-      const pokemonData = await PokemonData.findByNationalDex(ownedPokemon.pokemonId);
+  private async replaceMove(ownedPokemon: IOwnedPokemon, slotIndex: number, newMoveId: string): Promise<void> {
+    if (slotIndex >= 0 && slotIndex < ownedPokemon.moves.length) {
+      const newMove = {
+        moveId: newMoveId,
+        currentPp: 20, // TODO: récupérer PP réel
+        maxPp: 20
+      };
       
-      if (!pokemonData || !pokemonData.evolution.canEvolve) {
-        return { canEvolve: false, method: 'none', requirement: 'none', meetsRequirements: false };
+      ownedPokemon.moves[slotIndex] = newMove;
+    }
+  }
+  
+  // ===== GESTION DES ÉVOLUTIONS =====
+  
+  /**
+   * Vérifie et traite les évolutions possibles
+   */
+  private async checkAndProcessEvolution(ownedPokemon: IOwnedPokemon): Promise<{
+    evolved: boolean;
+    evolutionData?: any;
+  }> {
+    try {
+      const pokemonData = await this.getPokemonData(ownedPokemon.pokemonId);
+      if (!pokemonData?.evolution?.canEvolve) {
+        return { evolved: false };
       }
       
       const evolution = pokemonData.evolution;
-      let meetsRequirements = false;
       
-      // Vérifier selon la méthode d'évolution
-      switch (evolution.method) {
-        case 'level':
-          meetsRequirements = ownedPokemon.level >= evolution.requirement;
-          break;
-        case 'friendship':
-          meetsRequirements = (ownedPokemon.happiness || 0) >= evolution.requirement;
-          break;
-        case 'stone':
-          // TODO: Vérifier possession de l'objet
-          meetsRequirements = false;
-          break;
-        default:
-          meetsRequirements = false;
+      // Vérifier les conditions d'évolution
+      const canEvolve = this.checkEvolutionConditions(ownedPokemon, evolution);
+      if (!canEvolve) {
+        return { evolved: false };
       }
       
-      // TODO: Récupérer le nom du Pokémon d'évolution
-      const evolutionName = `Pokémon #${evolution.evolvesInto}`;
+      // TODO: Intégrer avec votre EvolutionService existant
+      // Pour l'instant, simulation simple
+      this.debugLog(`🌟 Évolution possible: ${pokemonData.name} → #${evolution.evolvesInto}`);
+      
+      // Ici vous intégrerez votre service d'évolution
+      // const evolutionResult = await evolutionService.evolve(ownedPokemon._id.toString());
       
       return {
-        canEvolve: true,
-        evolutionId: evolution.evolvesInto,
-        evolutionName,
-        method: evolution.method,
-        requirement: evolution.requirement,
-        meetsRequirements
+        evolved: false, // Sera true quand intégré
+        evolutionData: {
+          fromPokemonId: ownedPokemon.pokemonId,
+          toPokemonId: evolution.evolvesInto,
+          evolutionMethod: evolution.method
+        }
       };
       
     } catch (error) {
-      console.error('❌ [ExperienceService] Erreur vérification évolution:', error);
-      return { canEvolve: false, method: 'error', requirement: 'error', meetsRequirements: false };
+      console.error('❌ Erreur checkAndProcessEvolution:', error);
+      return { evolved: false };
     }
   }
   
-  // === INTÉGRATIONS ===
+  /**
+   * Vérifie les conditions d'évolution par niveau
+   */
+  private checkEvolutionConditions(ownedPokemon: IOwnedPokemon, evolution: any): boolean {
+    switch (evolution.method) {
+      case 'level':
+        return typeof evolution.requirement === 'number' && 
+               ownedPokemon.level >= evolution.requirement;
+      
+      case 'friendship':
+        return (ownedPokemon.friendship || 0) >= 220;
+      
+      // Autres méthodes d'évolution nécessitent des déclencheurs externes
+      default:
+        return false;
+    }
+  }
+  
+  // ===== API PUBLIQUE POUR LES CHOIX DE SORTS =====
   
   /**
-   * Met à jour le progrès Pokédex
+   * Récupère les choix de sorts en attente pour un Pokémon
    */
-  private async updatePokedexProgress(ownedPokemon: any, leveledUp: boolean): Promise<void> {
-    if (!leveledUp) return;
-    
+  getPendingMoveChoices(pokemonId: string): MoveLearnChoice[] {
+    return this.pendingMoveChoices.get(pokemonId) || [];
+  }
+  
+  /**
+   * Traite un choix de sort du joueur
+   */
+  async processMoveChoice(
+    pokemonId: string,
+    moveId: string,
+    forgetMove?: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Notifier le Pokédex de la progression (utilise la méthode existante)
-      await pokedexIntegrationService.handlePokemonEncounter({
-        playerId: ownedPokemon.owner,
-        pokemonId: ownedPokemon.pokemonId,
-        level: ownedPokemon.level,
-        location: 'Level Up',
-        method: 'level_up',
-        sessionId: ownedPokemon.sessionId || ownedPokemon.owner,
-        biome: 'training',
-        isEvent: false,
-        // Données additionnelles pour le level up
-        additionalData: {
-          oldLevel: ownedPokemon.level - 1,
-          newLevel: ownedPokemon.level,
-          experienceGained: true
+      const pendingChoices = this.pendingMoveChoices.get(pokemonId);
+      if (!pendingChoices || pendingChoices.length === 0) {
+        return { success: false, error: 'Aucun choix en attente' };
+      }
+      
+      const choiceIndex = pendingChoices.findIndex(choice => choice.moveId === moveId);
+      if (choiceIndex === -1) {
+        return { success: false, error: 'Choix de sort introuvable' };
+      }
+      
+      const choice = pendingChoices[choiceIndex];
+      const ownedPokemon = await this.getOwnedPokemon(pokemonId);
+      if (!ownedPokemon) {
+        return { success: false, error: 'Pokémon introuvable' };
+      }
+      
+      // Apprendre le sort
+      if (forgetMove) {
+        const forgetIndex = ownedPokemon.moves.findIndex(move => move.moveId === forgetMove);
+        if (forgetIndex !== -1) {
+          await this.replaceMove(ownedPokemon, forgetIndex, moveId);
         }
-      });
+      } else if (ownedPokemon.moves.length < 4) {
+        await this.learnMove(ownedPokemon, moveId);
+      }
+      
+      // Sauvegarder et nettoyer
+      await this.saveOwnedPokemon(ownedPokemon);
+      pendingChoices.splice(choiceIndex, 1);
+      
+      if (pendingChoices.length === 0) {
+        this.pendingMoveChoices.delete(pokemonId);
+      }
+      
+      this.debugLog(`✅ Choix de sort traité: ${choice.moveName}`);
+      return { success: true };
       
     } catch (error) {
-      // Continue même en cas d'erreur Pokédex
-      console.warn('⚠️ [ExperienceService] Erreur mise à jour Pokédex:', error);
+      console.error('❌ Erreur processMoveChoice:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' };
     }
   }
   
   /**
-   * Trouve le Pokémon en base de données
+   * Rejette un choix de sort (ne pas apprendre)
    */
-  private async findOwnedPokemon(pokemon: Pokemon): Promise<any> {
-    // Stratégies de recherche multiples
-    
-    // 1. Par combatId si disponible
-    if (pokemon.combatId) {
-      const found = await OwnedPokemon.findOne({ combatId: pokemon.combatId });
-      if (found) return found;
-    }
-    
-    // 2. Par isInTeam (pour équipe active)
-    const teamPokemon = await OwnedPokemon.findOne({
-      pokemonId: pokemon.id,
-      level: pokemon.level,
-      isInTeam: true
-    });
-    
-    if (teamPokemon) return teamPokemon;
-    
-    // 3. Recherche générale
-    return await OwnedPokemon.findOne({
-      pokemonId: pokemon.id,
-      level: pokemon.level,
-      maxHp: pokemon.maxHp
-    });
-  }
-  
-  // === GÉNÉRATION ÉVÉNEMENTS ===
-  
-  /**
-   * Génère tous les événements d'expérience pour l'UI
-   */
-  private generateExperienceEvents(data: {
-    expGained: number;
-    leveledUp: boolean;
-    oldLevel: number;
-    newLevel: number;
-    newMoves?: LearnedMove[];
-    evolutionOpportunity?: EvolutionOpportunity;
-    statGains?: StatGains;
-  }): ExperienceEvent[] {
-    const events: ExperienceEvent[] = [];
-    
-    // 1. Gain d'XP
-    events.push({
-      type: 'exp_gain',
-      message: `+${data.expGained} points d'expérience !`,
-      timing: EXPERIENCE_CONSTANTS.EXP_GAIN_TIMING,
-      data: { expGained: data.expGained }
-    });
-    
-    // 2. Montée de niveau
-    if (data.leveledUp) {
-      events.push({
-        type: 'level_up',
-        message: `Niveau ${data.newLevel} atteint !`,
-        timing: EXPERIENCE_CONSTANTS.LEVEL_UP_TIMING,
-        data: {
-          oldLevel: data.oldLevel,
-          newLevel: data.newLevel,
-          statGains: data.statGains
+  rejectMoveChoice(pokemonId: string, moveId: string): void {
+    const pendingChoices = this.pendingMoveChoices.get(pokemonId);
+    if (pendingChoices) {
+      const choiceIndex = pendingChoices.findIndex(choice => choice.moveId === moveId);
+      if (choiceIndex !== -1) {
+        pendingChoices.splice(choiceIndex, 1);
+        if (pendingChoices.length === 0) {
+          this.pendingMoveChoices.delete(pokemonId);
         }
+        this.debugLog(`❌ Choix de sort rejeté: ${moveId}`);
+      }
+    }
+  }
+  
+  // ===== UTILITAIRES PRIVÉS =====
+  
+  private addPendingMoveChoice(pokemonId: string, choice: MoveLearnChoice): void {
+    if (!this.pendingMoveChoices.has(pokemonId)) {
+      this.pendingMoveChoices.set(pokemonId, []);
+    }
+    this.pendingMoveChoices.get(pokemonId)!.push(choice);
+  }
+  
+  private async estimateStatGains(ownedPokemon: IOwnedPokemon, levelsGained: number): Promise<Record<string, number>> {
+    // Estimation basique des gains de stats
+    const baseGainPerLevel = 3; // Moyenne approximative
+    return {
+      hp: levelsGained * baseGainPerLevel,
+      attack: levelsGained * baseGainPerLevel,
+      defense: levelsGained * baseGainPerLevel,
+      specialAttack: levelsGained * baseGainPerLevel,
+      specialDefense: levelsGained * baseGainPerLevel,
+      speed: levelsGained * baseGainPerLevel
+    };
+  }
+  
+  private async checkAchievements(context: ExperienceGainContext, levelUpResult: any): Promise<string[]> {
+    const achievements: string[] = [];
+    
+    // TODO: Implémenter système d'accomplissements complet
+    if (levelUpResult.levelsGained >= 5) {
+      achievements.push('🏆 Accomplissement : Montée Spectaculaire !');
+    }
+    
+    if (levelUpResult.newMoves.length >= 3) {
+      achievements.push('📚 Accomplissement : Apprenant Rapide !');
+    }
+    
+    return achievements;
+  }
+  
+  private createPokemonSummary(
+    before: IOwnedPokemon,
+    after: IOwnedPokemon,
+    expGained: number
+  ): ExperienceResult['pokemon'] {
+    return {
+      id: after._id.toString(),
+      name: after.nickname || `Pokemon #${after.pokemonId}`,
+      beforeLevel: before.level,
+      afterLevel: after.level,
+      beforeExp: before.experience,
+      afterExp: after.experience,
+      expGained,
+      expToNextLevel: this.calculateExpForLevel(after.level + 1, after) - after.experience
+    };
+  }
+  
+  private emitEvents(context: ExperienceGainContext, result: ExperienceResult): void {
+    // Événement principal
+    this.emit('experienceGained', {
+      context,
+      result
+    });
+    
+    // Événements spécifiques
+    if (result.leveledUp) {
+      this.emit('levelUp', {
+        pokemonId: context.gainedBy,
+        fromLevel: result.pokemon.beforeLevel,
+        toLevel: result.pokemon.afterLevel,
+        levelsGained: result.levelsGained
       });
-      
-      // 3. Gains de stats
-      if (data.statGains) {
-        events.push({
-          type: 'stat_increase',
-          message: this.formatStatGainsMessage(data.statGains),
-          timing: 1000,
-          data: data.statGains
-        });
+    }
+    
+    if (result.hasEvolved) {
+      this.emit('evolutionTriggered', {
+        pokemonId: context.gainedBy,
+        evolutionData: result.evolutionData
+      });
+    }
+    
+    if (result.newMoves.length > 0) {
+      this.emit('newMovesAvailable', {
+        pokemonId: context.gainedBy,
+        moves: result.newMoves
+      });
+    }
+  }
+  
+  private updateStats(expGained: number, levelsGained: number, hasEvolved: boolean, movesLearned: number): void {
+    this.stats.totalExpGained += expGained;
+    this.stats.totalLevelsGained += levelsGained;
+    if (hasEvolved) this.stats.totalEvolutions++;
+    this.stats.totalMovesLearned += movesLearned;
+  }
+  
+  private createSuccessResult(data: Partial<ExperienceResult>): ExperienceResult {
+    return {
+      success: true,
+      pokemon: {
+        id: '',
+        name: '',
+        beforeLevel: 0,
+        afterLevel: 0,
+        beforeExp: 0,
+        afterExp: 0,
+        expGained: 0,
+        expToNextLevel: 0
+      },
+      leveledUp: false,
+      levelsGained: 0,
+      newMoves: [],
+      notifications: [],
+      achievements: [],
+      ...data
+    };
+  }
+  
+  private createFailureResult(error: string): ExperienceResult {
+    return {
+      success: false,
+      error,
+      pokemon: {
+        id: '',
+        name: '',
+        beforeLevel: 0,
+        afterLevel: 0,
+        beforeExp: 0,
+        afterExp: 0,
+        expGained: 0,
+        expToNextLevel: 0
+      },
+      leveledUp: false,
+      levelsGained: 0,
+      newMoves: [],
+      notifications: [],
+      achievements: []
+    };
+  }
+  
+  private debugLog(message: string): void {
+    if (this.config.debugMode) {
+      console.log(`🔧 [ExperienceService] ${message}`);
+    }
+  }
+  
+  private cleanupService(): void {
+    // Nettoyer les choix de sorts anciens (>1 heure)
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    
+    for (const [pokemonId, choices] of this.pendingMoveChoices.entries()) {
+      // TODO: ajouter timestamp aux choix pour nettoyer les anciens
+      if (choices.length === 0) {
+        this.pendingMoveChoices.delete(pokemonId);
       }
     }
     
-    // 4. Nouveaux moves
-    if (data.newMoves && data.newMoves.length > 0) {
-      data.newMoves.forEach(move => {
-        events.push({
-          type: 'move_learned',
-          message: `${move.moveName} appris !`,
-          timing: EXPERIENCE_CONSTANTS.MOVE_LEARN_TIMING,
-          data: move
-        });
-      });
+    this.debugLog(`🧹 Service nettoyé - Choix en attente: ${this.pendingMoveChoices.size}`);
+  }
+  
+  // ===== MÉTHODES D'ACCÈS AUX DONNÉES (À IMPLÉMENTER) =====
+  
+  /**
+   * Récupère un Pokémon possédé par son ID
+   * TODO: Intégrer avec votre modèle OwnedPokemon
+   */
+  private async getOwnedPokemon(pokemonId: string): Promise<IOwnedPokemon | null> {
+    // TODO: Remplacer par la vraie requête
+    // return await OwnedPokemon.findById(pokemonId);
+    
+    // Simulation pour l'instant
+    return null;
+  }
+  
+  /**
+   * Sauvegarde un Pokémon possédé
+   * TODO: Intégrer avec votre modèle OwnedPokemon
+   */
+  private async saveOwnedPokemon(ownedPokemon: IOwnedPokemon): Promise<void> {
+    // TODO: Remplacer par la vraie sauvegarde
+    // await ownedPokemon.save();
+    this.debugLog(`💾 Sauvegarde simulée du Pokémon ${ownedPokemon.pokemonId}`);
+  }
+  
+  /**
+   * Récupère les données d'un Pokémon avec cache
+   */
+  private async getPokemonData(pokemonId: number): Promise<IPokemonData | null> {
+    if (this.pokemonDataCache.has(pokemonId)) {
+      return this.pokemonDataCache.get(pokemonId)!;
     }
     
-    // 5. Évolution disponible
-    if (data.evolutionOpportunity?.meetsRequirements) {
-      events.push({
-        type: 'evolution_available',
-        message: `Évolution possible vers ${data.evolutionOpportunity.evolutionName} !`,
-        timing: EXPERIENCE_CONSTANTS.EVOLUTION_TIMING,
-        data: data.evolutionOpportunity
-      });
+    const data = await getPokemonById(pokemonId);
+    if (data) {
+      this.pokemonDataCache.set(pokemonId, data);
     }
     
-    return events;
+    return data;
   }
   
-  /**
-   * Formate le message des gains de stats
-   */
-  private formatStatGainsMessage(statGains: StatGains): string {
-    const gains: string[] = [];
-    
-    if (statGains.hp > 0) gains.push(`PV +${statGains.hp}`);
-    if (statGains.attack > 0) gains.push(`Attaque +${statGains.attack}`);
-    if (statGains.defense > 0) gains.push(`Défense +${statGains.defense}`);
-    if (statGains.specialAttack > 0) gains.push(`Att. Spé +${statGains.specialAttack}`);
-    if (statGains.specialDefense > 0) gains.push(`Déf. Spé +${statGains.specialDefense}`);
-    if (statGains.speed > 0) gains.push(`Vitesse +${statGains.speed}`);
-    
-    return gains.length > 0 ? gains.join(', ') : 'Stats mises à jour';
+  // ===== API PUBLIQUE DE CONFIGURATION =====
+  
+  updateConfig(newConfig: Partial<ExperienceServiceConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    this.debugLog('⚙️ Configuration mise à jour');
   }
   
-  // === UTILITAIRES ===
-  
-  /**
-   * Crée un résultat d'erreur
-   */
-  private createErrorResult(pokemonName: string, message: string): ExperienceGainResult {
-    return {
-      success: false,
-      error: message,
-      pokemonName,
-      expGained: 0,
-      oldLevel: 0,
-      newLevel: 0,
-      leveledUp: false,
-      events: []
-    };
+  getConfig(): ExperienceServiceConfig {
+    return { ...this.config };
   }
   
-  // === MÉTHODES PUBLIQUES UTILITAIRES ===
-  
-  /**
-   * Calcule l'XP nécessaire pour le prochain niveau
-   */
-  public async getExpForNextLevel(pokemonId: number, currentLevel: number): Promise<number> {
-    return await this.getExperienceForLevel(pokemonId, currentLevel + 1);
+  getStats(): typeof this.stats {
+    return { ...this.stats };
   }
   
-  /**
-   * Calcule l'XP restante avant le prochain niveau
-   */
-  public async getExpToNextLevel(pokemonId: number, currentLevel: number, currentExp: number): Promise<number> {
-    const nextLevelExp = await this.getExpForNextLevel(pokemonId, currentLevel);
-    return Math.max(0, nextLevelExp - currentExp);
+  setAutoEvolution(enabled: boolean): void {
+    this.config.autoEvolution = enabled;
+    console.log(`${enabled ? '✅' : '❌'} [ExperienceService] Auto-évolution ${enabled ? 'activée' : 'désactivée'}`);
   }
   
-  /**
-   * Vérifie si un niveau est valide
-   */
-  public isValidLevel(level: number): boolean {
-    return level >= 1 && level <= EXPERIENCE_CONSTANTS.MAX_LEVEL;
+  setAutoMoveLearn(enabled: boolean): void {
+    this.config.autoMoveLearn = enabled;
+    console.log(`${enabled ? '✅' : '❌'} [ExperienceService] Auto-apprentissage ${enabled ? 'activé' : 'désactivé'}`);
   }
   
-  /**
-   * Obtient les statistiques du service
-   */
-  public getStats(): any {
-    return {
-      version: 'experience_service_gen5_v1',
-      features: [
-        'gen5_exp_formula',
-        'automatic_level_up',
-        'move_learning',
-        'evolution_detection',
-        'exp_share_support',
-        'stat_calculation',
-        'pokedex_integration'
-      ],
-      constants: EXPERIENCE_CONSTANTS,
-      supportedGrowthRates: Object.keys(GROWTH_RATE_FORMULAS)
-    };
+  clearPendingChoices(pokemonId?: string): void {
+    if (pokemonId) {
+      this.pendingMoveChoices.delete(pokemonId);
+    } else {
+      this.pendingMoveChoices.clear();
+    }
+    console.log(`🧹 [ExperienceService] Choix en attente nettoyés${pokemonId ? ` pour ${pokemonId}` : ''}`);
   }
 }
 
-// Instance singleton
-export const experienceService = new ExperienceService();
-
+// ===== EXPORT SINGLETON =====
+export const experienceService = ExperienceService.getInstance();
 export default experienceService;
+
+// ===== GUIDE D'UTILISATION =====
+//
+// // Usage simple
+// const success = await experienceService.giveExperience(pokemonId, 1000);
+//
+// // Combat sauvage
+// const success = await experienceService.giveWildBattleExperience(
+//   [pokemonId1, pokemonId2], 
+//   { pokemonId: 25, level: 15 }
+// );
+//
+// // Traitement complet avec contexte
+// const result = await experienceService.processExperienceGain({
+//   gainedBy: pokemonId,
+//   source: 'wild_battle',
+//   defeatedPokemon: { pokemonId: 25, level: 15, baseExperience: 112, isWild: true, isTrainerOwned: false },
+//   modifiers: { isTraded: true, hasLuckyEgg: true, isParticipant: true }
+// });
+//
+// // Gérer les choix de sorts
+// const pendingChoices = experienceService.getPendingMoveChoices(pokemonId);
+// await experienceService.processMoveChoice(pokemonId, moveId, forgetMoveId);
+//
+// // Écouter les événements
+// experienceService.on('levelUp', (data) => {
+//   console.log(`Niveau ${data.toLevel} atteint !`);
+// });
+//
+// experienceService.on('newMovesAvailable', (data) => {
+//   console.log(`Nouveaux sorts disponibles:`, data.moves);
+// });
