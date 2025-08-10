@@ -16,7 +16,7 @@ import {
 } from '../managers/LocalizationManager.js';
 import { createPokemonTeamSwitchUI, setupTeamSwitchEvents } from '../Battle/PokemonTeamSwitchUI.js';
 import { createCaptureManager } from '../Battle/CaptureManager.js';
-import { ExperienceUI } from './ExperienceUI.js';
+import { ExperienceUI } from '../Battle/ExperienceUI.js';
 let pokemonSpriteConfig = null;
 
 export class BattleScene extends Phaser.Scene {
