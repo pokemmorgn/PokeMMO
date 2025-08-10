@@ -1,4 +1,271 @@
-// ===== API PUBLIQUE DE CONFIGURATION =====// server/src/services/ExperienceService.ts
+// ===== 🌟 API ÉVOLUTION INTÉGRÉE =====
+  
+  /**
+   * Tente d'évoluer un Pokémon par niveau
+   * @param playerPokemon - Pokémon à faire évoluer
+   * @param location - Lieu de l'évolution
+   */
+  async evolvePokemon(
+    playerPokemon: string | IOwnedPokemon,
+    location: string = 'Evolution'
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 evolvePokemon: ${pokemonId}`);
+      
+      return await evolutionService.evolve(pokemonId, location);
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] evolvePokemon failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Évolue un Pokémon avec une pierre d'évolution
+   * @param playerPokemon - Pokémon à faire évoluer
+   * @param stone - Type de pierre (ex: "fire_stone", "water_stone")
+   * @param location - Lieu de l'évolution
+   */
+  async evolveWithStone(
+    playerPokemon: string | IOwnedPokemon,
+    stone: string,
+    location: string = 'Evolution'
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 evolveWithStone: ${pokemonId} avec ${stone}`);
+      
+      return await evolutionService.evolveWithItem(pokemonId, stone, location);
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] evolveWithStone failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Vérifie si un Pokémon peut évoluer
+   * @param playerPokemon - Pokémon à vérifier
+   */
+  async canEvolve(playerPokemon: string | IOwnedPokemon): Promise<{
+    canEvolve: boolean;
+    method?: string;
+    requirement?: any;
+    missingRequirements?: string[];
+  }> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      const result = await evolutionService.canEvolve(pokemonId);
+      
+      return {
+        canEvolve: result.canEvolve,
+        method: result.evolutionData?.method,
+        requirement: result.evolutionData?.requirement,
+        missingRequirements: result.missingRequirements
+      };
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] canEvolve failed:`, error);
+      return { canEvolve: false };
+    }
+  }
+  
+  // ===== 📚 API APPRENTISSAGE DE SORTS =====
+  
+  /**
+   * Récupère les choix de sorts en attente
+   * @param playerPokemon - Pokémon à vérifier
+   */
+  getPendingMoves(playerPokemon: string | IOwnedPokemon): Array<{
+    moveId: string;
+    moveName: string;
+    level: number;
+  }> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      return this.getPendingMoveChoices(pokemonId);
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] getPendingMoves failed:`, error);
+      return [];
+    }
+  }
+  
+  /**
+   * Apprend un sort en remplaçant un ancien
+   * @param playerPokemon - Pokémon qui apprend
+   * @param newMove - ID du nouveau sort
+   * @param forgetMove - ID du sort à oublier (optionnel)
+   */
+  async learnMove(
+    playerPokemon: string | IOwnedPokemon,
+    newMove: string,
+    forgetMove?: string
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 learnMove: ${pokemonId} apprend ${newMove}${forgetMove ? ` (oublie ${forgetMove})` : ''}`);
+      
+      const result = await this.processMoveChoice(pokemonId, newMove, forgetMove);
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] learnMove failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Rejette l'apprentissage d'un sort
+   * @param playerPokemon - Pokémon concerné
+   * @param moveId - ID du sort à rejeter
+   */
+  rejectMove(playerPokemon: string | IOwnedPokemon, moveId: string): void {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 rejectMove: ${pokemonId} rejette ${moveId}`);
+      
+      this.rejectMoveChoice(pokemonId, moveId);
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] rejectMove failed:`, error);
+    }
+  }
+  
+  // ===== 📊 API STATUS ET UTILITAIRES =====
+  
+  /**
+   * Récupère le statut complet d'un Pokémon
+   * @param playerPokemon - Pokémon à analyser
+   */
+  async getPokemonStatus(playerPokemon: string | IOwnedPokemon): Promise<{
+    level: number;
+    experience: number;
+    expToNext: number;
+    canLevelUp: boolean;
+    canEvolve: boolean;
+    pendingMoves: number;
+    evolutionMethod?: string;
+    missingRequirements?: string[];
+  }> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      const [levelInfo, evolutionInfo, pendingMoves] = await Promise.all([
+        this.canLevelUp(pokemonId),
+        this.canEvolve(pokemonId),
+        Promise.resolve(this.getPendingMoves(pokemonId))
+      ]);
+      
+      return {
+        level: levelInfo.currentLevel,
+        experience: levelInfo.currentExp,
+        expToNext: levelInfo.expNeeded,
+        canLevelUp: levelInfo.canLevel,
+        canEvolve: evolutionInfo.canEvolve,
+        pendingMoves: pendingMoves.length,
+        evolutionMethod: evolutionInfo.method,
+        missingRequirements: evolutionInfo.missingRequirements
+      };
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] getPokemonStatus failed:`, error);
+      return {
+        level: 0,
+        experience: 0,
+        expToNext: 0,
+        canLevelUp: false,
+        canEvolve: false,
+        pendingMoves: 0
+      };
+    }
+  }
+  
+  /**
+   * Simule le gain d'XP sans l'appliquer
+   * @param playerPokemon - Pokémon à simuler
+   * @param amount - Quantité d'XP à simuler
+   */
+  async simulateXPGain(
+    playerPokemon: string | IOwnedPokemon,
+    amount: number
+  ): Promise<{
+    willLevelUp: boolean;
+    newLevel: number;
+    levelsGained: number;
+    willEvolve: boolean;
+    newMovesCount: number;
+  }> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      const ownedPokemon = await this.getOwnedPokemon(pokemonId);
+      
+      if (!ownedPokemon) {
+        return {
+          willLevelUp: false,
+          newLevel: 0,
+          levelsGained: 0,
+          willEvolve: false,
+          newMovesCount: 0
+        };
+      }
+      
+      // Simulation du gain d'XP
+      const currentLevel = ownedPokemon.level;
+      const newExp = ownedPokemon.experience + amount;
+      let newLevel = currentLevel;
+      
+      // Calculer le nouveau niveau
+      while (newLevel < this.config.maxLevel) {
+        const expForNextLevel = this.calculateExpForLevel(newLevel + 1, ownedPokemon);
+        if (newExp < expForNextLevel) break;
+        newLevel++;
+      }
+      
+      const levelsGained = newLevel - currentLevel;
+      const willLevelUp = levelsGained > 0;
+      
+      // Vérifier l'évolution possible
+      let willEvolve = false;
+      if (willLevelUp) {
+        const evolutionInfo = await this.canEvolve(pokemonId);
+        willEvolve = evolutionInfo.canEvolve;
+      }
+      
+      // Estimer les nouveaux sorts
+      let newMovesCount = 0;
+      if (willLevelUp) {
+        // TODO: Calculer les sorts entre currentLevel et newLevel
+        newMovesCount = levelsGained; // Approximation
+      }
+      
+      return {
+        willLevelUp,
+        newLevel,
+        levelsGained,
+        willEvolve,
+        newMovesCount
+      };
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] simulateXPGain failed:`, error);
+      return {
+        willLevelUp: false,
+        newLevel: 0,
+        levelsGained: 0,
+        willEvolve: false,
+        newMovesCount: 0
+      };
+    }
+  }  
+  // ===== API PUBLIQUE DE CONFIGURATION =====// server/src/services/ExperienceService.ts
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
@@ -201,62 +468,431 @@ export class ExperienceService extends EventEmitter {
     this.debugLog('Service d\'expérience initialisé avec succès');
   }
   
-  // ===== API PUBLIQUE SIMPLE =====
+  // ===== 🎯 API PUBLIQUE ULTRA-SIMPLE =====
   
   /**
-   * API ultra-simple pour donner de l'XP
+   * Donne de l'XP pour un combat sauvage (API simple)
+   * @param playerPokemon - Pokémon du joueur (ID string ou objet)
+   * @param pokemonAdvanced - Pokémon vaincu { pokemonId, level }
+   * @param level - Niveau du Pokémon vaincu (optionnel si dans pokemonAdvanced)
    */
-  async giveExperience(
-    pokemonId: string,
-    amount: number,
-    source: 'battle' | 'candy' | 'special' = 'battle'
+  async givePlayerWildXP(
+    playerPokemon: string | IOwnedPokemon,
+    pokemonAdvanced: { pokemonId: number; level: number } | number,
+    level?: number
   ): Promise<boolean> {
     try {
+      // Normaliser les paramètres
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      let defeatedPokemon: { pokemonId: number; level: number };
+      if (typeof pokemonAdvanced === 'number') {
+        defeatedPokemon = { pokemonId: pokemonAdvanced, level: level || 1 };
+      } else {
+        defeatedPokemon = pokemonAdvanced;
+      }
+      
+      this.debugLog(`🎯 givePlayerWildXP: ${pokemonId} vs #${defeatedPokemon.pokemonId} niveau ${defeatedPokemon.level}`);
+      
       const result = await this.processExperienceGain({
         gainedBy: pokemonId,
-        source: source === 'battle' ? 'wild_battle' : source === 'candy' ? 'rare_candy' : 'special_event',
-        amount
+        source: 'wild_battle',
+        defeatedPokemon: {
+          pokemonId: defeatedPokemon.pokemonId,
+          level: defeatedPokemon.level,
+          baseExperience: 0, // Sera calculé automatiquement
+          isWild: true,
+          isTrainerOwned: false
+        },
+        modifiers: {
+          isParticipant: true,
+          expShare: false
+        },
+        location: 'Wild Battle'
       });
+      
       return result.success;
+      
     } catch (error) {
-      console.error(`❌ [ExperienceService] giveExperience failed:`, error);
+      console.error(`❌ [ExperienceService] givePlayerWildXP failed:`, error);
       return false;
     }
   }
   
   /**
-   * API simple pour XP de combat sauvage
+   * Donne une quantité fixe d'XP (API simple)
+   * @param playerPokemon - Pokémon du joueur (ID string ou objet)
+   * @param amount - Quantité d'XP à donner
    */
-  async giveWildBattleExperience(
-    participantPokemonIds: string[],
-    defeatedPokemon: { pokemonId: number; level: number },
-    location: string = 'Wild Area'
+  async givePlayerXP(
+    playerPokemon: string | IOwnedPokemon,
+    amount: number
   ): Promise<boolean> {
     try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 givePlayerXP: ${pokemonId} +${amount} XP`);
+      
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: 'special_event',
+        amount: Math.max(0, amount),
+        location: 'Manual XP Grant'
+      });
+      
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] givePlayerXP failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Donne de l'XP pour un combat de dresseur (API simple)
+   * @param playerPokemon - Pokémon du joueur
+   * @param trainerPokemon - Pokémon du dresseur vaincu
+   * @param trainerLevel - Niveau du dresseur (optionnel, défaut 1)
+   */
+  async givePlayerTrainerXP(
+    playerPokemon: string | IOwnedPokemon,
+    trainerPokemon: { pokemonId: number; level: number } | number,
+    trainerLevel: number = 1
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      let defeatedPokemon: { pokemonId: number; level: number };
+      if (typeof trainerPokemon === 'number') {
+        defeatedPokemon = { pokemonId: trainerPokemon, level: trainerLevel };
+      } else {
+        defeatedPokemon = trainerPokemon;
+      }
+      
+      this.debugLog(`🎯 givePlayerTrainerXP: ${pokemonId} vs Dresseur #${defeatedPokemon.pokemonId}`);
+      
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: 'trainer_battle',
+        defeatedPokemon: {
+          pokemonId: defeatedPokemon.pokemonId,
+          level: defeatedPokemon.level,
+          baseExperience: 0,
+          isWild: false,
+          isTrainerOwned: true,
+          trainerLevel
+        },
+        modifiers: {
+          isParticipant: true,
+          expShare: false
+        },
+        location: 'Trainer Battle'
+      });
+      
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] givePlayerTrainerXP failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Utilise un Rare Candy (API simple)
+   * @param playerPokemon - Pokémon du joueur
+   */
+  async useRareCandy(playerPokemon: string | IOwnedPokemon): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 useRareCandy: ${pokemonId}`);
+      
+      // Calculer l'XP nécessaire pour le niveau suivant
+      // TODO: Améliorer avec le calcul exact depuis le Pokémon
+      const expForNextLevel = 1000; // Approximation pour l'instant
+      
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: 'rare_candy',
+        amount: expForNextLevel,
+        location: 'Rare Candy Usage'
+      });
+      
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] useRareCandy failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Donne de l'XP à plusieurs Pokémon (combat en équipe)
+   * @param playerPokemonIds - Liste des IDs des Pokémon participants
+   * @param defeatedPokemon - Pokémon vaincu
+   * @param isWildBattle - Si c'est un combat sauvage (défaut true)
+   */
+  async giveTeamWildXP(
+    playerPokemonIds: string[],
+    defeatedPokemon: { pokemonId: number; level: number },
+    isWildBattle: boolean = true
+  ): Promise<{ success: boolean; results: boolean[] }> {
+    try {
+      this.debugLog(`🎯 giveTeamWildXP: ${playerPokemonIds.length} Pokémon vs #${defeatedPokemon.pokemonId}`);
+      
       const results = await Promise.all(
-        participantPokemonIds.map(pokemonId => 
+        playerPokemonIds.map(pokemonId => 
+          isWildBattle 
+            ? this.givePlayerWildXP(pokemonId, defeatedPokemon)
+            : this.givePlayerTrainerXP(pokemonId, defeatedPokemon)
+        )
+      );
+      
+      const success = results.every(result => result);
+      
+      this.debugLog(`✅ giveTeamWildXP: ${results.filter(r => r).length}/${results.length} succès`);
+      
+      return { success, results };
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] giveTeamWildXP failed:`, error);
+      return { success: false, results: [] };
+    }
+  }
+  
+  /**
+   * Donne de l'XP avec partage d'expérience moderne
+   * @param activePokemon - Pokémon actif au combat
+   * @param teamPokemonIds - Autres Pokémon de l'équipe
+   * @param defeatedPokemon - Pokémon vaincu
+   */
+  async giveXPWithExpShare(
+    activePokemon: string,
+    teamPokemonIds: string[],
+    defeatedPokemon: { pokemonId: number; level: number }
+  ): Promise<{ success: boolean; activeResult: boolean; teamResults: boolean[] }> {
+    try {
+      this.debugLog(`🎯 giveXPWithExpShare: Actif ${activePokemon} + ${teamPokemonIds.length} équipiers`);
+      
+      // XP complète pour le Pokémon actif
+      const activeResult = await this.processExperienceGain({
+        gainedBy: activePokemon,
+        source: 'wild_battle',
+        defeatedPokemon: {
+          pokemonId: defeatedPokemon.pokemonId,
+          level: defeatedPokemon.level,
+          baseExperience: 0,
+          isWild: true,
+          isTrainerOwned: false
+        },
+        modifiers: {
+          isParticipant: true,
+          expShare: true,
+          modernExpShare: true
+        },
+        location: 'Wild Battle (Active)'
+      });
+      
+      // XP réduite pour l'équipe (mode moderne = XP complète aussi)
+      const teamResults = await Promise.all(
+        teamPokemonIds.map(pokemonId => 
           this.processExperienceGain({
             gainedBy: pokemonId,
             source: 'wild_battle',
             defeatedPokemon: {
               pokemonId: defeatedPokemon.pokemonId,
               level: defeatedPokemon.level,
-              baseExperience: 0, // Sera calculé
+              baseExperience: 0,
               isWild: true,
               isTrainerOwned: false
             },
             modifiers: {
-              isParticipant: true,
-              expShare: false
+              isParticipant: false,
+              expShare: true,
+              modernExpShare: true
             },
-            location
+            location: 'Wild Battle (Exp Share)'
           })
         )
       );
       
-      return results.every(result => result.success);
+      const teamSuccess = teamResults.map(r => r.success);
+      const success = activeResult.success && teamSuccess.every(s => s);
+      
+      this.debugLog(`✅ giveXPWithExpShare: Actif=${activeResult.success}, Équipe=${teamSuccess.filter(s => s).length}/${teamSuccess.length}`);
+      
+      return { success, activeResult: activeResult.success, teamResults: teamSuccess };
+      
     } catch (error) {
-      console.error(`❌ [ExperienceService] giveWildBattleExperience failed:`, error);
+      console.error(`❌ [ExperienceService] giveXPWithExpShare failed:`, error);
+      return { success: false, activeResult: false, teamResults: [] };
+    }
+  }
+  
+  /**
+   * Donne de l'XP avec Œuf Chance (bonus +100%)
+   * @param playerPokemon - Pokémon du joueur avec Œuf Chance
+   * @param defeatedPokemon - Pokémon vaincu
+   */
+  async giveXPWithLuckyEgg(
+    playerPokemon: string | IOwnedPokemon,
+    defeatedPokemon: { pokemonId: number; level: number }
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 giveXPWithLuckyEgg: ${pokemonId} avec Œuf Chance`);
+      
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: 'wild_battle',
+        defeatedPokemon: {
+          pokemonId: defeatedPokemon.pokemonId,
+          level: defeatedPokemon.level,
+          baseExperience: 0,
+          isWild: true,
+          isTrainerOwned: false
+        },
+        modifiers: {
+          isParticipant: true,
+          hasLuckyEgg: true, // +100% XP
+          expShare: false
+        },
+        location: 'Wild Battle (Lucky Egg)'
+      });
+      
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] giveXPWithLuckyEgg failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Donne de l'XP pour un Pokémon échangé (bonus +50%)
+   * @param tradedPokemon - Pokémon échangé
+   * @param defeatedPokemon - Pokémon vaincu
+   * @param isInternational - Si c'est un échange international (+70%)
+   */
+  async giveTradedPokemonXP(
+    tradedPokemon: string | IOwnedPokemon,
+    defeatedPokemon: { pokemonId: number; level: number },
+    isInternational: boolean = false
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof tradedPokemon === 'string' ? tradedPokemon : tradedPokemon._id?.toString() || '';
+      
+      this.debugLog(`🎯 giveTradedPokemonXP: ${pokemonId} échangé ${isInternational ? '(international)' : ''}`);
+      
+      const result = await this.processExperienceGain({
+        gainedBy: pokemonId,
+        source: 'wild_battle',
+        defeatedPokemon: {
+          pokemonId: defeatedPokemon.pokemonId,
+          level: defeatedPokemon.level,
+          baseExperience: 0,
+          isWild: true,
+          isTrainerOwned: false
+        },
+        modifiers: {
+          isParticipant: true,
+          isTraded: true, // +50% XP
+          isInternational, // +70% XP si true
+          expShare: false
+        },
+        location: 'Wild Battle (Traded)'
+      });
+      
+      return result.success;
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] giveTradedPokemonXP failed:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Vérifie si un Pokémon peut monter de niveau
+   * @param playerPokemon - Pokémon à vérifier
+   */
+  async canLevelUp(playerPokemon: string | IOwnedPokemon): Promise<{
+    canLevel: boolean;
+    currentLevel: number;
+    currentExp: number;
+    expNeeded: number;
+    expForNextLevel: number;
+  }> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      const ownedPokemon = await this.getOwnedPokemon(pokemonId);
+      
+      if (!ownedPokemon) {
+        return {
+          canLevel: false,
+          currentLevel: 0,
+          currentExp: 0,
+          expNeeded: 0,
+          expForNextLevel: 0
+        };
+      }
+      
+      const expForNextLevel = this.calculateExpForLevel(ownedPokemon.level + 1, ownedPokemon);
+      const expNeeded = expForNextLevel - ownedPokemon.experience;
+      
+      return {
+        canLevel: ownedPokemon.level < this.config.maxLevel && expNeeded > 0,
+        currentLevel: ownedPokemon.level,
+        currentExp: ownedPokemon.experience,
+        expNeeded: Math.max(0, expNeeded),
+        expForNextLevel
+      };
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] canLevelUp failed:`, error);
+      return {
+        canLevel: false,
+        currentLevel: 0,
+        currentExp: 0,
+        expNeeded: 0,
+        expForNextLevel: 0
+      };
+    }
+  }
+  
+  /**
+   * Force un Pokémon à un niveau spécifique (pour les tests/admin)
+   * @param playerPokemon - Pokémon à modifier
+   * @param targetLevel - Niveau cible (1-100)
+   */
+  async setLevel(
+    playerPokemon: string | IOwnedPokemon,
+    targetLevel: number
+  ): Promise<boolean> {
+    try {
+      const pokemonId = typeof playerPokemon === 'string' ? playerPokemon : playerPokemon._id?.toString() || '';
+      const level = Math.max(1, Math.min(this.config.maxLevel, targetLevel));
+      
+      this.debugLog(`🎯 setLevel: ${pokemonId} → niveau ${level}`);
+      
+      const ownedPokemon = await this.getOwnedPokemon(pokemonId);
+      if (!ownedPokemon) return false;
+      
+      // Calculer l'XP nécessaire pour ce niveau
+      const expNeeded = this.calculateExpForLevel(level, ownedPokemon);
+      const currentExp = ownedPokemon.experience;
+      
+      if (expNeeded > currentExp) {
+        // Donner l'XP manquante
+        const expToGive = expNeeded - currentExp;
+        return await this.givePlayerXP(pokemonId, expToGive);
+      } else {
+        // Niveau déjà atteint ou dépassé
+        return true;
+      }
+      
+    } catch (error) {
+      console.error(`❌ [ExperienceService] setLevel failed:`, error);
       return false;
     }
   }
@@ -1240,34 +1876,188 @@ export class ExperienceService extends EventEmitter {
 export const experienceService = ExperienceService.getInstance();
 export default experienceService;
 
-// ===== GUIDE D'UTILISATION =====
+// ===== 🎯 EXPORTS DIRECTS POUR API SIMPLE =====
+
+/**
+ * Donne de l'XP pour un combat sauvage
+ * @param playerPokemon - Pokémon du joueur (ID ou objet)
+ * @param pokemonAdvanced - Pokémon vaincu { pokemonId, level } ou juste pokemonId
+ * @param level - Niveau du Pokémon vaincu (si pokemonAdvanced est un nombre)
+ */
+export const givePlayerWildXP = (
+  playerPokemon: string | IOwnedPokemon,
+  pokemonAdvanced: { pokemonId: number; level: number } | number,
+  level?: number
+): Promise<boolean> => experienceService.givePlayerWildXP(playerPokemon, pokemonAdvanced, level);
+
+/**
+ * Donne une quantité fixe d'XP
+ * @param playerPokemon - Pokémon du joueur
+ * @param amount - Quantité d'XP à donner
+ */
+export const givePlayerXP = (
+  playerPokemon: string | IOwnedPokemon,
+  amount: number
+): Promise<boolean> => experienceService.givePlayerXP(playerPokemon, amount);
+
+/**
+ * Donne de l'XP pour un combat de dresseur
+ * @param playerPokemon - Pokémon du joueur
+ * @param trainerPokemon - Pokémon du dresseur vaincu
+ * @param trainerLevel - Niveau du dresseur
+ */
+export const givePlayerTrainerXP = (
+  playerPokemon: string | IOwnedPokemon,
+  trainerPokemon: { pokemonId: number; level: number } | number,
+  trainerLevel?: number
+): Promise<boolean> => experienceService.givePlayerTrainerXP(playerPokemon, trainerPokemon, trainerLevel);
+
+/**
+ * Utilise un Rare Candy
+ * @param playerPokemon - Pokémon du joueur
+ */
+export const useRareCandy = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<boolean> => experienceService.useRareCandy(playerPokemon);
+
+/**
+ * Donne de l'XP à une équipe de Pokémon
+ * @param playerPokemonIds - Liste des IDs des Pokémon
+ * @param defeatedPokemon - Pokémon vaincu
+ * @param isWildBattle - Si c'est un combat sauvage
+ */
+export const giveTeamWildXP = (
+  playerPokemonIds: string[],
+  defeatedPokemon: { pokemonId: number; level: number },
+  isWildBattle?: boolean
+): Promise<{ success: boolean; results: boolean[] }> => 
+  experienceService.giveTeamWildXP(playerPokemonIds, defeatedPokemon, isWildBattle);
+
+/**
+ * Donne de l'XP avec Œuf Chance (+100% XP)
+ * @param playerPokemon - Pokémon avec Œuf Chance
+ * @param defeatedPokemon - Pokémon vaincu
+ */
+export const giveXPWithLuckyEgg = (
+  playerPokemon: string | IOwnedPokemon,
+  defeatedPokemon: { pokemonId: number; level: number }
+): Promise<boolean> => experienceService.giveXPWithLuckyEgg(playerPokemon, defeatedPokemon);
+
+/**
+ * Donne de l'XP avec bonus Pokémon échangé
+ * @param tradedPokemon - Pokémon échangé
+ * @param defeatedPokemon - Pokémon vaincu
+ * @param isInternational - Si échange international (+70% au lieu de +50%)
+ */
+export const giveTradedPokemonXP = (
+  tradedPokemon: string | IOwnedPokemon,
+  defeatedPokemon: { pokemonId: number; level: number },
+  isInternational?: boolean
+): Promise<boolean> => experienceService.giveTradedPokemonXP(tradedPokemon, defeatedPokemon, isInternational);
+
+/**
+ * Tente d'évoluer un Pokémon
+ * @param playerPokemon - Pokémon à faire évoluer
+ * @param location - Lieu de l'évolution
+ */
+export const evolvePokemon = (
+  playerPokemon: string | IOwnedPokemon,
+  location?: string
+): Promise<boolean> => experienceService.evolvePokemon(playerPokemon, location);
+
+/**
+ * Évolue avec une pierre d'évolution
+ * @param playerPokemon - Pokémon à faire évoluer
+ * @param stone - Type de pierre
+ * @param location - Lieu de l'évolution
+ */
+export const evolveWithStone = (
+  playerPokemon: string | IOwnedPokemon,
+  stone: string,
+  location?: string
+): Promise<boolean> => experienceService.evolveWithStone(playerPokemon, stone, location);
+
+/**
+ * Vérifie si un Pokémon peut évoluer
+ * @param playerPokemon - Pokémon à vérifier
+ */
+export const canEvolve = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<{ canEvolve: boolean; method?: string; requirement?: any; missingRequirements?: string[] }> => 
+  experienceService.canEvolve(playerPokemon);
+
+/**
+ * Apprend un sort à un Pokémon
+ * @param playerPokemon - Pokémon qui apprend
+ * @param newMove - ID du nouveau sort
+ * @param forgetMove - ID du sort à oublier
+ */
+export const learnMove = (
+  playerPokemon: string | IOwnedPokemon,
+  newMove: string,
+  forgetMove?: string
+): Promise<boolean> => experienceService.learnMove(playerPokemon, newMove, forgetMove);
+
+/**
+ * Récupère le statut complet d'un Pokémon
+ * @param playerPokemon - Pokémon à analyser
+ */
+export const getPokemonStatus = (
+  playerPokemon: string | IOwnedPokemon
+): Promise<{
+  level: number;
+  experience: number;
+  expToNext: number;
+  canLevelUp: boolean;
+  canEvolve: boolean;
+  pendingMoves: number;
+  evolutionMethod?: string;
+}> => experienceService.getPokemonStatus(playerPokemon);
+
+/**
+ * Force un Pokémon à un niveau (admin/test)
+ * @param playerPokemon - Pokémon à modifier
+ * @param targetLevel - Niveau cible
+ */
+export const setLevel = (
+  playerPokemon: string | IOwnedPokemon,
+  targetLevel: number
+): Promise<boolean> => experienceService.setLevel(playerPokemon, targetLevel);
+
+// ===== GUIDE D'UTILISATION ULTRA-SIMPLE =====
 //
-// // Usage simple
-// const success = await experienceService.giveExperience(pokemonId, 1000);
+// // Donner XP de combat sauvage
+// import { givePlayerWildXP } from './services/ExperienceService';
+// await givePlayerWildXP(pokemonId, { pokemonId: 25, level: 15 });
+// await givePlayerWildXP(pokemonId, 25, 15); // Version courte
 //
-// // Combat sauvage
-// const success = await experienceService.giveWildBattleExperience(
-//   [pokemonId1, pokemonId2], 
-//   { pokemonId: 25, level: 15 }
-// );
+// // Donner XP fixe
+// import { givePlayerXP } from './services/ExperienceService';
+// await givePlayerXP(pokemonId, 1000);
 //
-// // Traitement complet avec contexte
-// const result = await experienceService.processExperienceGain({
-//   gainedBy: pokemonId,
-//   source: 'wild_battle',
-//   defeatedPokemon: { pokemonId: 25, level: 15, baseExperience: 112, isWild: true, isTrainerOwned: false },
-//   modifiers: { isTraded: true, hasLuckyEgg: true, isParticipant: true }
-// });
+// // Rare Candy
+// import { useRareCandy } from './services/ExperienceService';
+// await useRareCandy(pokemonId);
 //
-// // Gérer les choix de sorts
-// const pendingChoices = experienceService.getPendingMoveChoices(pokemonId);
-// await experienceService.processMoveChoice(pokemonId, moveId, forgetMoveId);
+// // XP équipe
+// import { giveTeamWildXP } from './services/ExperienceService';
+// await giveTeamWildXP([id1, id2, id3], { pokemonId: 150, level: 50 });
 //
-// // Écouter les événements
-// experienceService.on('levelUp', (data) => {
-//   console.log(`Niveau ${data.toLevel} atteint !`);
-// });
+// // XP avec bonus
+// import { giveXPWithLuckyEgg } from './services/ExperienceService';
+// await giveXPWithLuckyEgg(pokemonId, { pokemonId: 144, level: 60 });
 //
-// experienceService.on('newMovesAvailable', (data) => {
-//   console.log(`Nouveaux sorts disponibles:`, data.moves);
-// });
+// // Évolution
+// import { evolvePokemon, evolveWithStone } from './services/ExperienceService';
+// await evolvePokemon(pokemonId);
+// await evolveWithStone(pokemonId, "fire_stone");
+//
+// // Apprentissage
+// import { learnMove } from './services/ExperienceService';
+// await learnMove(pokemonId, "flamethrower", "ember");
+//
+// // Status
+// import { getPokemonStatus } from './services/ExperienceService';
+// const status = await getPokemonStatus(pokemonId);
+// console.log(`Niveau ${status.level}, ${status.expToNext} XP restante`);
+//
