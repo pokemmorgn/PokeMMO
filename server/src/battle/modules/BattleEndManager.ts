@@ -1,52 +1,4 @@
-/**
-   * 🆕 Trouve le Pokémon par sessionId (convertit en userId ET username)
-   */
-  private async findOwnedPokemonBySession(pokemon: Pokemon, sessionId: string): Promise<any> {
-    try {
-      // 🎯 CONVERTIR sessionId en userId via JWTManager
-      const { JWTManager } = require('../../managers/JWTManager');
-      const jwtManager = JWTManager.getInstance();
-      
-      console.log(`🔍 [BattleEndManager] Debug sessionId: ${sessionId}`);
-      
-      let userId = jwtManager.getUserId(sessionId);
-      
-      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
-      if (!userId && this.gameState?.player1?.name) {
-        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust avec playerName: ${this.gameState.player1.name}`);
-        userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
-      }
-      
-      if (!userId) {
-        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId`);
-        console.log(`🔍 [BattleEndManager] Debug JWTManager mappings:`);
-        jwtManager.debugMappings();
-        return null;
-      }
-      
-      console.log(`✅ [BattleEndManager] Conversion réussie: sessionId ${sessionId} -> userId ${userId}`);
-      
-      // 🆕 RÉCUPÉRER LE USERNAME VIA JWT
-      const jwtData = jwtManager.getUserJWTData(userId);
-      const username = jwtData?.username;
-      
-      if (!username) {
-        console.warn(`⚠️ [BattleEndManager] Username introuvable pour userId ${userId}`);
-        return null;
-      }
-      
-      console.log(`✅ [BattleEndManager] Username récupéré: ${username}`);
-      
-      // 🎯 ESSAYER D'ABORD AVEC LE USERNAME (solution probable)
-      console.log(`🔄 [BattleEndManager] Recherche par username: ${username}`);
-      const pokemonByUsername = await this.findOwnedPokemon(pokemon, username);
-      
-      if (pokemonByUsername) {
-        console.log(`✅ [BattleEndManager] Pokémon trouvé par username !`);
-        return pokemonByUsername;
-      }
-      
-      // 🎯 FALLBACK:// server/src/battle/modules/BattleEndManager.ts
+// server/src/battle/modules/BattleEndManager.ts
 // ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde + 🆕 SYSTÈME XP INTÉGRÉ
 
 import { BattleGameState, BattleResult, Pokemon } from '../types/BattleTypes';
@@ -174,18 +126,11 @@ export class BattleEndManager {
         return [];
       }
       
-      // 🎯 IDENTIFIER L'OWNER (userId directement depuis sessionId si c'est déjà l'userId)
-      const ownerIdentifier = this.gameState.player1.sessionId;
-      console.log(`🔍 [BattleEndManager] Recherche Pokémon avec owner: ${ownerIdentifier}`);
-      
-      // 🎯 ESSAYER RECHERCHE DIRECTE D'ABORD
-      let ownedPokemon = await this.findOwnedPokemon(playerPokemon, ownerIdentifier);
-      
-      // 🎯 SI ÉCHEC, ESSAYER CONVERSION sessionId -> userId
-      if (!ownedPokemon) {
-        console.log(`🔄 [BattleEndManager] Recherche directe échouée, tentative conversion sessionId...`);
-        ownedPokemon = await this.findOwnedPokemonBySession(playerPokemon, ownerIdentifier);
-      }
+      // 🎯 RECHERCHE POKÉMON VIA SESSION → USERNAME
+      const ownedPokemon = await this.findOwnedPokemonBySession(
+        playerPokemon, 
+        this.gameState.player1.sessionId
+      );
       
       if (!ownedPokemon) {
         console.warn('⚠️ [BattleEndManager] OwnedPokemon introuvable - XP ignorée');
@@ -224,34 +169,91 @@ export class BattleEndManager {
     return events;
   }
   
-  // === 🔥 MÉTHODES EXISTANTES PRÉSERVÉES ===
+  // === 🆕 CONVERSION sessionId → username ===
   
   /**
-   * 🆕 Sauvegarde un Pokémon par sessionId (convertit en userId d'abord)
+   * 🆕 Trouve le Pokémon par sessionId (convertit en username)
    */
-  private async savePokemonDataBySession(pokemon: Pokemon, sessionId: string): Promise<void> {
+  private async findOwnedPokemonBySession(pokemon: Pokemon, sessionId: string): Promise<any> {
     try {
-      // 🎯 CONVERTIR sessionId en userId
+      // 🎯 RÉCUPÉRER LE USERNAME VIA JWTManager
+      const username = await this.getUsernameFromSession(sessionId);
+      
+      if (!username) {
+        console.warn(`⚠️ [BattleEndManager] Username introuvable pour sessionId: ${sessionId}`);
+        return null;
+      }
+      
+      console.log(`✅ [BattleEndManager] Username récupéré: ${username}`);
+      
+      // 🎯 RECHERCHER AVEC LE USERNAME
+      return await this.findOwnedPokemon(pokemon, username);
+      
+    } catch (error) {
+      console.error(`❌ [BattleEndManager] Erreur conversion sessionId → username:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 🆕 Récupère le username depuis sessionId via JWTManager
+   */
+  private async getUsernameFromSession(sessionId: string): Promise<string | null> {
+    try {
       const { JWTManager } = require('../../managers/JWTManager');
       const jwtManager = JWTManager.getInstance();
       
+      console.log(`🔍 [BattleEndManager] Conversion sessionId: ${sessionId}`);
+      
+      // Étape 1: Récupérer userId
       let userId = jwtManager.getUserId(sessionId);
       
-      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
+      // Étape 2: Si pas de userId, essayer avec playerName du gameState
       if (!userId && this.gameState?.player1?.name) {
-        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust pour sauvegarde avec playerName: ${this.gameState.player1.name}`);
+        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust avec playerName: ${this.gameState.player1.name}`);
         userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
       }
       
       if (!userId) {
-        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId pour sauvegarde`);
+        console.warn(`⚠️ [BattleEndManager] UserId introuvable pour sessionId: ${sessionId}`);
+        return null;
+      }
+      
+      // Étape 3: Récupérer username depuis JWT data
+      const jwtData = jwtManager.getUserJWTData(userId);
+      const username = jwtData?.username;
+      
+      if (!username) {
+        console.warn(`⚠️ [BattleEndManager] Username introuvable pour userId: ${userId}`);
+        return null;
+      }
+      
+      console.log(`✅ [BattleEndManager] Conversion réussie: sessionId ${sessionId} → username ${username}`);
+      return username;
+      
+    } catch (error) {
+      console.error(`❌ [BattleEndManager] Erreur getUsernameFromSession:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 🆕 Sauvegarde un Pokémon par sessionId (convertit en username)
+   */
+  private async savePokemonDataBySession(pokemon: Pokemon, sessionId: string): Promise<void> {
+    try {
+      // 🎯 RÉCUPÉRER USERNAME
+      const username = await this.getUsernameFromSession(sessionId);
+      
+      if (!username) {
+        console.warn(`⚠️ [BattleEndManager] Username introuvable pour sauvegarde sessionId: ${sessionId}`);
         return;
       }
       
-      console.log(`✅ [BattleEndManager] Conversion sauvegarde: sessionId ${sessionId} -> userId ${userId}`);
+      console.log(`✅ [BattleEndManager] Sauvegarde avec username: ${username}`);
       
-      // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
-      await this.savePokemonData(pokemon, userId);
+      // 🎯 SAUVEGARDER AVEC USERNAME
+      await this.savePokemonData(pokemon, username);
       
     } catch (error) {
       console.error(`❌ [BattleEndManager] Erreur sauvegarde par session:`, error);
@@ -262,15 +264,15 @@ export class BattleEndManager {
   /**
    * Sauvegarde un Pokémon spécifique
    */
-  private async savePokemonData(pokemon: Pokemon, ownerSessionId: string): Promise<void> {
-    console.log(`💾 [BattleEndManager] Sauvegarde ${pokemon.name} (HP: ${pokemon.currentHp}/${pokemon.maxHp})`);
+  private async savePokemonData(pokemon: Pokemon, ownerUsername: string): Promise<void> {
+    console.log(`💾 [BattleEndManager] Sauvegarde ${pokemon.name} (HP: ${pokemon.currentHp}/${pokemon.maxHp}) pour ${ownerUsername}`);
     
     try {
-      // Trouver le Pokémon dans la base de données via son combatId ou autre identifiant
-      const ownedPokemon = await this.findOwnedPokemon(pokemon, ownerSessionId);
+      // Trouver le Pokémon dans la base de données
+      const ownedPokemon = await this.findOwnedPokemon(pokemon, ownerUsername);
       
       if (!ownedPokemon) {
-        console.warn(`⚠️ [BattleEndManager] Pokémon ${pokemon.name} non trouvé en base`);
+        console.warn(`⚠️ [BattleEndManager] Pokémon ${pokemon.name} non trouvé en base pour ${ownerUsername}`);
         return;
       }
       
@@ -280,7 +282,6 @@ export class BattleEndManager {
       
       // Mettre à jour statusTurns seulement si défini
       if (pokemon.status && pokemon.status !== 'normal') {
-        // statusTurns peut ne pas être défini dans l'interface Pokemon
         const statusTurns = (pokemon as any).statusTurns;
         if (statusTurns !== undefined) {
           ownedPokemon.statusTurns = statusTurns;
@@ -289,62 +290,22 @@ export class BattleEndManager {
         ownedPokemon.statusTurns = undefined;
       }
       
-      // Mettre à jour les PP des attaques (pour plus tard)
-      // TODO: Synchroniser les PP des moves
-      
       // Sauvegarder
       await ownedPokemon.save();
       
-      console.log(`✅ [BattleEndManager] ${pokemon.name} sauvegardé (HP: ${pokemon.currentHp})`);
+      console.log(`✅ [BattleEndManager] ${pokemon.name} sauvegardé (HP: ${pokemon.currentHp}) pour ${ownerUsername}`);
       
     } catch (error) {
       console.error(`❌ [BattleEndManager] Erreur sauvegarde ${pokemon.name}:`, error);
       throw error;
     }
   }
-  
-  /**
-   * 🆕 Trouve le Pokémon par sessionId (convertit en userId d'abord)
-   */
-  private async findOwnedPokemonBySession(pokemon: Pokemon, sessionId: string): Promise<any> {
-    try {
-      // 🎯 CONVERTIR sessionId en userId via JWTManager
-      const { JWTManager } = require('../../managers/JWTManager');
-      const jwtManager = JWTManager.getInstance();
-      
-      console.log(`🔍 [BattleEndManager] Debug sessionId: ${sessionId}`);
-      
-      let userId = jwtManager.getUserId(sessionId);
-      
-      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
-      if (!userId && this.gameState?.player1?.name) {
-        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust avec playerName: ${this.gameState.player1.name}`);
-        userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
-      }
-      
-      if (!userId) {
-        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId`);
-        console.log(`🔍 [BattleEndManager] Debug JWTManager mappings:`);
-        jwtManager.debugMappings();
-        return null;
-      }
-      
-      console.log(`✅ [BattleEndManager] Conversion réussie: sessionId ${sessionId} -> userId ${userId}`);
-      
-      // 🎯 UTILISER LA LOGIQUE EXISTANTE AVEC LE BON userId
-      return await this.findOwnedPokemon(pokemon, userId);
-      
-    } catch (error) {
-      console.error(`❌ [BattleEndManager] Erreur conversion sessionId:`, error);
-      return null;
-    }
-  }
 
   /**
-   * Trouve le Pokémon correspondant en base de données
+   * Trouve le Pokémon correspondant en base de données par USERNAME
    */
-  private async findOwnedPokemon(pokemon: Pokemon, ownerSessionId: string): Promise<any> {
-    console.log(`🔍 [BattleEndManager] === RECHERCHE POKÉMON DÉTAILLÉE ===`);
+  private async findOwnedPokemon(pokemon: Pokemon, ownerUsername: string): Promise<any> {
+    console.log(`🔍 [BattleEndManager] === RECHERCHE POKÉMON PAR USERNAME ===`);
     console.log(`🎯 Pokémon recherché:`, {
       name: pokemon.name,
       id: pokemon.id,
@@ -353,17 +314,15 @@ export class BattleEndManager {
       maxHp: pokemon.maxHp,
       isWild: pokemon.isWild
     });
-    console.log(`👤 Owner: ${ownerSessionId}`);
+    console.log(`👤 Owner (username): ${ownerUsername}`);
     
-    // Plusieurs stratégies pour trouver le bon Pokémon
-    
-    // Stratégie 1: Par combatId si disponible et unique
+    // Stratégie 1: Par combatId si disponible
     if (pokemon.combatId) {
       console.log(`🔄 [BattleEndManager] Stratégie 1: Recherche par combatId ${pokemon.combatId}`);
       
-      let found = await OwnedPokemon.findOne({ 
+      const found = await OwnedPokemon.findOne({ 
         combatId: pokemon.combatId,
-        owner: ownerSessionId 
+        owner: ownerUsername 
       });
       
       if (found) {
@@ -380,14 +339,14 @@ export class BattleEndManager {
       }
     }
     
-    // Stratégie 2: Par pokemonId + owner + isInTeam (pour l'équipe active)
+    // Stratégie 2: Par pokemonId + owner + isInTeam (équipe active)
     console.log(`🔄 [BattleEndManager] Stratégie 2: Recherche par équipe active`);
     
     const teamPokemon = await OwnedPokemon.findOne({
       pokemonId: pokemon.id,
-      owner: ownerSessionId,
+      owner: ownerUsername,
       isInTeam: true,
-      level: pokemon.level // Critère supplémentaire pour éviter confusion
+      level: pokemon.level
     });
     
     if (teamPokemon) {
@@ -404,12 +363,12 @@ export class BattleEndManager {
       console.log(`❌ [BattleEndManager] Pas trouvé par équipe active`);
     }
     
-    // Stratégie 3: Par tous les critères disponibles (dernier recours)
+    // Stratégie 3: Par critères généraux
     console.log(`🔄 [BattleEndManager] Stratégie 3: Recherche par critères généraux`);
     
     const generalSearch = await OwnedPokemon.findOne({
       pokemonId: pokemon.id,
-      owner: ownerSessionId,
+      owner: ownerUsername,
       level: pokemon.level,
       maxHp: pokemon.maxHp
     });
@@ -433,8 +392,8 @@ export class BattleEndManager {
     console.log(`🔍 [BattleEndManager] === DEBUG: TOUS LES POKÉMON DU JOUEUR ===`);
     
     try {
-      const allPlayerPokemon = await OwnedPokemon.find({ owner: ownerSessionId }).limit(10);
-      console.log(`📊 [BattleEndManager] ${allPlayerPokemon.length} Pokémon trouvés pour owner ${ownerSessionId}:`);
+      const allPlayerPokemon = await OwnedPokemon.find({ owner: ownerUsername }).limit(10);
+      console.log(`📊 [BattleEndManager] ${allPlayerPokemon.length} Pokémon trouvés pour owner ${ownerUsername}:`);
       
       allPlayerPokemon.forEach((p, index) => {
         console.log(`  ${index + 1}. ${p.nickname || 'Sans nom'} (#${p.pokemonId}) - Niv.${p.level} - InTeam:${p.isInTeam} - HP:${p.currentHp}/${p.maxHp}`);
@@ -541,8 +500,8 @@ export class BattleEndManager {
    */
   getStats(): any {
     return {
-      version: 'xp_integrated_v1', // 🆕 Version avec XP
-      features: ['hp_save', 'status_save', 'wild_battle_xp'], // 🆕 Feature XP ajoutée
+      version: 'xp_integrated_username_v1', // 🆕 Version avec XP et USERNAME
+      features: ['hp_save', 'status_save', 'wild_battle_xp', 'username_lookup'], // 🆕 Feature USERNAME ajoutée
       ready: this.isReady(),
       gameState: this.gameState ? 'loaded' : 'empty'
     };
