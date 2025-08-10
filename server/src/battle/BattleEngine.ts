@@ -1058,6 +1058,11 @@ export class BattleEngine {
     return Math.min(1500 + Math.random() * 2000, 3500);
   }
 
+  public setEmitCallback(emitFn: (eventType: string, data: any) => void): void {
+  this.battleEndManager.setEmitToClientCallback(emitFn);
+  console.log('🔗 [BattleEngine] Callback émission configuré');
+  }
+  
   getCurrentState(): BattleGameState {
     return { ...this.gameState };
   }
