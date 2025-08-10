@@ -1,10 +1,12 @@
 // server/src/battle/modules/BattleEndManager.ts
-// ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde + 🆕 SYSTÈME XP INTÉGRÉ
+// ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde + 🆕 SYSTÈME XP INTÉGRÉ + 🎯 ÉVÉNEMENTS CLIENT
 
 import { BattleGameState, BattleResult, Pokemon } from '../types/BattleTypes';
 import { OwnedPokemon } from '../../models/OwnedPokemon';
 // 🆕 IMPORT DU SERVICE XP
-import { givePlayerWildXP } from '../../services/ExperienceService';
+import { givePlayerWildXP, experienceService } from '../../services/ExperienceService';
+// 🎯 IMPORT FORMATEUR XP POUR CLIENT
+import XpEventFormatter, { ClientXpEvent } from '../utils/XpEventFormatter';
 
 /**
  * BATTLE END MANAGER - Gestion de fin de combat
@@ -12,6 +14,7 @@ import { givePlayerWildXP } from '../../services/ExperienceService';
  * Responsabilités :
  * - Sauvegarder les HP après combat
  * - 🆕 DONNER L'XP POUR COMBATS SAUVAGES
+ * - 🎯 ÉMETTRE ÉVÉNEMENTS XP VERS CLIENT
  * - Gérer l'expérience (étape future)
  * - Gérer les récompenses (étape future)
  * - Nettoyer l'état de combat
@@ -19,9 +22,182 @@ import { givePlayerWildXP } from '../../services/ExperienceService';
 export class BattleEndManager {
   
   private gameState: BattleGameState | null = null;
+  // 🎯 CALLBACK POUR ÉMETTRE VERS CLIENT
+  private emitToClientCallback: ((eventType: string, data: any) => void) | null = null;
   
   constructor() {
-    console.log('🏁 [BattleEndManager] Initialisé avec système XP');
+    console.log('🏁 [BattleEndManager] Initialisé avec système XP + événements client');
+    
+    // 🎯 ÉCOUTER LES ÉVÉNEMENTS XP DU SERVICE
+    this.setupExperienceEventListeners();
+  }
+  
+  // === 🎯 NOUVELLE MÉTHODE : Configuration callback client ===
+  
+  /**
+   * 🎯 Configure le callback pour émettre vers le client
+   */
+  setEmitToClientCallback(callback: (eventType: string, data: any) => void): void {
+    this.emitToClientCallback = callback;
+    console.log('📡 [BattleEndManager] Callback client configuré');
+  }
+  
+  /**
+   * 🎯 Émet un événement vers le client (si callback configuré)
+   */
+  private emitToClient(eventType: string, data: any): void {
+    if (this.emitToClientCallback) {
+      try {
+        this.emitToClientCallback(eventType, data);
+        console.log(`📤 [BattleEndManager] Événement ${eventType} émis vers client`);
+      } catch (error) {
+        console.error(`❌ [BattleEndManager] Erreur émission ${eventType}:`, error);
+      }
+    } else {
+      console.warn(`⚠️ [BattleEndManager] Pas de callback client pour ${eventType}`);
+    }
+  }
+  
+  // === 🎯 NOUVELLE MÉTHODE : Écoute événements XP ===
+  
+  /**
+   * 🎯 Configure les listeners pour les événements XP
+   */
+  private setupExperienceEventListeners(): void {
+    console.log('🎧 [BattleEndManager] Configuration listeners XP...');
+    
+    // 🌟 ÉVÉNEMENT PRINCIPAL : Expérience gagnée
+    experienceService.on('experienceGained', (eventData: any) => {
+      this.handleExperienceGained(eventData);
+    });
+    
+    // 🆙 ÉVÉNEMENT : Level Up
+    experienceService.on('levelUp', (eventData: any) => {
+      this.handleLevelUp(eventData);
+    });
+    
+    // 🌟 ÉVÉNEMENT : Évolution déclenchée
+    experienceService.on('evolutionTriggered', (eventData: any) => {
+      this.handleEvolutionTriggered(eventData);
+    });
+    
+    // 📚 ÉVÉNEMENT : Nouveaux sorts disponibles
+    experienceService.on('newMovesAvailable', (eventData: any) => {
+      this.handleNewMovesAvailable(eventData);
+    });
+    
+    console.log('✅ [BattleEndManager] Listeners XP configurés');
+  }
+  
+  /**
+   * 🎯 Traite l'événement "experienceGained" 
+   */
+  private handleExperienceGained(eventData: { context: any; result: any }): void {
+    console.log('🌟 [BattleEndManager] Expérience gagnée détectée:', eventData.result.pokemon.name);
+    
+    try {
+      // 🎨 FORMATER POUR CLIENT
+      const clientEvent: ClientXpEvent = XpEventFormatter.formatExperienceGained(
+        eventData.context,
+        eventData.result,
+        {
+          battleId: this.gameState?.battleId,
+          playerId: this.getCurrentPlayerId(),
+          combatId: this.getCurrentCombatId()
+        }
+      );
+      
+      // 🐛 DEBUG
+      if (process.env.NODE_ENV === 'development') {
+        XpEventFormatter.debugFormatResult(clientEvent);
+      }
+      
+      // 📤 ÉMETTRE VERS CLIENT
+      this.emitToClient('pokemon_experience_gained', clientEvent);
+      
+      // 🎯 ÉVÉNEMENTS SPÉCIAUX ADDITIONNELS
+      if (clientEvent.specialEvents.evolution.triggered) {
+        this.emitToClient('pokemon_evolution_started', {
+          pokemonId: clientEvent.pokemon.id,
+          fromPokemonId: clientEvent.specialEvents.evolution.fromPokemonId,
+          toPokemonId: clientEvent.specialEvents.evolution.toPokemonId,
+          method: clientEvent.specialEvents.evolution.method,
+          timestamp: Date.now()
+        });
+      }
+      
+      if (clientEvent.specialEvents.newMoves.length > 0) {
+        this.emitToClient('pokemon_new_moves_learned', {
+          pokemonId: clientEvent.pokemon.id,
+          newMoves: clientEvent.specialEvents.newMoves,
+          timestamp: Date.now()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleEndManager] Erreur traitement expérience:', error);
+    }
+  }
+  
+  /**
+   * 🎯 Traite l'événement "levelUp"
+   */
+  private handleLevelUp(eventData: any): void {
+    console.log(`🆙 [BattleEndManager] Level up détecté: ${eventData.fromLevel} → ${eventData.toLevel}`);
+    
+    // Événement level up simple (en plus de l'événement XP principal)
+    this.emitToClient('pokemon_level_up', {
+      pokemonId: eventData.pokemonId,
+      fromLevel: eventData.fromLevel,
+      toLevel: eventData.toLevel,
+      levelsGained: eventData.levelsGained,
+      timestamp: Date.now()
+    });
+  }
+  
+  /**
+   * 🎯 Traite l'événement "evolutionTriggered"
+   */
+  private handleEvolutionTriggered(eventData: any): void {
+    console.log('🌟 [BattleEndManager] Évolution déclenchée:', eventData.pokemonId);
+    
+    // Événement évolution (envoyé aussi dans experienceGained mais utile séparé)
+    this.emitToClient('pokemon_evolution_triggered', {
+      pokemonId: eventData.pokemonId,
+      evolutionData: eventData.evolutionData,
+      timestamp: Date.now()
+    });
+  }
+  
+  /**
+   * 🎯 Traite l'événement "newMovesAvailable"
+   */
+  private handleNewMovesAvailable(eventData: any): void {
+    console.log('📚 [BattleEndManager] Nouveaux sorts disponibles:', eventData.moves.length);
+    
+    // Événement nouveaux sorts
+    this.emitToClient('pokemon_moves_available', {
+      pokemonId: eventData.pokemonId,
+      availableMoves: eventData.moves,
+      timestamp: Date.now()
+    });
+  }
+  
+  // === 🎯 MÉTHODES UTILITAIRES POUR CONTEXTE ===
+  
+  /**
+   * 🎯 Récupère l'ID du joueur actuel
+   */
+  private getCurrentPlayerId(): string | undefined {
+    return this.gameState?.player1?.sessionId;
+  }
+  
+  /**
+   * 🎯 Récupère l'ID de combat du Pokémon
+   */
+  private getCurrentCombatId(): string | undefined {
+    const playerPokemon = this.gameState?.player1?.pokemon;
+    return playerPokemon?.combatId || `battle_${this.gameState?.battleId}_participant_1`;
   }
   
   // === INITIALISATION ===
@@ -31,7 +207,7 @@ export class BattleEndManager {
    */
   initialize(gameState: BattleGameState): void {
     this.gameState = gameState;
-    console.log('✅ [BattleEndManager] Configuré pour le combat');
+    console.log('✅ [BattleEndManager] Configuré pour le combat avec événements XP');
   }
   
   // === SAUVEGARDE PRINCIPALE ===
@@ -156,6 +332,10 @@ export class BattleEndManager {
       if (xpSuccess) {
         events.push(`🌟 ${playerPokemon.name} a gagné de l'expérience !`);
         console.log(`✅ [BattleEndManager] XP attribuée avec succès à ${playerPokemon.name}`);
+        
+        // 🎯 NOTE: Les événements XP détaillés sont gérés automatiquement par
+        // les listeners configurés dans setupExperienceEventListeners()
+        
       } else {
         events.push(`⚠️ Erreur lors de l'attribution d'expérience`);
         console.warn(`⚠️ [BattleEndManager] Échec attribution XP pour ${playerPokemon.name}`);
@@ -492,7 +672,8 @@ export class BattleEndManager {
    */
   reset(): void {
     this.gameState = null;
-    console.log('🔄 [BattleEndManager] Reset effectué');
+    // 🎯 CONSERVER LE CALLBACK CLIENT après reset
+    console.log('🔄 [BattleEndManager] Reset effectué (callback client conservé)');
   }
   
   /**
@@ -500,10 +681,11 @@ export class BattleEndManager {
    */
   getStats(): any {
     return {
-      version: 'xp_integrated_username_v1', // 🆕 Version avec XP et USERNAME
-      features: ['hp_save', 'status_save', 'wild_battle_xp', 'username_lookup'], // 🆕 Feature USERNAME ajoutée
+      version: 'xp_integrated_username_v2_with_client_events', // 🎯 Version mise à jour
+      features: ['hp_save', 'status_save', 'wild_battle_xp', 'username_lookup', 'client_events', 'xp_formatting'], // 🎯 Nouvelles features
       ready: this.isReady(),
-      gameState: this.gameState ? 'loaded' : 'empty'
+      gameState: this.gameState ? 'loaded' : 'empty',
+      clientCallback: this.emitToClientCallback ? 'configured' : 'not_configured' // 🎯 État callback
     };
   }
 }
