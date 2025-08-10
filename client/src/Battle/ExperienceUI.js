@@ -158,7 +158,7 @@ export class ExperienceUI {
       
       // Re-calculer les traductions
       const displayName = this.getPokemonDisplayName(pokemon);
-      const expText = this.getExpGainedText(experience.gained || 0);
+      const expText = this.getExpGainedText(experience.gained || 0, pokemon); // 🔥 Passer pokemon aussi
       const levelText = this.getLevelText(levelData.current || 1);
       
       // Mettre à jour l'UI si existante
@@ -370,19 +370,35 @@ export class ExperienceUI {
   /**
    * 🌐 Obtenir le texte d'expérience traduit
    * @param {number} expGained - XP gagnée
+   * @param {Object} pokemon - Données pokémon pour le nom
    * @returns {string} Texte traduit
    */
-  getExpGainedText(expGained) {
+  getExpGainedText(expGained, pokemon = null) {
     try {
-      // Utiliser la traduction avec variable
-      const message = battleT('messages.exp_gained', { exp: expGained });
-      
-      // Si pas trouvé, fallback manuel
-      if (message === 'battle.ui.messages.exp_gained') {
-        return `+${expGained} EXP!`;
+      // Si on a les données pokémon, utiliser la traduction complète
+      if (pokemon) {
+        const pokemonName = this.getPokemonDisplayName(pokemon);
+        
+        // Utiliser la traduction avec variables pokémon + exp
+        const message = battleT('messages.exp_gained', { 
+          pokemon: pokemonName, 
+          exp: expGained 
+        });
+        
+        // Si trouvé, retourner
+        if (message !== 'battle.ui.messages.exp_gained') {
+          return message;
+        }
       }
       
-      return message;
+      // Fallback : juste "+XXX EXP!" sans nom pokémon
+      const simpleMessage = battleT('messages.exp_points_gained', { exp: expGained });
+      if (simpleMessage !== 'battle.ui.messages.exp_points_gained') {
+        return simpleMessage;
+      }
+      
+      // Dernier fallback manuel
+      return `+${expGained} EXP!`;
       
     } catch (error) {
       console.error('❌ [ExperienceUI] Erreur traduction XP:', error);
@@ -489,7 +505,7 @@ export class ExperienceUI {
     
     // 🌐 NOUVEAU: Utiliser les traductions
     const displayName = this.getPokemonDisplayName(pokemon);
-    const expText = this.getExpGainedText(experience.gained || 0);
+    const expText = this.getExpGainedText(experience.gained || 0, pokemon); // 🔥 Passer pokemon aussi
     const levelText = this.getLevelText(levelData.current || 1);
     
     console.log('🌐 Traductions appliquées:', {
