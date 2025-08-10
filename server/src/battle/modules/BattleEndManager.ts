@@ -296,18 +296,45 @@ export class BattleEndManager {
    * Trouve le Pokémon correspondant en base de données
    */
   private async findOwnedPokemon(pokemon: Pokemon, ownerSessionId: string): Promise<any> {
+    console.log(`🔍 [BattleEndManager] === RECHERCHE POKÉMON DÉTAILLÉE ===`);
+    console.log(`🎯 Pokémon recherché:`, {
+      name: pokemon.name,
+      id: pokemon.id,
+      level: pokemon.level,
+      combatId: pokemon.combatId,
+      maxHp: pokemon.maxHp,
+      isWild: pokemon.isWild
+    });
+    console.log(`👤 Owner: ${ownerSessionId}`);
+    
     // Plusieurs stratégies pour trouver le bon Pokémon
     
     // Stratégie 1: Par combatId si disponible et unique
     if (pokemon.combatId) {
+      console.log(`🔄 [BattleEndManager] Stratégie 1: Recherche par combatId ${pokemon.combatId}`);
+      
       let found = await OwnedPokemon.findOne({ 
         combatId: pokemon.combatId,
         owner: ownerSessionId 
       });
-      if (found) return found;
+      
+      if (found) {
+        console.log(`✅ [BattleEndManager] Trouvé par combatId:`, {
+          id: found._id,
+          nickname: found.nickname,
+          pokemonId: found.pokemonId,
+          level: found.level,
+          owner: found.owner
+        });
+        return found;
+      } else {
+        console.log(`❌ [BattleEndManager] Pas trouvé par combatId`);
+      }
     }
     
     // Stratégie 2: Par pokemonId + owner + isInTeam (pour l'équipe active)
+    console.log(`🔄 [BattleEndManager] Stratégie 2: Recherche par équipe active`);
+    
     const teamPokemon = await OwnedPokemon.findOne({
       pokemonId: pokemon.id,
       owner: ownerSessionId,
@@ -315,15 +342,75 @@ export class BattleEndManager {
       level: pokemon.level // Critère supplémentaire pour éviter confusion
     });
     
-    if (teamPokemon) return teamPokemon;
+    if (teamPokemon) {
+      console.log(`✅ [BattleEndManager] Trouvé par équipe active:`, {
+        id: teamPokemon._id,
+        nickname: teamPokemon.nickname,
+        pokemonId: teamPokemon.pokemonId,
+        level: teamPokemon.level,
+        owner: teamPokemon.owner,
+        isInTeam: teamPokemon.isInTeam
+      });
+      return teamPokemon;
+    } else {
+      console.log(`❌ [BattleEndManager] Pas trouvé par équipe active`);
+    }
     
     // Stratégie 3: Par tous les critères disponibles (dernier recours)
-    return await OwnedPokemon.findOne({
+    console.log(`🔄 [BattleEndManager] Stratégie 3: Recherche par critères généraux`);
+    
+    const generalSearch = await OwnedPokemon.findOne({
       pokemonId: pokemon.id,
       owner: ownerSessionId,
       level: pokemon.level,
       maxHp: pokemon.maxHp
     });
+    
+    if (generalSearch) {
+      console.log(`✅ [BattleEndManager] Trouvé par critères généraux:`, {
+        id: generalSearch._id,
+        nickname: generalSearch.nickname,
+        pokemonId: generalSearch.pokemonId,
+        level: generalSearch.level,
+        owner: generalSearch.owner,
+        maxHp: generalSearch.maxHp,
+        isInTeam: generalSearch.isInTeam
+      });
+      return generalSearch;
+    } else {
+      console.log(`❌ [BattleEndManager] Pas trouvé par critères généraux`);
+    }
+    
+    // 🆕 STRATÉGIE 4: DEBUG - Lister TOUS les Pokémon de ce joueur
+    console.log(`🔍 [BattleEndManager] === DEBUG: TOUS LES POKÉMON DU JOUEUR ===`);
+    
+    try {
+      const allPlayerPokemon = await OwnedPokemon.find({ owner: ownerSessionId }).limit(10);
+      console.log(`📊 [BattleEndManager] ${allPlayerPokemon.length} Pokémon trouvés pour owner ${ownerSessionId}:`);
+      
+      allPlayerPokemon.forEach((p, index) => {
+        console.log(`  ${index + 1}. ${p.nickname || 'Sans nom'} (#${p.pokemonId}) - Niv.${p.level} - InTeam:${p.isInTeam} - HP:${p.currentHp}/${p.maxHp}`);
+      });
+      
+      // Chercher des Pokémon similaires
+      const similarPokemon = allPlayerPokemon.filter(p => 
+        p.pokemonId === pokemon.id || 
+        (p.nickname && p.nickname.toLowerCase().includes(pokemon.name.toLowerCase()))
+      );
+      
+      if (similarPokemon.length > 0) {
+        console.log(`🎯 [BattleEndManager] Pokémon similaires trouvés:`);
+        similarPokemon.forEach((p, index) => {
+          console.log(`  - ${p.nickname || 'Sans nom'} (#${p.pokemonId}) - Niv.${p.level} - InTeam:${p.isInTeam} - Owner:${p.owner}`);
+        });
+      }
+      
+    } catch (error) {
+      console.error(`❌ [BattleEndManager] Erreur debug liste Pokémon:`, error);
+    }
+    
+    console.log(`❌ [BattleEndManager] === POKÉMON INTROUVABLE ===`);
+    return null;
   }
   
   // === GESTION D'EXPÉRIENCE (ÉTAPE FUTURE) ===
