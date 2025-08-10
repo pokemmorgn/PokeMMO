@@ -750,22 +750,60 @@ updateModernHealthBar(type, pokemonData) {
     });
   }
 
-  animateModernExpBar(expBarContainer, targetPercentage) {
-    if (!expBarContainer || !expBarContainer.expBar) return;
-    
-    const { expBar, maxWidth } = expBarContainer;
-    const width = Math.max(0, maxWidth * targetPercentage);
-    
-    expBar.clear();
-    
-    if (width > 0) {
-      expBar.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x87ceeb, 0x87ceeb);
-      expBar.fillRoundedRect(2, 2, width - 4, 6, 2);
-      
-      expBar.fillStyle(0xffffff, 0.3);
-      expBar.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
-    }
+animateModernExpBar(expBarContainer, targetPercentage, animated = true) {
+  if (!expBarContainer || !expBarContainer.expBar) {
+    console.warn('⚠️ [BattleScene] ExpBar container manquant');
+    return;
   }
+  
+  const percentage = Math.max(0, Math.min(1, targetPercentage));
+  
+  // 🆕 ANIMATION FLUIDE OU INSTANTANÉE
+  if (animated && expBarContainer.currentPercentage !== undefined) {
+    // Animation avec Tween
+    this.tweens.add({
+      targets: { value: expBarContainer.currentPercentage },
+      value: percentage,
+      duration: 800,
+      ease: 'Power2.easeOut',
+      onUpdate: (tween) => {
+        const currentPercent = tween.targets[0].value;
+        this.updateExpBarVisual(expBarContainer, currentPercent);
+      },
+      onComplete: () => {
+        expBarContainer.currentPercentage = percentage;
+      }
+    });
+  } else {
+    // Mise à jour instantanée
+    this.updateExpBarVisual(expBarContainer, percentage);
+    expBarContainer.currentPercentage = percentage;
+  }
+}
+
+// 🆕 NOUVELLE MÉTHODE : Ajouter cette méthode après animateModernExpBar()
+updateExpBarVisual(expBarContainer, percentage) {
+  if (!expBarContainer || !expBarContainer.expBar) return;
+  
+  const { expBar, maxWidth } = expBarContainer;
+  const width = Math.max(0, maxWidth * percentage);
+  
+  expBar.clear();
+  
+  if (width > 0) {
+    // 🆕 GRADIENT BLEU POKÉMON AUTHENTIQUE (différent de la barre HP)
+    expBar.fillGradientStyle(0x4FC3F7, 0x4FC3F7, 0x29B6F6, 0x29B6F6);
+    expBar.fillRoundedRect(2, 2, width - 4, 6, 2);
+    
+    // 🆕 EFFET DE BRILLANCE EN HAUT
+    expBar.fillStyle(0xffffff, 0.4);
+    expBar.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
+    
+    // 🆕 BORDURE INTÉRIEURE SUBTILE
+    expBar.lineStyle(1, 0x81D4FA, 0.3);
+    expBar.strokeRoundedRect(2, 2, width - 4, 6, 2);
+  }
+}
 
   // === INTERFACE D'ACTIONS ===
 
