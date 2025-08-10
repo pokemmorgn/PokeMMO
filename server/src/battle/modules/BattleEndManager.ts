@@ -159,7 +159,7 @@ export class BattleEndManager {
         this.storeExperienceDataForClient(xpResult);
         
         // 🆕 ÉMETTRE L'ÉVÉNEMENT XP VERS LE CLIENT
-        this.emitToClient('experienceGained', (this.gameState as any).lastExperienceData);
+        this.emitToClient('pokemon_experience_gained', (this.gameState as any).lastExperienceData);
         
         events.push(`🌟 ${playerPokemon.name} a gagné ${xpResult.pokemon.expGained} points d'expérience !`);
         
