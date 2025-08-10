@@ -1046,24 +1046,276 @@ export class PlayersAdvancedModule {
         }
     }
 
-    async addPokemonToTeam() {
-        const pokemonId = prompt('ID du Pokémon à ajouter (1-151):')
-        if (!pokemonId || isNaN(pokemonId)) return
-
-        try {
-            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/team/add`, {
-                method: 'POST',
-                body: JSON.stringify({ pokemonId: parseInt(pokemonId) })
-            })
-
-            this.adminPanel.showNotification('Pokémon ajouté à l\'équipe', 'success')
-            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
-            this.renderTeamContent()
-        } catch (error) {
-            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
-        }
+   async addPokemonToTeam() {
+    if (!this.currentPlayerData) {
+        this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+        return
     }
 
+    // Vérifier s'il y a de la place dans l'équipe
+    const currentTeamSize = this.currentPlayerData.team?.pokemon?.length || 0
+    if (currentTeamSize >= 6) {
+        this.adminPanel.showNotification('L\'équipe est déjà complète (6/6)', 'warning')
+        return
+    }
+
+    // Créer un modal pour sélectionner le Pokémon et son niveau
+    this.showAddPokemonModal()
+}
+
+// ✅ NOUVELLE MÉTHODE: Afficher le modal d'ajout de Pokémon
+showAddPokemonModal() {
+    // Supprimer le modal existant s'il y en a un
+    const existingModal = document.getElementById('addPokemonModal')
+    if (existingModal) {
+        existingModal.remove()
+    }
+
+    // Créer le modal
+    const modal = document.createElement('div')
+    modal.className = 'modal'
+    modal.id = 'addPokemonModal'
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 style="margin-bottom: 25px; color: #2c3e50;">
+                <i class="fas fa-plus-circle"></i> Ajouter un Pokémon à l'Équipe
+                <span style="font-size: 0.8rem; color: #6c757d; font-weight: normal;">
+                    - ${this.currentPlayerData.username}
+                </span>
+            </h3>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                    <i class="fas fa-hashtag"></i> ID du Pokémon (1-151):
+                </label>
+                <input type="number" 
+                       id="pokemonIdInput" 
+                       placeholder="Ex: 25 pour Pikachu"
+                       min="1" 
+                       max="151"
+                       style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">
+                    💡 Exemples: 1=Bulbasaur, 4=Charmander, 7=Squirtle, 25=Pikachu, 150=Mewtwo
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                    <i class="fas fa-star"></i> Niveau (1-100):
+                </label>
+                <input type="number" 
+                       id="pokemonLevelInput" 
+                       placeholder="Niveau du Pokémon"
+                       value="5"
+                       min="1" 
+                       max="100"
+                       style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">
+                    🎯 Niveau recommandé: 5-50 pour un gameplay équilibré
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                    <i class="fas fa-tag"></i> Surnom (optionnel):
+                </label>
+                <input type="text" 
+                       id="pokemonNicknameInput" 
+                       placeholder="Surnom personnalisé (optionnel)"
+                       maxlength="20"
+                       style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">
+                    ✨ Laissez vide pour utiliser le nom par défaut
+                </div>
+            </div>
+
+            <!-- Options avancées (repliable) -->
+            <div style="margin-bottom: 25px;">
+                <button type="button" 
+                        onclick="document.getElementById('advancedOptions').style.display = document.getElementById('advancedOptions').style.display === 'none' ? 'block' : 'none'"
+                        style="background: none; border: none; color: #007bff; font-size: 0.9rem; cursor: pointer; padding: 0;">
+                    <i class="fas fa-chevron-right" id="advancedToggle"></i> Options avancées
+                </button>
+                
+                <div id="advancedOptions" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                            <i class="fas fa-venus-mars"></i> Genre:
+                        </label>
+                        <select id="pokemonGenderInput" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 6px;">
+                            <option value="random">🎲 Aléatoire</option>
+                            <option value="male">♂ Mâle</option>
+                            <option value="female">♀ Femelle</option>
+                            <option value="genderless">⚪ Sans genre</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                            <i class="fas fa-heart"></i> Nature:
+                        </label>
+                        <select id="pokemonNatureInput" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 6px;">
+                            <option value="random">🎲 Aléatoire</option>
+                            <option value="hardy">Hardy (Neutre)</option>
+                            <option value="adamant">Adamant (+Att -SpAtt)</option>
+                            <option value="jolly">Jolly (+Speed -SpAtt)</option>
+                            <option value="modest">Modest (+SpAtt -Att)</option>
+                            <option value="timid">Timid (+Speed -Att)</option>
+                            <option value="bold">Bold (+Def -Att)</option>
+                            <option value="impish">Impish (+Def -SpAtt)</option>
+                            <option value="calm">Calm (+SpDef -Att)</option>
+                            <option value="careful">Careful (+SpDef -SpAtt)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="pokemonShinyInput" style="width: 18px; height: 18px;">
+                            <span style="font-weight: 600; color: #495057;">
+                                <i class="fas fa-star" style="color: #ffd700;"></i> Pokémon Shiny (chromatique)
+                            </span>
+                        </label>
+                        <div style="font-size: 0.8rem; color: #6c757d; margin-top: 3px; margin-left: 26px;">
+                            ✨ Très rare ! Apparence alternative du Pokémon
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="adminPanel.playersAdvanced.closeAddPokemonModal()">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button class="btn btn-success" onclick="adminPanel.playersAdvanced.confirmAddPokemon()">
+                    <i class="fas fa-plus"></i> Ajouter à l'Équipe
+                </button>
+            </div>
+        </div>
+    `
+
+    // Fermeture sur clic extérieur
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            this.closeAddPokemonModal()
+        }
+    })
+
+    // Animation du toggle des options avancées
+    modal.addEventListener('click', (e) => {
+        if (e.target.matches('button') && e.target.textContent.includes('Options avancées')) {
+            const icon = document.getElementById('advancedToggle')
+            const options = document.getElementById('advancedOptions')
+            if (icon && options) {
+                const isVisible = options.style.display !== 'none'
+                icon.className = isVisible ? 'fas fa-chevron-right' : 'fas fa-chevron-down'
+            }
+        }
+    })
+
+    document.body.appendChild(modal)
+    modal.classList.add('active')
+
+    // Focus sur le premier champ
+    setTimeout(() => {
+        document.getElementById('pokemonIdInput')?.focus()
+    }, 100)
+}
+
+// ✅ NOUVELLE MÉTHODE: Confirmer l'ajout du Pokémon
+async confirmAddPokemon() {
+    const pokemonIdInput = document.getElementById('pokemonIdInput')
+    const levelInput = document.getElementById('pokemonLevelInput')
+    const nicknameInput = document.getElementById('pokemonNicknameInput')
+    const genderInput = document.getElementById('pokemonGenderInput')
+    const natureInput = document.getElementById('pokemonNatureInput')
+    const shinyInput = document.getElementById('pokemonShinyInput')
+
+    // Validation de l'ID du Pokémon
+    const pokemonId = parseInt(pokemonIdInput?.value)
+    if (isNaN(pokemonId) || pokemonId < 1 || pokemonId > 151) {
+        this.adminPanel.showNotification('ID Pokémon invalide (1-151)', 'warning')
+        pokemonIdInput?.focus()
+        return
+    }
+
+    // Validation du niveau
+    const level = parseInt(levelInput?.value)
+    if (isNaN(level) || level < 1 || level > 100) {
+        this.adminPanel.showNotification('Niveau invalide (1-100)', 'warning')
+        levelInput?.focus()
+        return
+    }
+
+    // Préparer les données
+    const pokemonData = {
+        pokemonId: pokemonId,
+        level: level
+    }
+
+    // Ajouter les options si spécifiées
+    const nickname = nicknameInput?.value?.trim()
+    if (nickname) {
+        pokemonData.nickname = nickname
+    }
+
+    const gender = genderInput?.value
+    if (gender && gender !== 'random') {
+        pokemonData.gender = gender
+    }
+
+    const nature = natureInput?.value
+    if (nature && nature !== 'random') {
+        pokemonData.nature = nature
+    }
+
+    const isShiny = shinyInput?.checked
+    if (isShiny) {
+        pokemonData.isShiny = true
+    }
+
+    try {
+        // Afficher un loading
+        const confirmBtn = document.querySelector('#addPokemonModal .btn-success')
+        if (confirmBtn) {
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ajout...'
+            confirmBtn.disabled = true
+        }
+
+        await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/team/add`, {
+            method: 'POST',
+            body: JSON.stringify(pokemonData)
+        })
+
+        const pokemonName = nickname || `Pokémon #${pokemonId}`
+        this.adminPanel.showNotification(`${pokemonName} (Niv.${level}) ajouté à l'équipe${isShiny ? ' ✨' : ''}`, 'success')
+        
+        // Fermer le modal
+        this.closeAddPokemonModal()
+        
+        // Recharger les données et l'affichage
+        await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+        this.renderTeamContent()
+
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        
+        // Restaurer le bouton
+        const confirmBtn = document.querySelector('#addPokemonModal .btn-success')
+        if (confirmBtn) {
+            confirmBtn.innerHTML = '<i class="fas fa-plus"></i> Ajouter à l\'Équipe'
+            confirmBtn.disabled = false
+        }
+    }
+}
+
+// ✅ NOUVELLE MÉTHODE: Fermer le modal d'ajout de Pokémon
+closeAddPokemonModal() {
+    const modal = document.getElementById('addPokemonModal')
+    if (modal) {
+        modal.classList.remove('active')
+        setTimeout(() => modal.remove(), 300)
+    }
+}
     async healAllPokemon() {
         if (!confirm('Soigner tous les Pokémon de l\'équipe ?')) return
 
