@@ -50,6 +50,10 @@ export class BattleRoom extends Room<BattleState> {
     this.state.phase = "waiting";
     
     this.battleEngine = new BattleEngine();
+    
+    // 🎯 INITIALISER BATTLEENDMANAGER AVEC CALLBACK XP
+    this.battleEndManager = new BattleEndManager();
+    this.configureBattleEndManager(this.battleEndManager);
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
     
@@ -828,7 +832,11 @@ private async startBattleAuthentic() {
     
     // 🔧 CORRECTION: Await la promesse retournée par startBattle
     const result = await this.battleEngine.startBattle(battleConfig);
-    
+    // 🎯 CONFIGURER BATTLEENDMANAGER POUR CE COMBAT
+    if (this.battleEndManager && result.gameState) {
+      this.battleEndManager.initialize(result.gameState);
+      console.log('✅ [BattleRoom] BattleEndManager initialisé pour le combat');
+    }
     if (result.success) {
       this.battleGameState = result.gameState;
       this.syncStateFromGameState();
