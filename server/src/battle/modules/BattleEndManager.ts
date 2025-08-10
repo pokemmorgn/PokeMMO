@@ -1,4 +1,52 @@
-// server/src/battle/modules/BattleEndManager.ts
+/**
+   * 🆕 Trouve le Pokémon par sessionId (convertit en userId ET username)
+   */
+  private async findOwnedPokemonBySession(pokemon: Pokemon, sessionId: string): Promise<any> {
+    try {
+      // 🎯 CONVERTIR sessionId en userId via JWTManager
+      const { JWTManager } = require('../../managers/JWTManager');
+      const jwtManager = JWTManager.getInstance();
+      
+      console.log(`🔍 [BattleEndManager] Debug sessionId: ${sessionId}`);
+      
+      let userId = jwtManager.getUserId(sessionId);
+      
+      // 🆕 SI PAS DE MAPPING, ESSAYER AVEC LE PLAYERNAME
+      if (!userId && this.gameState?.player1?.name) {
+        console.log(`🔄 [BattleEndManager] Tentative getUserIdRobust avec playerName: ${this.gameState.player1.name}`);
+        userId = await jwtManager.getUserIdRobust(sessionId, this.gameState.player1.name);
+      }
+      
+      if (!userId) {
+        console.warn(`⚠️ [BattleEndManager] Impossible de convertir sessionId ${sessionId} en userId`);
+        console.log(`🔍 [BattleEndManager] Debug JWTManager mappings:`);
+        jwtManager.debugMappings();
+        return null;
+      }
+      
+      console.log(`✅ [BattleEndManager] Conversion réussie: sessionId ${sessionId} -> userId ${userId}`);
+      
+      // 🆕 RÉCUPÉRER LE USERNAME VIA JWT
+      const jwtData = jwtManager.getUserJWTData(userId);
+      const username = jwtData?.username;
+      
+      if (!username) {
+        console.warn(`⚠️ [BattleEndManager] Username introuvable pour userId ${userId}`);
+        return null;
+      }
+      
+      console.log(`✅ [BattleEndManager] Username récupéré: ${username}`);
+      
+      // 🎯 ESSAYER D'ABORD AVEC LE USERNAME (solution probable)
+      console.log(`🔄 [BattleEndManager] Recherche par username: ${username}`);
+      const pokemonByUsername = await this.findOwnedPokemon(pokemon, username);
+      
+      if (pokemonByUsername) {
+        console.log(`✅ [BattleEndManager] Pokémon trouvé par username !`);
+        return pokemonByUsername;
+      }
+      
+      // 🎯 FALLBACK:// server/src/battle/modules/BattleEndManager.ts
 // ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde + 🆕 SYSTÈME XP INTÉGRÉ
 
 import { BattleGameState, BattleResult, Pokemon } from '../types/BattleTypes';
