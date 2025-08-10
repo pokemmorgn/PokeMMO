@@ -53,6 +53,13 @@ export class BattleRoom extends Room<BattleState> {
     
     // 🎯 INITIALISER BATTLEENDMANAGER AVEC CALLBACK XP
     this.battleEndManager = new BattleEndManager();
+    
+    // ✅ CORRECTION : Configuration du callback d'émission XP
+    this.battleEndManager.setEmitToClientCallback((eventType: string, data: any) => {
+      console.log(`📤 [BattleRoom] Émission événement XP: ${eventType}`);
+      this.broadcast(eventType, data);
+    });
+    
     this.configureBattleEndManager(this.battleEndManager);
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
