@@ -1,14 +1,17 @@
 // server/src/battle/modules/BattleEndManager.ts
-// ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde
+// ÉTAPE 2.5 : Gestion de fin de combat et sauvegarde + 🆕 SYSTÈME XP INTÉGRÉ
 
 import { BattleGameState, BattleResult, Pokemon } from '../types/BattleTypes';
 import { OwnedPokemon } from '../../models/OwnedPokemon';
+// 🆕 IMPORT DU SERVICE XP
+import { givePlayerWildXP } from '../../services/ExperienceService';
 
 /**
  * BATTLE END MANAGER - Gestion de fin de combat
  * 
  * Responsabilités :
  * - Sauvegarder les HP après combat
+ * - 🆕 DONNER L'XP POUR COMBATS SAUVAGES
  * - Gérer l'expérience (étape future)
  * - Gérer les récompenses (étape future)
  * - Nettoyer l'état de combat
@@ -18,7 +21,7 @@ export class BattleEndManager {
   private gameState: BattleGameState | null = null;
   
   constructor() {
-    console.log('🏁 [BattleEndManager] Initialisé');
+    console.log('🏁 [BattleEndManager] Initialisé avec système XP');
   }
   
   // === INITIALISATION ===
@@ -34,7 +37,7 @@ export class BattleEndManager {
   // === SAUVEGARDE PRINCIPALE ===
   
   /**
-   * Sauvegarde l'état des Pokémon après combat
+   * Sauvegarde l'état des Pokémon après combat + 🆕 GAIN D'XP
    */
   async savePokemonAfterBattle(): Promise<BattleResult> {
     console.log('💾 [BattleEndManager] Sauvegarde des Pokémon après combat...');
@@ -46,6 +49,8 @@ export class BattleEndManager {
     try {
       const savePromises: Promise<any>[] = [];
       const events: string[] = [];
+      
+      // 🔥 ÉTAPE 1 : SAUVEGARDER LES HP COMME AVANT
       
       // Sauvegarder le Pokémon du joueur 1 (jamais wild)
       if (this.gameState.player1.pokemon && !this.gameState.player1.pokemon.isWild) {
@@ -67,17 +72,28 @@ export class BattleEndManager {
         events.push(`${this.gameState.player2.pokemon.name} sauvegardé`);
       }
       
-      // Attendre toutes les sauvegardes
+      // Attendre toutes les sauvegardes HP
       await Promise.all(savePromises);
       
       console.log(`✅ [BattleEndManager] ${savePromises.length} Pokémon sauvegardés`);
       
+      // 🆕 ÉTAPE 2 : GAIN D'XP POUR COMBATS SAUVAGES GAGNÉS
+      let xpEvents: string[] = [];
+      if (this.gameState.type === 'wild' && this.gameState.winner === 'player1') {
+        console.log('🌟 [BattleEndManager] Combat sauvage gagné - Attribution XP...');
+        xpEvents = await this.processWildBattleExperience();
+      }
+      
+      // 🔥 COMBINER TOUS LES ÉVÉNEMENTS
+      const allEvents = [...events, ...xpEvents];
+      
       return {
         success: true,
         gameState: this.gameState,
-        events: events,
+        events: allEvents,
         data: {
-          pokemonSaved: savePromises.length
+          pokemonSaved: savePromises.length,
+          xpAwarded: xpEvents.length > 0 // 🆕 Indicateur XP donné
         }
       };
       
@@ -90,7 +106,64 @@ export class BattleEndManager {
     }
   }
   
-  // === SAUVEGARDE INDIVIDUELLE ===
+  // === 🆕 SYSTÈME XP POUR COMBATS SAUVAGES ===
+  
+  /**
+   * 🆕 Traite l'expérience pour un combat sauvage gagné
+   */
+  private async processWildBattleExperience(): Promise<string[]> {
+    if (!this.gameState) return [];
+    
+    const events: string[] = [];
+    
+    try {
+      // 🎯 RÉCUPÉRER LES DONNÉES NÉCESSAIRES
+      const playerPokemon = this.gameState.player1.pokemon;
+      const wildPokemon = this.gameState.player2.pokemon;
+      
+      if (!playerPokemon || !wildPokemon) {
+        console.warn('⚠️ [BattleEndManager] Données Pokémon manquantes pour XP');
+        return [];
+      }
+      
+      // 🎯 IDENTIFIER LE POKÉMON DU JOUEUR (via combatId)
+      const playerPokemonId = playerPokemon.combatId || 'unknown';
+      if (playerPokemonId === 'unknown') {
+        console.warn('⚠️ [BattleEndManager] CombatId manquant - XP ignorée');
+        return ['⚠️ Impossible d\'attribuer l\'expérience (ID manquant)'];
+      }
+      
+      // 🎯 DONNÉES DU POKÉMON VAINCU
+      const defeatedPokemonData = {
+        pokemonId: wildPokemon.id,
+        level: wildPokemon.level
+      };
+      
+      console.log(`🌟 [BattleEndManager] Attribution XP: ${playerPokemon.name} vs ${wildPokemon.name} (niveau ${wildPokemon.level})`);
+      
+      // 🚀 APPEL DU SERVICE XP (API SIMPLE)
+      const xpSuccess = await givePlayerWildXP(
+        playerPokemonId,
+        defeatedPokemonData
+      );
+      
+      if (xpSuccess) {
+        events.push(`🌟 ${playerPokemon.name} a gagné de l'expérience !`);
+        console.log(`✅ [BattleEndManager] XP attribuée avec succès à ${playerPokemon.name}`);
+      } else {
+        events.push(`⚠️ Erreur lors de l'attribution d'expérience`);
+        console.warn(`⚠️ [BattleEndManager] Échec attribution XP pour ${playerPokemon.name}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleEndManager] Erreur traitement XP:', error);
+      events.push(`❌ Erreur lors du calcul d'expérience`);
+    }
+    
+    return events;
+  }
+  
+  // === 🔥 MÉTHODES EXISTANTES PRÉSERVÉES ===
   
   /**
    * Sauvegarde un Pokémon spécifique
@@ -250,8 +323,8 @@ export class BattleEndManager {
    */
   getStats(): any {
     return {
-      version: 'basic_v1',
-      features: ['hp_save', 'status_save'],
+      version: 'xp_integrated_v1', // 🆕 Version avec XP
+      features: ['hp_save', 'status_save', 'wild_battle_xp'], // 🆕 Feature XP ajoutée
       ready: this.isReady(),
       gameState: this.gameState ? 'loaded' : 'empty'
     };
