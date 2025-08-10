@@ -17,6 +17,14 @@ export class ExperienceUI {
     // 🌐 NOUVEAU: Gestionnaire de traductions
     this.localizationManager = getLocalizationManager();
     
+    // 🔥 NOUVEAU: Données pokémon courantes pour re-traduction
+    this.currentPokemonData = null;
+    this.currentExperienceData = null;
+    
+    // 🎧 NOUVEAU: Listeners pour changements de langue
+    this.languageUnsubscribe = null;
+    this.localizationUnsubscribe = null;
+    
     // Éléments Phaser
     this.container = null;
     this.backgroundPanel = null;
@@ -36,7 +44,163 @@ export class ExperienceUI {
       showDuration: 3000
     };
     
-    console.log('🎮 [ExperienceUI] Instance créée avec support traductions');
+    console.log('🎮 [ExperienceUI] Instance créée avec support traductions + listeners');
+    
+    // 🎧 Configurer les listeners au constructeur
+    this.setupLanguageListeners();
+  }
+  
+  // === 🎧 GESTION LISTENERS LANGUE ===
+  
+  /**
+   * 🎧 Configurer les listeners pour les changements de langue
+   */
+  setupLanguageListeners() {
+    try {
+      // 1. Écouter OptionsManager si disponible
+      if (window.optionsSystem && window.optionsSystem.addLanguageListener) {
+        console.log('🎧 [ExperienceUI] Écoute OptionsManager...');
+        
+        this.languageUnsubscribe = window.optionsSystem.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [ExperienceUI] Changement langue OptionsManager: ${oldLang} → ${newLang}`);
+          this.onLanguageChanged(newLang, oldLang);
+        });
+        
+        console.log('✅ [ExperienceUI] Listener OptionsManager configuré');
+      }
+      
+      // 2. Écouter LocalizationManager
+      if (this.localizationManager && typeof this.localizationManager.addLanguageListener === 'function') {
+        console.log('🎧 [ExperienceUI] Écoute LocalizationManager...');
+        
+        this.localizationUnsubscribe = this.localizationManager.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [ExperienceUI] Changement langue LocalizationManager: ${oldLang} → ${newLang}`);
+          this.onLanguageChanged(newLang, oldLang);
+        });
+        
+        console.log('✅ [ExperienceUI] Listener LocalizationManager configuré');
+      }
+      
+      // 3. Écouter événements window globaux
+      this.setupGlobalLanguageEvents();
+      
+    } catch (error) {
+      console.warn('⚠️ [ExperienceUI] Erreur setup listeners langue:', error);
+    }
+  }
+  
+  /**
+   * 🎧 Configurer les événements globaux de langue
+   */
+  setupGlobalLanguageEvents() {
+    // Événement custom pour changements de langue
+    this.handleLanguageChanged = (event) => {
+      const newLang = event.detail?.newLanguage || event.detail?.language;
+      if (newLang) {
+        console.log(`🌐 [ExperienceUI] Changement langue global: ${newLang}`);
+        this.onLanguageChanged(newLang);
+      }
+    };
+    
+    // Événement modules localization mis à jour
+    this.handleModulesUpdated = (event) => {
+      const detail = event.detail || {};
+      if (detail.newModules && (detail.newModules.includes('battle') || detail.newModules.includes('pokemon'))) {
+        console.log('🔄 [ExperienceUI] Modules battle mis à jour, refresh traductions');
+        this.refreshCurrentTranslations();
+      }
+    };
+    
+    window.addEventListener('languageChanged', this.handleLanguageChanged);
+    window.addEventListener('localizationModulesUpdated', this.handleModulesUpdated);
+    
+    console.log('🎧 [ExperienceUI] Événements globaux configurés');
+  }
+  
+  /**
+   * 🎧 Gestionnaire principal de changement de langue
+   * @param {string} newLang - Nouvelle langue
+   * @param {string} oldLang - Ancienne langue (optionnel)
+   */
+  onLanguageChanged(newLang, oldLang = null) {
+    try {
+      console.log(`🌐 [ExperienceUI] === CHANGEMENT LANGUE: ${oldLang || '?'} → ${newLang} ===`);
+      
+      // Pré-charger les traductions pokémon pour la nouvelle langue
+      this.preloadPokemonTranslations(newLang);
+      
+      // Mettre à jour les textes affichés si UI visible
+      if (this.isVisible && this.container && this.container.visible) {
+        console.log('🔄 [ExperienceUI] UI visible - mise à jour traductions...');
+        this.refreshCurrentTranslations();
+      }
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur changement langue:', error);
+    }
+  }
+  
+  /**
+   * 🔄 Rafraîchir les traductions courantes
+   */
+  refreshCurrentTranslations() {
+    if (!this.currentPokemonData || !this.currentExperienceData) {
+      console.log('ℹ️ [ExperienceUI] Pas de données courantes à rafraîchir');
+      return;
+    }
+    
+    try {
+      console.log('🔄 [ExperienceUI] Rafraîchissement traductions avec données courantes...');
+      
+      const pokemon = this.currentPokemonData;
+      const experience = this.currentExperienceData;
+      const levelData = this.currentExperienceData.progression?.level || {};
+      
+      // Re-calculer les traductions
+      const displayName = this.getPokemonDisplayName(pokemon);
+      const expText = this.getExpGainedText(experience.gained || 0);
+      const levelText = this.getLevelText(levelData.current || 1);
+      
+      // Mettre à jour l'UI si existante
+      if (this.pokemonNameText) {
+        this.pokemonNameText.setText(displayName.toUpperCase());
+        console.log(`🔄 [ExperienceUI] Nom mis à jour: ${displayName}`);
+      }
+      
+      if (this.expGainedText) {
+        this.expGainedText.setText(expText);
+        console.log(`🔄 [ExperienceUI] EXP mis à jour: ${expText}`);
+      }
+      
+      if (this.levelText) {
+        this.levelText.setText(levelText);
+        console.log(`🔄 [ExperienceUI] Niveau mis à jour: ${levelText}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ [ExperienceUI] Erreur rafraîchissement traductions:', error);
+    }
+  }
+  
+  /**
+   * 🔄 Pré-charger les traductions pokémon pour une langue
+   * @param {string} lang - Code langue
+   */
+  async preloadPokemonTranslations(lang) {
+    try {
+      if (this.localizationManager && this.localizationManager.loadPokemonForLanguage) {
+        console.log(`📥 [ExperienceUI] Pré-chargement pokémon pour ${lang}...`);
+        
+        const success = await this.localizationManager.loadPokemonForLanguage(lang);
+        if (success) {
+          console.log(`✅ [ExperienceUI] Pokémon ${lang} pré-chargés`);
+        } else {
+          console.warn(`⚠️ [ExperienceUI] Échec pré-chargement pokémon ${lang}`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [ExperienceUI] Erreur pré-chargement pokémon:', error);
+    }
   }
   
   // === INITIALISATION ===
@@ -307,6 +471,10 @@ export class ExperienceUI {
     console.log('🎮 [ExperienceUI] === SÉQUENCE XP AVEC TRADUCTIONS ===');
     console.log('📊 Données complètes:', data);
     
+    // 🔥 NOUVEAU: Stocker les données courantes pour re-traduction
+    this.currentPokemonData = data.pokemon || {};
+    this.currentExperienceData = data;
+    
     // 🆕 ADAPTATION AU NOUVEAU FORMAT
     const pokemon = data.pokemon || {};
     const experience = data.experience || {};
@@ -347,6 +515,12 @@ export class ExperienceUI {
     
     // Animation de sortie
     await this.animateExit();
+    
+    // 🔥 NOUVEAU: Nettoyer les données courantes après animation
+    setTimeout(() => {
+      this.currentPokemonData = null;
+      this.currentExperienceData = null;
+    }, 1000);
   }
   
   // 🆕 NOUVELLE MÉTHODE : Animation progression simple (pas de level up)
@@ -616,24 +790,31 @@ export class ExperienceUI {
   // === 🌐 NOUVELLES MÉTHODES DE MISE À JOUR ===
   
   /**
-   * 🌐 Mettre à jour la langue
+   * 🌐 Mettre à jour la langue (appelée par des systèmes externes)
    */
   updateLanguage() {
-    console.log('🌐 [ExperienceUI] Mise à jour langue');
+    console.log('🌐 [ExperienceUI] updateLanguage() appelée');
     
     // Pré-charger les traductions pokémon si nécessaire
     const manager = this.localizationManager;
     if (manager && manager.getCurrentLanguage) {
       const currentLang = manager.getCurrentLanguage();
-      
-      // Charger pokémon pour la langue actuelle
-      if (manager.loadPokemonForLanguage) {
-        manager.loadPokemonForLanguage(currentLang).then(() => {
-          console.log('🌐 [ExperienceUI] Pokémon chargés pour:', currentLang);
-        }).catch(error => {
-          console.warn('⚠️ [ExperienceUI] Erreur chargement pokémon:', error);
-        });
-      }
+      this.preloadPokemonTranslations(currentLang);
+    }
+    
+    // Rafraîchir si des données courantes existent
+    this.refreshCurrentTranslations();
+  }
+  
+  /**
+   * 🎧 Méthode d'écoute pour l'event dispatcher
+   */
+  onLocalizationUpdated(detail) {
+    console.log('🔄 [ExperienceUI] LocalizationManager mis à jour:', detail);
+    
+    if (detail.newModules && detail.newModules.includes('battle')) {
+      console.log('🔄 [ExperienceUI] Module battle mis à jour - refresh traductions');
+      this.refreshCurrentTranslations();
     }
   }
   
@@ -654,12 +835,51 @@ export class ExperienceUI {
   destroy() {
     this.forceHide();
     
+    // 🎧 NOUVEAU: Nettoyer les listeners de langue
+    console.log('🧹 [ExperienceUI] Nettoyage listeners langue...');
+    
+    try {
+      // 1. Nettoyer listener OptionsManager
+      if (this.languageUnsubscribe && typeof this.languageUnsubscribe === 'function') {
+        this.languageUnsubscribe();
+        console.log('🧹 [ExperienceUI] Listener OptionsManager supprimé');
+      }
+      
+      // 2. Nettoyer listener LocalizationManager
+      if (this.localizationUnsubscribe && typeof this.localizationUnsubscribe === 'function') {
+        this.localizationUnsubscribe();
+        console.log('🧹 [ExperienceUI] Listener LocalizationManager supprimé');
+      }
+      
+      // 3. Nettoyer événements globaux
+      if (this.handleLanguageChanged) {
+        window.removeEventListener('languageChanged', this.handleLanguageChanged);
+      }
+      
+      if (this.handleModulesUpdated) {
+        window.removeEventListener('localizationModulesUpdated', this.handleModulesUpdated);
+      }
+      
+      console.log('🧹 [ExperienceUI] Événements globaux nettoyés');
+      
+    } catch (error) {
+      console.warn('⚠️ [ExperienceUI] Erreur nettoyage listeners:', error);
+    }
+    
+    // Nettoyer les données courantes
+    this.currentPokemonData = null;
+    this.currentExperienceData = null;
+    this.languageUnsubscribe = null;
+    this.localizationUnsubscribe = null;
+    this.handleLanguageChanged = null;
+    this.handleModulesUpdated = null;
+    
     if (this.container) {
       this.container.destroy();
       this.container = null;
     }
     
     this.currentQueue = [];
-    console.log('🗑️ [ExperienceUI] Détruit');
+    console.log('🗑️ [ExperienceUI] Détruit avec nettoyage complet listeners');
   }
 }
