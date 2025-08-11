@@ -198,6 +198,7 @@ export class DialogueEditorModule {
         console.log('🗨️ [DialogueEditor] Chargement des dialogues...');
         
         // Vérifier l'authentification pour les requêtes sensibles
+        if (!this.adminPanel.getAuthToken()) {
             console.warn('⚠️ [DialogueEditor] Pas de token d\'authentification');
             this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'warning');
             return;
@@ -205,6 +206,7 @@ export class DialogueEditorModule {
         
         const response = await this.adminPanel.apiCall('/dialogues', {
             headers: {
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
             }
         });
         
@@ -793,6 +795,7 @@ async createNewDialogue() {
     
     try {
         // Vérifier que l'AdminPanel est authentifié
+        if (!this.adminPanel.getAuthToken()) {
             this.adminPanel.showNotification('Vous devez être connecté pour créer un dialogue', 'error');
             return;
         }
@@ -814,12 +817,14 @@ async createNewDialogue() {
             version: '1.0.0'
         };
 
+        console.log('🔑 [DialogueEditor] Envoi avec token:', this.adminPanel.getAuthToken() ? 'Présent' : 'MANQUANT');
 
         // ✅ CRÉER DIRECTEMENT EN DB VIA API avec authentification
         const response = await this.adminPanel.apiCall('/dialogues', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
             },
             body: JSON.stringify(defaultData)
         });
@@ -1294,6 +1299,7 @@ async duplicateDialogue() {
 
     try {
         // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
             this.adminPanel.showNotification('Vous devez être connecté pour sauvegarder', 'error');
             return;
         }
@@ -1316,6 +1322,7 @@ async duplicateDialogue() {
         
         const authHeaders = {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
         };
 
         if (isNewDialogue) {
