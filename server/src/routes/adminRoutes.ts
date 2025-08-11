@@ -12,7 +12,8 @@ import { NpcData } from '../models/NpcData'; // ✅ Correct
 import { ShopData } from '../models/ShopData.js'
 import { ItemData } from '../models/ItemData';
 import { DialogStringModel, IDialogString } from '../models/DialogString';
-
+// Ajouter cette ligne avec les autres imports
+import { PokemonData } from '../models/PokemonData'
 
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
@@ -7194,8 +7195,7 @@ router.get('/pokemon/all', async (req, res) => {
     
     res.json(pokemon)
   } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
+res.status(500).json({ error: error instanceof Error ? error.message : 'Erreur inconnue' })  }
 })
 
 export default router;
