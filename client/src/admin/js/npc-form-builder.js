@@ -149,58 +149,134 @@ loadNPC(npc) {
 
 // MÉTHODE CORRIGÉE : populateAllFields
 populateAllFields() {
-    console.log('📝 [FormBuilder] Populating ALL fields for NPC:', this.currentNPC);
+    console.log('📝 [FormBuilder] === DÉBUT POPULATION COMPLÈTE ===');
+    console.log('📋 NPC à peupler:', this.currentNPC);
     
-    if (!this.currentNPC) return;
+    if (!this.currentNPC) {
+        console.error('❌ [FormBuilder] Aucun NPC à peupler');
+        return;
+    }
     
-    // ✅ CORRECTION 1: Parcourir TOUS les champs du NPC, pas seulement une liste prédéfinie
-    Object.keys(this.currentNPC).forEach(fieldName => {
-        const value = this.currentNPC[fieldName];
-        
-        // Ignorer les champs système
-        if (['_id', '__v', 'createdAt', 'updatedAt', 'lastUpdated'].includes(fieldName)) {
-            return;
+    // ✅ CORRECTION 1: Parcourir TOUS les champs du NPC
+    const allFields = Object.keys(this.currentNPC);
+    console.log('📊 Champs NPC disponibles:', allFields.sort());
+    
+    // ✅ CORRECTION 2: Traitement spécial pour les champs critiques en premier
+    const criticalFields = ['name', 'type', 'sprite', 'direction', 'position'];
+    const dialogueFields = ['dialogueId', 'dialogueIds', 'conditionalDialogueIds'];
+    const configFields = ['shopId', 'trainerId', 'trainerClass'];
+    
+    // Peupler les champs critiques d'abord
+    criticalFields.forEach(fieldName => {
+        if (this.currentNPC[fieldName] !== undefined) {
+            console.log(`🎯 [FormBuilder] Champ critique ${fieldName}:`, this.currentNPC[fieldName]);
+            this.populateField(fieldName, this.currentNPC[fieldName]);
         }
-        
-        console.log(`🔍 [FormBuilder] Processing field: ${fieldName} = ${typeof value === 'object' ? JSON.stringify(value) : value}`);
-        
-        // Gestion spéciale pour les objets complexes
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            // Si c'est un objet (comme position, config, etc.)
-            if (fieldName === 'position') {
-                this.populateField('position.x', value.x);
-                this.populateField('position.y', value.y);
-            } else {
-                // Pour les autres objets, essayer de peupler comme JSON
+    });
+    
+    // ✅ CORRECTION 3: Traitement spécial pour les dialogues
+    dialogueFields.forEach(fieldName => {
+        const value = this.currentNPC[fieldName];
+        if (value !== undefined && value !== null) {
+            console.log(`💬 [FormBuilder] Champ dialogue ${fieldName}:`, value);
+            
+            if (fieldName === 'dialogueId' && typeof value === 'string') {
+                // Dialogue principal (string)
+                this.populateField(fieldName, value);
+            } else if (fieldName === 'dialogueIds' && Array.isArray(value)) {
+                // Dialogues multiples (array)
+                this.rebuildArrayField(fieldName, value);
+            } else if (fieldName === 'conditionalDialogueIds' && typeof value === 'object') {
+                // Dialogues conditionnels (object)
                 const textarea = document.querySelector(`textarea[name="${fieldName}"]`);
                 if (textarea) {
                     textarea.value = JSON.stringify(value, null, 2);
-                    console.log(`📝 [FormBuilder] Object field ${fieldName} populated as JSON`);
-                } else {
-                    // Essayer de peupler les sous-champs si ils existent
-                    Object.keys(value).forEach(subKey => {
-                        const subFieldName = `${fieldName}.${subKey}`;
-                        this.populateField(subFieldName, value[subKey]);
-                    });
+                    console.log(`💬 [FormBuilder] ${fieldName} peuplé comme JSON`);
                 }
             }
+        }
+    });
+    
+    // ✅ CORRECTION 4: Champs de configuration
+    configFields.forEach(fieldName => {
+        if (this.currentNPC[fieldName] !== undefined) {
+            console.log(`⚙️ [FormBuilder] Champ config ${fieldName}:`, this.currentNPC[fieldName]);
+            this.populateField(fieldName, this.currentNPC[fieldName]);
+        }
+    });
+    
+    // ✅ CORRECTION 5: Tous les autres champs
+    allFields.forEach(fieldName => {
+        // Ignorer les champs déjà traités
+        if ([...criticalFields, ...dialogueFields, ...configFields].includes(fieldName)) {
+            return;
+        }
+        
+        // Ignorer les champs système
+        if (['_id', '__v', 'createdAt', 'updatedAt', 'lastUpdated', 'id'].includes(fieldName)) {
+            return;
+        }
+        
+        const value = this.currentNPC[fieldName];
+        
+        if (value === undefined || value === null) {
+            return;
+        }
+        
+        console.log(`🔍 [FormBuilder] Traitement champ ${fieldName}:`, typeof value, value);
+        
+        // Gestion des différents types
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Objet complexe -> textarea JSON
+            const textarea = document.querySelector(`textarea[name="${fieldName}"]`);
+            if (textarea) {
+                textarea.value = JSON.stringify(value, null, 2);
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`📝 [FormBuilder] ${fieldName} peuplé comme JSON object`);
+            }
         } else if (Array.isArray(value)) {
-            // Si c'est un array
+            // Array -> rebuild array field
             this.rebuildArrayField(fieldName, value);
-            console.log(`📝 [FormBuilder] Array field ${fieldName} populated with ${value.length} items`);
+            console.log(`📝 [FormBuilder] ${fieldName} peuplé comme array (${value.length} items)`);
         } else {
             // Champ simple
             this.populateField(fieldName, value);
         }
     });
     
-    // ✅ CORRECTION 2: Forcer la mise à jour de l'aperçu JSON après population
+    // ✅ CORRECTION 6: Forcer la mise à jour de l'aperçu après un délai
     setTimeout(() => {
+        console.log('⏰ [FormBuilder] Mise à jour différée JSON preview...');
         this.updateJsonPreview();
         this.validateForm();
-        console.log('✅ [FormBuilder] All fields populated and JSON preview updated');
-    }, 100);
+        
+        // Diagnostic final
+        const populatedFields = this.container.querySelectorAll('input[value], textarea:not(:empty), select option:checked');
+        console.log(`✅ [FormBuilder] Population terminée - ${populatedFields.length} champs peuplés`);
+        
+        // Vérification spéciale dialogueId
+        const dialogueIdField = document.querySelector('input[name="dialogueId"]');
+        if (dialogueIdField) {
+            console.log('💬 [FormBuilder] Vérification dialogueId DOM:', {
+                fieldExists: !!dialogueIdField,
+                fieldValue: dialogueIdField.value,
+                npcDialogueId: this.currentNPC.dialogueId
+            });
+            
+            // Si le champ existe mais est vide alors que le NPC a un dialogueId
+            if (!dialogueIdField.value && this.currentNPC.dialogueId) {
+                console.log('🔧 [FormBuilder] Correction dialogueId manquant...');
+                dialogueIdField.value = this.currentNPC.dialogueId;
+                dialogueIdField.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        
+    }, 200);
+    
+    console.log('✅ [FormBuilder] === FIN POPULATION COMPLÈTE ===');
 }
+
+    
 // MÉTHODE CORRIGÉE : populateField pour mieux gérer les types
 populateField(fieldName, value) {
     if (value === undefined || value === null) {
