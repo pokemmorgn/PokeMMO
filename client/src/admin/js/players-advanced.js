@@ -1403,6 +1403,202 @@ configurePokemonOptions(pokemon) {
     }
 }
 
+// ✅ NOUVELLE MÉTHODE: Initialiser l'autocomplétion Pokémon
+initializePokemonAutocomplete(pokemonList) {
+    const input = document.getElementById('pokemonSearchInput')
+    const suggestions = document.getElementById('pokemonSuggestions')
+    const preview = document.getElementById('pokemonPreview')
+    
+    if (!input || !suggestions) return
+
+    let currentFocus = -1
+
+    // Fonction de recherche
+    const searchPokemon = (query) => {
+        if (query.length < 2) {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+            return
+        }
+
+        const matches = pokemonList.filter(pokemon => 
+            pokemon.nameKey.toLowerCase().includes(query.toLowerCase()) ||
+            pokemon.nationalDex.toString().includes(query) ||
+            (pokemon.species && pokemon.species.toLowerCase().includes(query.toLowerCase())) ||
+            (pokemon.types && pokemon.types.some(type => type.toLowerCase().includes(query.toLowerCase())))
+        ).slice(0, 10) // Limiter à 10 résultats
+
+        if (matches.length === 0) {
+            suggestions.innerHTML = `
+                <div style="padding: 15px; text-align: center; color: #6c757d;">
+                    <i class="fas fa-search"></i> Aucun Pokémon trouvé pour "${query}"
+                </div>
+            `
+            suggestions.style.display = 'block'
+            return
+        }
+
+        suggestions.innerHTML = matches.map((pokemon, index) => `
+            <div class="pokemon-suggestion" 
+                 data-pokemon-id="${pokemon.nationalDex}"
+                 data-index="${index}"
+                 style="
+                    padding: 12px 16px; 
+                    border-bottom: 1px solid #f0f0f0; 
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                 "
+                 onmouseenter="this.style.backgroundColor='#f8f9fa'"
+                 onmouseleave="this.style.backgroundColor='white'">
+                <div>
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 2px;">
+                        #${pokemon.nationalDex.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #6c757d;">
+                        ${pokemon.types.join(' / ')} • Génération ${pokemon.generation}
+                        ${pokemon.species ? ` • ${pokemon.species}` : ''}
+                    </div>
+                </div>
+                <div style="color: #007bff;">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+            </div>
+        `).join('')
+
+        suggestions.style.display = 'block'
+        currentFocus = -1
+    }
+
+    // Fonction de sélection de Pokémon
+    const selectPokemon = (pokemonId) => {
+        const pokemon = pokemonList.find(p => p.nationalDex === parseInt(pokemonId))
+        if (!pokemon) return
+
+        this.selectedPokemonId = pokemonId
+        input.value = `#${pokemonId.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}`
+        suggestions.style.display = 'none'
+        
+        // Afficher la prévisualisation
+        this.showPokemonPreview(pokemon)
+        
+        // Configurer les options selon le Pokémon
+        this.configurePokemonOptions(pokemon)
+    }
+
+    // Événements
+    input.addEventListener('input', (e) => {
+        this.selectedPokemonId = null
+        preview.style.display = 'none'
+        searchPokemon(e.target.value.trim())
+    })
+
+    input.addEventListener('keydown', (e) => {
+        const suggestionItems = suggestions.querySelectorAll('.pokemon-suggestion')
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            currentFocus = Math.min(currentFocus + 1, suggestionItems.length - 1)
+            this.updateSuggestionFocus(suggestionItems, currentFocus)
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            currentFocus = Math.max(currentFocus - 1, -1)
+            this.updateSuggestionFocus(suggestionItems, currentFocus)
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (currentFocus >= 0 && suggestionItems[currentFocus]) {
+                const pokemonId = suggestionItems[currentFocus].dataset.pokemonId
+                selectPokemon(pokemonId)
+            }
+        } else if (e.key === 'Escape') {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+        }
+    })
+
+    // Clic sur une suggestion
+    suggestions.addEventListener('click', (e) => {
+        const suggestion = e.target.closest('.pokemon-suggestion')
+        if (suggestion) {
+            const pokemonId = suggestion.dataset.pokemonId
+            selectPokemon(pokemonId)
+        }
+    })
+
+    // Fermer les suggestions en cliquant ailleurs
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none'
+            currentFocus = -1
+        }
+    })
+}
+
+    // ✅ NOUVELLE MÉTHODE: Afficher la prévisualisation du Pokémon
+showPokemonPreview(pokemon) {
+    const preview = document.getElementById('pokemonPreview')
+    const previewContent = document.getElementById('pokemonPreviewContent')
+    
+    if (!preview || !previewContent) return
+
+    const typeColors = {
+        'Normal': '#A8A878', 'Fire': '#F08030', 'Water': '#6890F0', 'Electric': '#F8D030',
+        'Grass': '#78C850', 'Ice': '#98D8D8', 'Fighting': '#C03028', 'Poison': '#A040A0',
+        'Ground': '#E0C068', 'Flying': '#A890F0', 'Psychic': '#F85888', 'Bug': '#A8B820',
+        'Rock': '#B8A038', 'Ghost': '#705898', 'Dragon': '#7038F8', 'Dark': '#705848',
+        'Steel': '#B8B8D0', 'Fairy': '#EE99AC'
+    }
+
+    previewContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+                <h6 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 1.1rem;">
+                    #${pokemon.nationalDex.toString().padStart(3, '0')} ${this.formatPokemonName(pokemon.nameKey)}
+                </h6>
+                <div style="margin-bottom: 10px;">
+                    ${pokemon.types.map(type => `
+                        <span style="
+                            background: ${typeColors[type] || '#68727D'}; 
+                            color: white; 
+                            padding: 4px 8px; 
+                            border-radius: 12px; 
+                            font-size: 0.8rem; 
+                            margin-right: 5px;
+                            font-weight: bold;
+                        ">${type}</span>
+                    `).join('')}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.85rem; margin-bottom: 10px;">
+                    <span><strong>HP:</strong> ${pokemon.baseStats.hp}</span>
+                    <span><strong>ATT:</strong> ${pokemon.baseStats.attack}</span>
+                    <span><strong>DEF:</strong> ${pokemon.baseStats.defense}</span>
+                    <span><strong>SPA:</strong> ${pokemon.baseStats.specialAttack}</span>
+                    <span><strong>SPD:</strong> ${pokemon.baseStats.specialDefense}</span>
+                    <span><strong>SPE:</strong> ${pokemon.baseStats.speed}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #6c757d;">
+                    <div><strong>Capacités:</strong> ${pokemon.abilities.join(', ')}</div>
+                    ${pokemon.hiddenAbility ? `<div><strong>Capacité Cachée:</strong> ${pokemon.hiddenAbility}</div>` : ''}
+                    <div><strong>Taille:</strong> ${pokemon.height}m • <strong>Poids:</strong> ${pokemon.weight}kg</div>
+                </div>
+            </div>
+            ${pokemon.sprite ? `
+                <div style="margin-left: 15px;">
+                    <img src="${pokemon.sprite}" 
+                         alt="${this.formatPokemonName(pokemon.nameKey)}" 
+                         style="width: 64px; height: 64px; object-fit: contain;"
+                         onerror="this.style.display='none'">
+                </div>
+            ` : ''}
+        </div>
+    `
+    
+    // ✅ CETTE LIGNE MANQUAIT !
+    preview.style.display = 'block'
+}
+    
     // ✅ NOUVELLE MÉTHODE: Toggle des options avancées
 toggleAdvancedPokemonOptions() {
     const options = document.getElementById('advancedPokemonOptions')
