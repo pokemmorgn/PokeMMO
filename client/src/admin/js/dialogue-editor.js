@@ -371,19 +371,23 @@ export class DialogueEditorModule {
         container.innerHTML = dialoguesHTML;
     }
 
-    selectDialogue(dialogId) {
-        console.log(`🗨️ [DialogueEditor] Sélection dialogue: ${dialogId}`);
-        
-        const dialogue = this.dialogues.find(d => d.dialogId === dialogId);
-        if (!dialogue) {
-            console.error(`❌ [DialogueEditor] Dialogue non trouvé: ${dialogId}`);
-            return;
-        }
-
-        this.currentDialogue = dialogue;
-        this.renderDialoguesList(); // Refresh pour mettre à jour la sélection
-        this.loadDialogueEditor();
+   selectDialogue(dialogId) {
+    console.log(`🗨️ [DialogueEditor] Sélection dialogue: ${dialogId}`);
+    
+    const dialogue = this.dialogues.find(d => d.dialogId === dialogId);
+    if (!dialogue) {
+        console.error(`❌ [DialogueEditor] Dialogue non trouvé: ${dialogId}`);
+        this.adminPanel.showNotification(`Dialogue ${dialogId} non trouvé`, 'error');
+        return;
     }
+
+    // ✅ SUPPRIMER le flag isNew lors de la sélection
+    this.currentDialogue = { ...dialogue };
+    delete this.currentDialogue.isNew;
+    
+    this.renderDialoguesList(); // Refresh pour mettre à jour la sélection
+    this.loadDialogueEditor();
+}
 
     loadDialogueEditor() {
         if (!this.currentDialogue) return;
@@ -396,261 +400,409 @@ export class DialogueEditorModule {
         this.renderDialogueForm();
     }
 
-    renderDialogueForm() {
-        const container = document.getElementById('dialogueFormBuilder');
-        const dialogue = this.currentDialogue;
+   renderDialogueForm() {
+    const container = document.getElementById('dialogueFormBuilder');
+    const dialogue = this.currentDialogue;
 
-        container.innerHTML = `
-            <div class="dialogue-form-sections">
-                <!-- Section Informations de base -->
-                <div class="dialogue-form-section">
-                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4 class="dialogue-section-title">📋 Informations de Base</h4>
-                        <span class="dialogue-section-toggle">▼</span>
-                    </div>
-                    <div class="dialogue-section-content">
-                        <div class="dialogue-fields-grid">
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">ID du Dialogue <span class="dialogue-field-required">*</span></label>
-                                <input type="text" class="dialogue-form-input" id="dialogId" value="${dialogue.dialogId}" readonly>
-                                <div class="dialogue-field-help">Format: npcId.category.context[.variant]</div>
-                            </div>
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">NPC ID</label>
-                                <input type="text" class="dialogue-form-input" id="npcId" value="${dialogue.npcId || ''}" 
-                                       placeholder="ex: professor_oak">
-                            </div>
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">Catégorie <span class="dialogue-field-required">*</span></label>
-                                <select class="dialogue-form-select" id="category">
-                                    ${this.categories.map(cat => 
-                                        `<option value="${cat}" ${dialogue.category === cat ? 'selected' : ''}>${this.getCategoryName(cat)}</option>`
-                                    ).join('')}
-                                </select>
-                            </div>
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">Contexte</label>
-                                <input type="text" class="dialogue-form-input" id="context" value="${dialogue.context || ''}" 
-                                       placeholder="ex: welcome, buy, help">
-                            </div>
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">Priorité</label>
-                                <input type="number" class="dialogue-form-input" id="priority" value="${dialogue.priority || 5}" 
-                                       min="1" max="10">
-                                <div class="dialogue-field-help">1-10 (10 = priorité maximale)</div>
-                            </div>
-                            <div class="dialogue-boolean-field">
-                                <input type="checkbox" class="dialogue-form-checkbox" id="isActive" ${dialogue.isActive ? 'checked' : ''}>
-                                <label class="dialogue-checkbox-label" for="isActive">Dialogue actif</label>
-                            </div>
-                        </div>
-                    </div>
+    // [Le HTML du formulaire reste le même...]
+    container.innerHTML = `
+        <div class="dialogue-form-sections">
+            <!-- Section Informations de base -->
+            <div class="dialogue-form-section">
+                <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                    <h4 class="dialogue-section-title">📋 Informations de Base</h4>
+                    <span class="dialogue-section-toggle">▼</span>
                 </div>
-
-                <!-- Section Traductions -->
-                <div class="dialogue-form-section">
-                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4 class="dialogue-section-title">🌍 Traductions</h4>
-                        <span class="dialogue-section-toggle">▼</span>
-                    </div>
-                    <div class="dialogue-section-content">
-                        ${Object.entries(this.languages).map(([code, name]) => `
-                            <div class="dialogue-form-field">
-                                <label class="dialogue-field-label">
-                                    ${name} (${code.toUpperCase()}) 
-                                    ${code === 'eng' || code === 'fr' ? '<span class="dialogue-field-required">*</span>' : ''}
-                                </label>
-                                <textarea class="dialogue-form-textarea" id="lang_${code}" rows="3" 
-                                          placeholder="Texte en ${name}...">${dialogue[code] || ''}</textarea>
-                                <div class="dialogue-field-help">
-                                    Variables: %s (joueur), %t (cible), %custom pour variables personnalisées
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <!-- Section Variables -->
-                <div class="dialogue-form-section">
-                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4 class="dialogue-section-title">🔧 Variables et Conditions</h4>
-                        <span class="dialogue-section-toggle">▼</span>
-                    </div>
-                    <div class="dialogue-section-content">
+                <div class="dialogue-section-content">
+                    <div class="dialogue-fields-grid">
                         <div class="dialogue-form-field">
-                            <label class="dialogue-field-label">Variables Utilisées</label>
-                            <div class="dialogue-array-field" id="variablesContainer">
-                                ${(dialogue.variables || []).map((variable, index) => `
-                                    <div class="dialogue-array-item">
-                                        <input type="text" class="dialogue-form-input" value="${variable}" 
-                                               onchange="adminPanel.dialogueEditor.updateVariable(${index}, this.value)">
-                                        <button type="button" class="btn btn-danger btn-sm dialogue-remove-array-item" 
-                                                onclick="adminPanel.dialogueEditor.removeVariable(${index})">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                                <button type="button" class="btn btn-primary btn-sm dialogue-add-array-item" 
-                                        onclick="adminPanel.dialogueEditor.addVariable()">
-                                    <i class="fas fa-plus"></i> Ajouter Variable
-                                </button>
-                            </div>
-                            <div class="dialogue-field-help">
-                                Variables utilisées dans le texte (ex: playerName, targetName)
-                            </div>
+                            <label class="dialogue-field-label">ID du Dialogue <span class="dialogue-field-required">*</span></label>
+                            <input type="text" class="dialogue-form-input" id="dialogId" value="${dialogue.dialogId}" 
+                                   placeholder="ex: prof_oak.greeting.welcome">
+                            <div class="dialogue-field-help">Format REQUIS: npcId.category.context[.variant]</div>
                         </div>
-
                         <div class="dialogue-form-field">
-                            <label class="dialogue-field-label">Conditions d'Affichage (JSON)</label>
-                            <textarea class="dialogue-form-textarea dialogue-json-editor" id="conditions" rows="4" 
-                                      placeholder='[{"type": "level", "operator": ">=", "value": 10}]'>${JSON.stringify(dialogue.conditions || [], null, 2)}</textarea>
-                            <div class="dialogue-field-help">
-                                Conditions pour afficher ce dialogue (format JSON)
-                            </div>
+                            <label class="dialogue-field-label">NPC ID <span class="dialogue-field-required">*</span></label>
+                            <input type="text" class="dialogue-form-input" id="npcId" value="${dialogue.npcId || ''}" 
+                                   placeholder="ex: prof_oak">
+                            <div class="dialogue-field-help">Doit correspondre au début de l'ID du dialogue</div>
                         </div>
-
                         <div class="dialogue-form-field">
-                            <label class="dialogue-field-label">Tags</label>
-                            <input type="text" class="dialogue-form-input" id="tags" 
-                                   value="${(dialogue.tags || []).join(', ')}" 
-                                   placeholder="tag1, tag2, tag3">
-                            <div class="dialogue-field-help">Tags séparés par des virgules</div>
+                            <label class="dialogue-field-label">Catégorie <span class="dialogue-field-required">*</span></label>
+                            <select class="dialogue-form-select" id="category">
+                                ${this.categories.map(cat => 
+                                    `<option value="${cat}" ${dialogue.category === cat ? 'selected' : ''}>${this.getCategoryName(cat)}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">Contexte <span class="dialogue-field-required">*</span></label>
+                            <input type="text" class="dialogue-form-input" id="context" value="${dialogue.context || ''}" 
+                                   placeholder="ex: welcome, buy, help">
+                            <div class="dialogue-field-help">Utilisé dans l'ID du dialogue</div>
+                        </div>
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">Priorité</label>
+                            <input type="number" class="dialogue-form-input" id="priority" value="${dialogue.priority || 5}" 
+                                   min="1" max="10">
+                            <div class="dialogue-field-help">1-10 (10 = priorité maximale)</div>
+                        </div>
+                        <div class="dialogue-boolean-field">
+                            <input type="checkbox" class="dialogue-form-checkbox" id="isActive" ${dialogue.isActive ? 'checked' : ''}>
+                            <label class="dialogue-checkbox-label" for="isActive">Dialogue actif</label>
                         </div>
                     </div>
                 </div>
             </div>
-        `;
 
-        // Activer/désactiver les sections
-        container.querySelectorAll('.dialogue-section-header').forEach(header => {
-            header.style.cursor = 'pointer';
+            <!-- Section Traductions -->
+            <div class="dialogue-form-section">
+                <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                    <h4 class="dialogue-section-title">🌍 Traductions</h4>
+                    <span class="dialogue-section-toggle">▼</span>
+                </div>
+                <div class="dialogue-section-content">
+                    ${Object.entries(this.languages).map(([code, name]) => `
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">
+                                ${name} (${code.toUpperCase()}) 
+                                ${code === 'eng' || code === 'fr' ? '<span class="dialogue-field-required">*</span>' : ''}
+                            </label>
+                            <textarea class="dialogue-form-textarea" id="lang_${code}" rows="3" 
+                                      placeholder="Texte en ${name}...">${dialogue[code] || ''}</textarea>
+                            <div class="dialogue-field-help">
+                                Variables: %s (joueur), %t (cible), %custom pour variables personnalisées
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Section Variables -->
+            <div class="dialogue-form-section">
+                <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                    <h4 class="dialogue-section-title">🔧 Variables et Conditions</h4>
+                    <span class="dialogue-section-toggle">▼</span>
+                </div>
+                <div class="dialogue-section-content">
+                    <div class="dialogue-form-field">
+                        <label class="dialogue-field-label">Variables Utilisées</label>
+                        <div class="dialogue-array-field" id="variablesContainer">
+                            ${(dialogue.variables || []).map((variable, index) => `
+                                <div class="dialogue-array-item">
+                                    <input type="text" class="dialogue-form-input" value="${variable}" 
+                                           onchange="adminPanel.dialogueEditor.updateVariable(${index}, this.value)">
+                                    <button type="button" class="btn btn-danger btn-sm dialogue-remove-array-item" 
+                                            onclick="adminPanel.dialogueEditor.removeVariable(${index})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                            <button type="button" class="btn btn-primary btn-sm dialogue-add-array-item" 
+                                    onclick="adminPanel.dialogueEditor.addVariable()">
+                                <i class="fas fa-plus"></i> Ajouter Variable
+                            </button>
+                        </div>
+                        <div class="dialogue-field-help">
+                            Variables utilisées dans le texte (ex: playerName, targetName)
+                        </div>
+                    </div>
+
+                    <div class="dialogue-form-field">
+                        <label class="dialogue-field-label">Conditions d'Affichage (JSON)</label>
+                        <textarea class="dialogue-form-textarea dialogue-json-editor" id="conditions" rows="4" 
+                                  placeholder='[{"type": "level", "operator": ">=", "value": 10}]'>${JSON.stringify(dialogue.conditions || [], null, 2)}</textarea>
+                        <div class="dialogue-field-help">
+                            Conditions pour afficher ce dialogue (format JSON)
+                        </div>
+                    </div>
+
+                    <div class="dialogue-form-field">
+                        <label class="dialogue-field-label">Tags</label>
+                        <input type="text" class="dialogue-form-input" id="tags" 
+                               value="${(dialogue.tags || []).join(', ')}" 
+                               placeholder="tag1, tag2, tag3">
+                        <div class="dialogue-field-help">Tags séparés par des virgules</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // ✅ AJOUTER des event listeners pour auto-complétion
+    this.setupAutoCompletion();
+}
+
+setupAutoCompletion() {
+    const dialogIdField = document.getElementById('dialogId');
+    const npcIdField = document.getElementById('npcId');
+    const categoryField = document.getElementById('category');
+    const contextField = document.getElementById('context');
+
+    // Auto-complétion lors de la modification de l'ID du dialogue
+    if (dialogIdField) {
+        dialogIdField.addEventListener('input', () => {
+            const parts = dialogIdField.value.split('.');
+            if (parts.length >= 1 && npcIdField && !npcIdField.value.trim()) {
+                npcIdField.value = parts[0];
+            }
+            if (parts.length >= 2 && categoryField) {
+                const category = parts[1];
+                if (this.categories.includes(category)) {
+                    categoryField.value = category;
+                }
+            }
+            if (parts.length >= 3 && contextField && !contextField.value.trim()) {
+                contextField.value = parts[2];
+            }
         });
     }
 
-    async createNewDialogue() {
-        console.log('🗨️ [DialogueEditor] Création nouveau dialogue');
-        
-        const newDialogue = {
-            dialogId: `new_dialogue_${Date.now()}`,
-            npcId: '',
+    // Reconstruction de l'ID lors de modification des autres champs
+    const updateDialogId = () => {
+        if (dialogIdField && npcIdField && categoryField && contextField) {
+            const npcId = npcIdField.value.trim();
+            const category = categoryField.value;
+            const context = contextField.value.trim();
+            
+            if (npcId && category && context) {
+                const newId = `${npcId}.${category}.${context}`;
+                // Ne pas écraser si l'utilisateur a déjà un variant
+                if (!dialogIdField.value.includes(newId)) {
+                    dialogIdField.value = newId;
+                }
+            }
+        }
+    };
+
+    [npcIdField, categoryField, contextField].forEach(field => {
+        if (field) {
+            field.addEventListener('blur', updateDialogId);
+        }
+    });
+}
+  async createNewDialogue() {
+    console.log('🗨️ [DialogueEditor] Création nouveau dialogue en DB');
+    
+    try {
+        // Générer un ID valide selon le format requis: npcId.category.context[.variant]
+        const timestamp = Date.now();
+        const defaultData = {
+            dialogId: `new_npc.greeting.welcome.${timestamp}`,
+            npcId: 'new_npc',
             category: 'greeting',
-            context: 'default',
-            eng: 'New dialogue text',
-            fr: 'Nouveau texte de dialogue',
+            context: 'welcome',
+            eng: 'Hello! I am a new NPC.',
+            fr: 'Bonjour ! Je suis un nouveau PNJ.',
             priority: 5,
             isActive: true,
             variables: [],
             conditions: [],
-            tags: [],
+            tags: ['new'],
             version: '1.0.0'
         };
 
-        this.currentDialogue = newDialogue;
-        this.loadDialogueEditor();
+        // ✅ CRÉER DIRECTEMENT EN DB VIA API
+        const response = await this.adminPanel.apiCall('/dialogues', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(defaultData)
+        });
+
+        if (response.success) {
+            this.adminPanel.showNotification('Nouveau dialogue créé en DB', 'success');
+            
+            // Recharger la liste depuis la DB
+            await this.loadDialogues();
+            
+            // Sélectionner le nouveau dialogue
+            this.selectDialogue(defaultData.dialogId);
+            
+        } else {
+            throw new Error(response.error || 'Erreur création dialogue');
+        }
         
-        // Scroll vers l'éditeur
-        document.getElementById('dialogueFormBuilder').scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur création:', error);
+        this.adminPanel.showNotification('Erreur création dialogue: ' + error.message, 'error');
     }
+}
+
 
     async saveDialogue() {
-        if (!this.currentDialogue) return;
+    if (!this.currentDialogue) {
+        this.adminPanel.showNotification('Aucun dialogue sélectionné', 'error');
+        return;
+    }
 
-        try {
-            console.log('🗨️ [DialogueEditor] Sauvegarde dialogue...');
-            
-            // Récupérer les données du formulaire
-            const formData = this.getFormData();
-            
-            // Validation
-            if (!this.validateDialogue(formData)) {
-                return;
-            }
+    try {
+        console.log(`🗨️ [DialogueEditor] Sauvegarde dialogue: ${this.currentDialogue.dialogId}`);
+        
+        // Récupérer les données du formulaire
+        const formData = this.getFormData();
+        
+        // ✅ VALIDATION STRICTE pour le format dialogId
+        if (!this.validateDialogue(formData)) {
+            return;
+        }
 
-            // Sauvegarder (simulé pour l'instant)
-            const response = await this.saveDialogueToAPI(formData);
+        // ✅ DÉTERMINER si c'est une création ou mise à jour
+        const isNewDialogue = this.currentDialogue.isNew || 
+                             !this.dialogues.find(d => d.dialogId === this.currentDialogue.dialogId);
+
+        let response;
+        
+        if (isNewDialogue) {
+            // ✅ CRÉATION via POST
+            console.log('🆕 [DialogueEditor] Création nouveau dialogue');
+            response = await this.adminPanel.apiCall('/dialogues', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // ✅ MISE À JOUR via PUT
+            console.log('📝 [DialogueEditor] Mise à jour dialogue existant');
+            response = await this.adminPanel.apiCall(`/dialogues/${this.currentDialogue.dialogId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+        }
+        
+        if (response.success) {
+            this.adminPanel.showNotification(
+                isNewDialogue ? 'Dialogue créé avec succès' : 'Dialogue mis à jour avec succès', 
+                'success'
+            );
             
-            if (response.success) {
-                this.adminPanel.showNotification('Dialogue sauvegardé avec succès', 'success');
-                await this.loadDialogues(); // Recharger la liste
-                this.selectDialogue(formData.dialogId); // Re-sélectionner
-            } else {
-                throw new Error(response.error || 'Erreur inconnue');
-            }
+            // ✅ RECHARGER depuis la DB et re-sélectionner
+            await this.loadDialogues();
+            this.selectDialogue(formData.dialogId);
             
-        } catch (error) {
-            console.error('❌ [DialogueEditor] Erreur sauvegarde:', error);
-            this.adminPanel.showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error');
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
+        }
+        
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur sauvegarde:', error);
+        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error');
+    }
+}
+
+
+   getFormData() {
+    const formData = {
+        dialogId: document.getElementById('dialogId').value.trim(),
+        npcId: document.getElementById('npcId').value.trim(),
+        category: document.getElementById('category').value,
+        context: document.getElementById('context').value.trim(),
+        priority: parseInt(document.getElementById('priority').value) || 5,
+        isActive: document.getElementById('isActive').checked,
+        variables: [],
+        conditions: [],
+        tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t),
+        version: '1.0.0'
+    };
+
+    // ✅ AUTO-COMPLÉTER npcId depuis dialogId si vide
+    if (!formData.npcId && formData.dialogId) {
+        formData.npcId = formData.dialogId.split('.')[0];
+        // Mettre à jour le champ dans l'interface
+        document.getElementById('npcId').value = formData.npcId;
+    }
+
+    // ✅ AUTO-COMPLÉTER context depuis dialogId si vide
+    if (!formData.context && formData.dialogId) {
+        const parts = formData.dialogId.split('.');
+        if (parts.length >= 3) {
+            formData.context = parts[2];
+            document.getElementById('context').value = formData.context;
         }
     }
 
-    getFormData() {
-        const formData = {
-            dialogId: document.getElementById('dialogId').value,
-            npcId: document.getElementById('npcId').value,
-            category: document.getElementById('category').value,
-            context: document.getElementById('context').value,
-            priority: parseInt(document.getElementById('priority').value) || 5,
-            isActive: document.getElementById('isActive').checked,
-            variables: [],
-            conditions: [],
-            tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t),
-            version: '1.0.0'
-        };
-
-        // Récupérer les traductions
-        Object.keys(this.languages).forEach(code => {
-            const element = document.getElementById(`lang_${code}`);
-            if (element) {
-                formData[code] = element.value;
-            }
-        });
-
-        // Récupérer les variables
-        document.querySelectorAll('#variablesContainer .dialogue-array-item input').forEach(input => {
-            if (input.value.trim()) {
-                formData.variables.push(input.value.trim());
-            }
-        });
-
-        // Récupérer les conditions
-        try {
-            const conditionsText = document.getElementById('conditions').value.trim();
-            if (conditionsText) {
-                formData.conditions = JSON.parse(conditionsText);
-            }
-        } catch (error) {
-            console.warn('❌ [DialogueEditor] Conditions JSON invalides:', error);
+    // Récupérer les traductions
+    Object.keys(this.languages).forEach(code => {
+        const element = document.getElementById(`lang_${code}`);
+        if (element) {
+            formData[code] = element.value.trim();
         }
+    });
 
-        return formData;
+    // Récupérer les variables
+    document.querySelectorAll('#variablesContainer .dialogue-array-item input').forEach(input => {
+        if (input.value.trim()) {
+            formData.variables.push(input.value.trim());
+        }
+    });
+
+    // Récupérer les conditions
+    try {
+        const conditionsText = document.getElementById('conditions').value.trim();
+        if (conditionsText) {
+            formData.conditions = JSON.parse(conditionsText);
+        }
+    } catch (error) {
+        console.warn('❌ [DialogueEditor] Conditions JSON invalides:', error);
+        formData.conditions = [];
     }
+
+    return formData;
+}
 
     validateDialogue(data) {
-        const errors = [];
+    const errors = [];
 
-        if (!data.dialogId || !data.dialogId.trim()) {
-            errors.push('ID du dialogue requis');
+    // Validation ID du dialogue
+    if (!data.dialogId || !data.dialogId.trim()) {
+        errors.push('ID du dialogue requis');
+    } else {
+        // ✅ VALIDATION FORMAT: npcId.category.context[.variant]
+        const idParts = data.dialogId.split('.');
+        if (idParts.length < 3 || idParts.length > 4) {
+            errors.push('Format ID invalide. Utilisez: npcId.category.context[.variant]');
+        } else {
+            // Vérifier que les parties ne sont pas vides
+            if (idParts.some(part => !part.trim())) {
+                errors.push('Les parties de l\'ID ne peuvent pas être vides');
+            }
+            
+            // Vérifier que la catégorie est valide
+            if (!this.categories.includes(idParts[1])) {
+                errors.push(`Catégorie invalide. Utilisez: ${this.categories.join(', ')}`);
+            }
         }
-
-        if (!data.eng || !data.eng.trim()) {
-            errors.push('Texte anglais requis');
-        }
-
-        if (!data.fr || !data.fr.trim()) {
-            errors.push('Texte français requis');
-        }
-
-        if (!data.category) {
-            errors.push('Catégorie requise');
-        }
-
-        if (errors.length > 0) {
-            this.adminPanel.showNotification('Erreurs de validation:\n' + errors.join('\n'), 'error');
-            return false;
-        }
-
-        return true;
     }
+
+    // Validation textes requis
+    if (!data.eng || !data.eng.trim()) {
+        errors.push('Texte anglais requis');
+    }
+
+    if (!data.fr || !data.fr.trim()) {
+        errors.push('Texte français requis');
+    }
+
+    // Validation catégorie
+    if (!data.category) {
+        errors.push('Catégorie requise');
+    }
+
+    // ✅ VALIDATION NPC ID cohérent avec dialogue ID
+    if (data.npcId && data.dialogId) {
+        const dialogNpcId = data.dialogId.split('.')[0];
+        if (data.npcId !== dialogNpcId) {
+            errors.push('Le NPC ID doit correspondre au début de l\'ID du dialogue');
+        }
+    }
+
+    if (errors.length > 0) {
+        this.adminPanel.showNotification('Erreurs de validation:\n• ' + errors.join('\n• '), 'error');
+        return false;
+    }
+
+    return true;
+}
 
     async saveDialogueToAPI(dialogueData) {
         try {
@@ -678,60 +830,93 @@ export class DialogueEditorModule {
     }
 
     async duplicateDialogue() {
-        if (!this.currentDialogue) return;
+    if (!this.currentDialogue) return;
 
-        const duplicate = {
+    try {
+        const timestamp = Date.now();
+        const originalId = this.currentDialogue.dialogId;
+        
+        // ✅ GÉNÉRER un nouvel ID valide
+        const idParts = originalId.split('.');
+        let newDialogId;
+        
+        if (idParts.length >= 3) {
+            // Ajouter variant ou incrémenter
+            if (idParts.length === 3) {
+                newDialogId = `${idParts[0]}.${idParts[1]}.${idParts[2]}.copy_${timestamp}`;
+            } else {
+                newDialogId = `${idParts[0]}.${idParts[1]}.${idParts[2]}.copy_${timestamp}`;
+            }
+        } else {
+            newDialogId = `${originalId}_copy_${timestamp}`;
+        }
+
+        const duplicateData = {
             ...this.currentDialogue,
-            dialogId: `${this.currentDialogue.dialogId}_copy_${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            dialogId: newDialogId,
+            eng: this.currentDialogue.eng + ' (Copy)',
+            fr: this.currentDialogue.fr + ' (Copie)'
         };
 
-        this.currentDialogue = duplicate;
-        this.loadDialogueEditor();
+        // ✅ CRÉER la copie via API
+        const response = await this.adminPanel.apiCall('/dialogues', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(duplicateData)
+        });
+
+        if (response.success) {
+            this.adminPanel.showNotification('Dialogue dupliqué avec succès', 'success');
+            
+            // Recharger et sélectionner la copie
+            await this.loadDialogues();
+            this.selectDialogue(newDialogId);
+            
+        } else {
+            throw new Error(response.error || 'Erreur duplication');
+        }
+
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur duplication:', error);
+        this.adminPanel.showNotification('Erreur duplication: ' + error.message, 'error');
+    }
+}
+
+
+   async deleteDialogue() {
+    if (!this.currentDialogue) return;
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le dialogue "${this.currentDialogue.dialogId}" ?\n\nCette action est irréversible.`)) {
+        return;
+    }
+
+    try {
+        console.log(`🗑️ [DialogueEditor] Suppression dialogue: ${this.currentDialogue.dialogId}`);
         
-        this.adminPanel.showNotification('Dialogue dupliqué. N\'oubliez pas de le sauvegarder!', 'info');
-    }
+        // ✅ SUPPRIMER via API DELETE
+        const response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
+            method: 'DELETE'
+        });
 
-    async deleteDialogue() {
-        if (!this.currentDialogue) return;
-
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer le dialogue "${this.currentDialogue.dialogId}" ?\n\nCette action est irréversible.`)) {
-            return;
+        if (response.success) {
+            this.adminPanel.showNotification('Dialogue supprimé avec succès', 'success');
+            
+            // Reset l'éditeur
+            this.currentDialogue = null;
+            this.cancelEdit();
+            
+            // ✅ RECHARGER depuis la DB
+            await this.loadDialogues();
+            
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
         }
 
-        try {
-            console.log(`🗨️ [DialogueEditor] Suppression dialogue: ${this.currentDialogue.dialogId}`);
-            
-            // Essayer l'API réelle
-            const response = await this.adminPanel.apiCall(`/dialogues/${this.currentDialogue.dialogId}`, {
-                method: 'DELETE'
-            });
-
-            if (response.success) {
-                this.adminPanel.showNotification('Dialogue supprimé avec succès', 'success');
-                this.currentDialogue = null;
-                this.cancelEdit();
-                await this.loadDialogues();
-            } else {
-                throw new Error(response.error || 'Erreur inconnue');
-            }
-
-        } catch (error) {
-            // Fallback: suppression locale
-            console.warn('🗨️ [DialogueEditor] API non disponible, suppression locale');
-            
-            const index = this.dialogues.findIndex(d => d.dialogId === this.currentDialogue.dialogId);
-            if (index >= 0) {
-                this.dialogues.splice(index, 1);
-                this.currentDialogue = null;
-                this.cancelEdit();
-                this.renderDialoguesList();
-                this.updateStats();
-                this.adminPanel.showNotification('Dialogue supprimé localement', 'success');
-            }
-        }
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur suppression:', error);
+        this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error');
     }
+}
 
     cancelEdit() {
         this.currentDialogue = null;
