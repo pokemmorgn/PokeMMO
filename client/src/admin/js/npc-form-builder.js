@@ -750,24 +750,29 @@ case 'dialogues':
     
     // MÉTHODES EXISTANTES (raccourcies pour l'espace, mais à garder intégralement)
     createStringField(fieldName, fieldConfig, currentValue, isRequired) {
-    const placeholder = fieldConfig.placeholder || `Entrez ${this.getFieldDisplayName(fieldName)}`
+    const placeholder = fieldConfig.placeholder || `Entrez ${this.getFieldDisplayName(fieldName)}`;
     
     if (fieldName === 'sprite') {
-        return this.createSpriteField(fieldName, currentValue, isRequired)
+        return this.createSpriteField(fieldName, currentValue, isRequired);
     }
     
     if (fieldName === 'position') {
-        return this.createPositionField(fieldName, currentValue)
+        return this.createPositionField(fieldName, currentValue);
     }
 
-    // ✅ NOUVEAU : Gestion spéciale pour shopId (simple string)
-if (fieldName === 'shopId') {
-    return this.createShopSelectorField(fieldName, currentValue, isRequired)
-}
+    if (fieldName === 'shopId') {
+        return this.createShopSelectorField(fieldName, currentValue, isRequired);
+    }
 
-    // Gestion spéciale pour les champs de dialogue
-    if (fieldName === 'dialogueId' || fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
-        return this.createDialogueSelectorField(fieldName, currentValue, isRequired)
+    // ✅ TRAITEMENT SPÉCIAL POUR DIALOGUEID
+    if (fieldName === 'dialogueId') {
+        console.log('💬 [FormBuilder] Création champ dialogueId avec valeur:', currentValue);
+        return this.createDialogueSelectorField(fieldName, currentValue, isRequired);
+    }
+
+    // Gestion spéciale pour les autres champs de dialogue
+    if (fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
+        return this.createDialogueSelectorField(fieldName, currentValue, isRequired);
     }
 
     if (fieldName.includes('Description')) {
@@ -777,7 +782,7 @@ if (fieldName === 'shopId') {
             placeholder="${placeholder}"
             rows="3"
             ${isRequired ? 'required' : ''}
-        >${currentValue || ''}</textarea>`
+        >${currentValue || ''}</textarea>`;
     }
     
     return `<input 
@@ -787,8 +792,9 @@ if (fieldName === 'shopId') {
         value="${currentValue || ''}" 
         placeholder="${placeholder}"
         ${isRequired ? 'required' : ''}
-    >`
+    >`;
 }
+
 
 
     createSpriteField(fieldName, currentValue, isRequired) {
@@ -2814,24 +2820,31 @@ getNPC() {
         return null;
     }
     
-    console.log('📤 [FormBuilder] === DÉBUT COLLECTE NPC DATA SELECTIVE ===');
+    console.log('📤 [FormBuilder] === DÉBUT COLLECTE NPC DATA - FOCUS DIALOGUEID ===');
     
     // Commencer avec les données actuelles du NPC
     const npcData = { ...this.currentNPC };
     
-    // ✅ SOLUTION : Collecte SEULEMENT les champs du conteneur NPC
-    const npcContainer = this.container || document.getElementById('editorContent');
-    if (!npcContainer) {
-        console.error('❌ [FormBuilder] Conteneur NPC non trouvé !');
-        return npcData;
-    }
+    // ✅ PRIORITÉ 1: Vérifier dialogueId AVANT la collecte des champs
+    console.log('💬 [FormBuilder] dialogueId initial dans currentNPC:', this.currentNPC.dialogueId);
     
-    // Chercher SEULEMENT dans le conteneur du NPC FormBuilder
-const formFields = this.container.querySelectorAll('input, textarea, select')
-    console.log(`📝 [FormBuilder] ${formFields.length} champs NPC trouvés dans le conteneur`);
+    // Chercher les champs dans le conteneur NPC
+    const formFields = this.container.querySelectorAll('input, textarea, select');
+    console.log(`📝 [FormBuilder] ${formFields.length} champs trouvés dans le conteneur`);
     
-    // ✅ LISTE DES CHAMPS NPC VALIDES (éviter les champs parasites)
+    // ✅ PRIORITÉ 2: Chercher spécifiquement le champ dialogueId
+    const dialogueIdField = this.container.querySelector('input[name="dialogueId"]');
+    console.log('💬 [FormBuilder] Champ dialogueId DOM:', {
+        exists: !!dialogueIdField,
+        value: dialogueIdField?.value || 'N/A',
+        type: dialogueIdField?.type || 'N/A'
+    });
+    
+    // Liste des champs NPC valides (incluant explicitement dialogueId)
     const validNPCFields = [
+        // ✅ CHAMPS DIALOGUE EN PRIORITÉ
+        'dialogueId', 'dialogueIds', 'conditionalDialogueIds',
+        
         // Champs de base
         'name', 'type', 'sprite', 'direction', 'interactionRadius',
         'canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds',
@@ -2839,8 +2852,7 @@ const formFields = this.container.querySelectorAll('input, textarea, select')
         // Position
         'position.x', 'position.y',
         
-        // Champs spécifiques par type
-        'dialogueIds', 'dialogueId', 'conditionalDialogueIds', 'zoneInfo',
+        // Autres champs spécifiques
         'shopId', 'shopDialogueIds', 'businessHours', 'accessRestrictions',
         'trainerId', 'trainerClass', 'trainerRank', 'trainerTitle',
         'battleConfig', 'battleDialogueIds', 'battleConditions', 'rewards', 'rebattle',
@@ -2849,28 +2861,18 @@ const formFields = this.container.querySelectorAll('input, textarea, select')
         'gymConfig', 'gymDialogueIds', 'challengeConditions', 'gymRewards', 'rematchConfig',
         'transportConfig', 'destinations', 'schedules', 'transportDialogueIds', 'weatherRestrictions',
         'serviceConfig', 'availableServices', 'serviceDialogueIds',
-        'minigameConfig', 'contestCategories', 'contestRewards', 'contestDialogueIds', 'contestSchedule',
-        'researchConfig', 'researchServices', 'acceptedPokemon', 'researchDialogueIds', 'researchRewards',
-        'guildConfig', 'recruitmentRequirements', 'guildServices', 'guildDialogueIds', 'rankSystem',
-        'eventConfig', 'eventPeriod', 'eventActivities', 'eventDialogueIds', 'globalProgress',
-        'questMasterConfig', 'questMasterDialogueIds', 'questRankSystem', 'epicRewards', 'specialConditions',
-        
-        // Système de quêtes
         'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
-        
-        // Conditions
-        'spawnConditions'
+        'spawnConditions', 'zoneInfo'
     ];
     
-    let shopIdFound = false;
+    let dialogueIdProcessed = false;
     let validFieldsProcessed = 0;
-    let invalidFieldsSkipped = 0;
     
     formFields.forEach((field, index) => {
         const fieldName = field.name;
         if (!fieldName) return;
         
-        // ✅ FILTRE : Ignorer les champs qui ne sont pas des champs NPC valides
+        // Filtrer les champs valides
         const isValidNPCField = validNPCFields.includes(fieldName) || 
                                fieldName.startsWith('questRequirements') ||
                                fieldName.startsWith('questDialogueIds') ||
@@ -2878,33 +2880,28 @@ const formFields = this.container.querySelectorAll('input, textarea, select')
                                fieldName.endsWith('DialogueIds');
         
         if (!isValidNPCField) {
-            invalidFieldsSkipped++;
-            console.log(`⏭️ [FormBuilder] Champ ignoré (non-NPC): ${fieldName} = "${field.value}"`);
             return;
         }
         
         validFieldsProcessed++;
         let value = this.getFieldInputValue(field);
         
-        // Log spécial pour shopId
-        if (fieldName === 'shopId') {
-            shopIdFound = true;
-            console.log(`🏪 [FormBuilder] CHAMP SHOPID VALIDE:`, {
+        // ✅ TRAITEMENT SPÉCIAL POUR DIALOGUEID
+        if (fieldName === 'dialogueId') {
+            dialogueIdProcessed = true;
+            console.log(`💬 [FormBuilder] TRAITEMENT DIALOGUEID:`, {
                 fieldName,
-                value,
-                valueType: typeof value,
+                rawValue: field.value,
+                processedValue: value,
                 fieldType: field.type,
-                fieldValue: field.value
+                isEmpty: !value || value === ''
             });
+            
+            // S'assurer que dialogueId est une string (même vide)
+            npcData.dialogueId = value || '';
         }
-        
-        // Log pour les champs importants
-        if (['name', 'type', 'sprite', 'shopId'].includes(fieldName)) {
-            console.log(`📝 [FormBuilder] Champ NPC important [${fieldName}]: "${value}"`);
-        }
-        
-        // Traitement des champs
-        if (fieldName === 'position.x' || fieldName === 'position.y') {
+        // Traitement des autres champs
+        else if (fieldName === 'position.x' || fieldName === 'position.y') {
             if (!npcData.position) npcData.position = {};
             const coord = fieldName.split('.')[1];
             npcData.position[coord] = Number(value) || 0;
@@ -2922,82 +2919,56 @@ const formFields = this.container.querySelectorAll('input, textarea, select')
         }
     });
     
-    console.log(`📊 [FormBuilder] Champs traités: ${validFieldsProcessed} valides, ${invalidFieldsSkipped} ignorés`);
-    
-    // Diagnostic shopId
-    console.log('🏪 [FormBuilder] === DIAGNOSTIC SHOPID ===');
-    console.log('🔍 shopIdFound dans form NPC:', shopIdFound);
-    console.log('🔍 npcData.shopId après collecte:', npcData.shopId);
-    console.log('🔍 currentNPC.shopId original:', this.currentNPC.shopId);
-    
-    // S'assurer que shopId est défini
-    if (!shopIdFound && this.currentNPC.shopId !== undefined) {
-        npcData.shopId = this.currentNPC.shopId;
-        console.log('🔄 [FormBuilder] shopId restauré depuis currentNPC:', npcData.shopId);
-    }
-    
-    // Migration depuis shopConfig
-    if (npcData.shopConfig) {
-        console.log('🔄 [FormBuilder] Migration shopConfig détectée:', npcData.shopConfig);
-        if (npcData.shopConfig.shopId && (!npcData.shopId || npcData.shopId === '')) {
-            npcData.shopId = npcData.shopConfig.shopId;
-            console.log('📦 [FormBuilder] Migration shopConfig.shopId → shopId:', npcData.shopId);
-        }
-        delete npcData.shopConfig;
-    }
-    
-    // Validation finale pour les merchants
-    if (npcData.type === 'merchant') {
-        console.log('🏪 [FormBuilder] === VALIDATION MERCHANT ===');
-        console.log('🔍 shopId final:', npcData.shopId);
-        console.log('🔍 shopId type:', typeof npcData.shopId);
+    // ✅ CORRECTION CRITIQUE: Si dialogueId n'a pas été trouvé dans le DOM
+    if (!dialogueIdProcessed) {
+        console.warn('⚠️ [FormBuilder] dialogueId non trouvé dans DOM, vérification currentNPC...');
         
-        // S'assurer que shopId est une chaîne (même vide)
-        if (npcData.shopId === undefined || npcData.shopId === null) {
-            npcData.shopId = '';
-            console.log('🔧 [FormBuilder] shopId forcé à chaîne vide pour merchant');
-        } else if (typeof npcData.shopId !== 'string') {
-            npcData.shopId = String(npcData.shopId);
-            console.log('🔧 [FormBuilder] shopId converti en string:', npcData.shopId);
+        if (this.currentNPC.dialogueId !== undefined) {
+            npcData.dialogueId = this.currentNPC.dialogueId;
+            console.log('🔧 [FormBuilder] dialogueId restauré depuis currentNPC:', npcData.dialogueId);
+        } else {
+            npcData.dialogueId = '';
+            console.log('🔧 [FormBuilder] dialogueId initialisé à chaîne vide');
         }
     }
     
-    // ✅ NETTOYAGE FINAL : Supprimer les champs indésirables qui auraient pu passer
-    const fieldsToClean = [
-        'itemId', 'category', 'generation', 'rarity', 'description', 'price', 'sellPrice',
-        'stackable', 'consumable', 'battleOnly', 'fieldOnly', 'levelRequirement',
-        'locationRestrictions', 'version', 'sourceFile', 'isActive', 'tags'
-    ];
+    console.log(`📊 [FormBuilder] Champs traités: ${validFieldsProcessed}, dialogueId processé: ${dialogueIdProcessed}`);
     
-    let cleanedFields = 0;
-    fieldsToClean.forEach(field => {
-        if (npcData[field] === 'undefined' || npcData[field] === undefined) {
-            delete npcData[field];
-            cleanedFields++;
+    // ✅ VALIDATION FINALE POUR TYPE DIALOGUE
+    if (npcData.type === 'dialogue') {
+        console.log('💬 [FormBuilder] === VALIDATION DIALOGUE NPC ===');
+        console.log('🔍 dialogueId final:', npcData.dialogueId);
+        console.log('🔍 dialogueId type:', typeof npcData.dialogueId);
+        
+        // S'assurer que dialogueId existe (même vide pour les NPCs dialogue)
+        if (npcData.dialogueId === undefined || npcData.dialogueId === null) {
+            npcData.dialogueId = '';
+            console.log('🔧 [FormBuilder] dialogueId forcé à chaîne vide pour NPC dialogue');
         }
-    });
-    
-    if (cleanedFields > 0) {
-        console.log(`🧹 [FormBuilder] ${cleanedFields} champs parasites nettoyés`);
+        
+        // S'assurer que c'est une string
+        if (typeof npcData.dialogueId !== 'string') {
+            npcData.dialogueId = String(npcData.dialogueId);
+            console.log('🔧 [FormBuilder] dialogueId converti en string:', npcData.dialogueId);
+        }
     }
     
-    // Résumé final
-    console.log('📤 [FormBuilder] === RÉSUMÉ FINAL PROPRE ===');
+    // Résumé final avec focus sur dialogueId
+    console.log('📤 [FormBuilder] === RÉSUMÉ FINAL - DIALOGUEID ===');
     console.log('📊 Données NPC collectées:', {
         id: npcData.id,
         name: npcData.name,
         type: npcData.type,
-        sprite: npcData.sprite,
-        shopId: npcData.shopId,
-        shopIdType: typeof npcData.shopId,
-        position: npcData.position,
-        totalKeys: Object.keys(npcData).length,
-        cleanedFields: cleanedFields
+        dialogueId: npcData.dialogueId,
+        dialogueIdType: typeof npcData.dialogueId,
+        hasDialogueId: npcData.dialogueId !== undefined && npcData.dialogueId !== null,
+        totalKeys: Object.keys(npcData).length
     });
     
-    console.log('✅ [FormBuilder] NPC data collection PROPRE terminée');
+    console.log('✅ [FormBuilder] Collecte terminée avec dialogueId vérifié');
     return npcData;
 }
+    
     
     clearForm() {
         this.currentNPC = null
