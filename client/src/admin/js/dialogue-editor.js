@@ -193,30 +193,49 @@ export class DialogueEditorModule {
         });
     }
 
-    async loadDialogues() {
-        try {
-            console.log('🗨️ [DialogueEditor] Chargement des dialogues...');
-            
-            const response = await this.adminPanel.apiCall('/dialogues');
-            
-            if (response.success) {
-                this.dialogues = response.dialogues || [];
-                this.updateNPCFilter();
-                this.updateStats();
-                this.renderDialoguesList();
-                console.log(`✅ [DialogueEditor] ${this.dialogues.length} dialogues chargés`);
-            } else {
-                throw new Error(response.error || 'Erreur inconnue');
-            }
-            
-        } catch (error) {
-            console.error('❌ [DialogueEditor] Erreur chargement dialogues:', error);
-            this.adminPanel.showNotification('Erreur lors du chargement des dialogues: ' + error.message, 'error');
-            
-            // Fallback: essayer de charger via NPCs
-            this.loadDialoguesFromNPCs();
+   async loadDialogues() {
+    try {
+        console.log('🗨️ [DialogueEditor] Chargement des dialogues...');
+        
+        // Vérifier l'authentification pour les requêtes sensibles
+        if (!this.adminPanel.getAuthToken()) {
+            console.warn('⚠️ [DialogueEditor] Pas de token d\'authentification');
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'warning');
+            return;
         }
+        
+        const response = await this.adminPanel.apiCall('/dialogues', {
+            headers: {
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            }
+        });
+        
+        if (response.success) {
+            this.dialogues = response.dialogues || [];
+            this.updateNPCFilter();
+            this.updateStats();
+            this.renderDialoguesList();
+            console.log(`✅ [DialogueEditor] ${this.dialogues.length} dialogues chargés`);
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
+        }
+        
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur chargement dialogues:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
+        this.adminPanel.showNotification('Erreur lors du chargement des dialogues: ' + error.message, 'error');
+        
+        // Fallback: essayer de charger via NPCs
+        this.loadDialoguesFromNPCs();
     }
+}
 
     async loadDialoguesFromNPCs() {
         try {
@@ -581,10 +600,18 @@ setupAutoCompletion() {
         }
     });
 }
-  async createNewDialogue() {
+    
+  // ✅ CORRECTION 1: createNewDialogue avec headers d'authentification
+async createNewDialogue() {
     console.log('🗨️ [DialogueEditor] Création nouveau dialogue en DB');
     
     try {
+        // Vérifier que l'AdminPanel est authentifié
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour créer un dialogue', 'error');
+            return;
+        }
+
         // Générer un ID valide selon le format requis: npcId.category.context[.variant]
         const timestamp = Date.now();
         const defaultData = {
@@ -602,10 +629,15 @@ setupAutoCompletion() {
             version: '1.0.0'
         };
 
-        // ✅ CRÉER DIRECTEMENT EN DB VIA API
+        console.log('🔑 [DialogueEditor] Envoi avec token:', this.adminPanel.getAuthToken() ? 'Présent' : 'MANQUANT');
+
+        // ✅ CRÉER DIRECTEMENT EN DB VIA API avec authentification
         const response = await this.adminPanel.apiCall('/dialogues', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            },
             body: JSON.stringify(defaultData)
         });
 
@@ -624,69 +656,16 @@ setupAutoCompletion() {
         
     } catch (error) {
         console.error('❌ [DialogueEditor] Erreur création:', error);
-        this.adminPanel.showNotification('Erreur création dialogue: ' + error.message, 'error');
-    }
-}
-
-
-    async saveDialogue() {
-    if (!this.currentDialogue) {
-        this.adminPanel.showNotification('Aucun dialogue sélectionné', 'error');
-        return;
-    }
-
-    try {
-        console.log(`🗨️ [DialogueEditor] Sauvegarde dialogue: ${this.currentDialogue.dialogId}`);
         
-        // Récupérer les données du formulaire
-        const formData = this.getFormData();
-        
-        // ✅ VALIDATION STRICTE pour le format dialogId
-        if (!this.validateDialogue(formData)) {
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            // Rediriger vers la page de connexion ou rafraîchir le token
+            window.location.reload();
             return;
         }
-
-        // ✅ DÉTERMINER si c'est une création ou mise à jour
-        const isNewDialogue = this.currentDialogue.isNew || 
-                             !this.dialogues.find(d => d.dialogId === this.currentDialogue.dialogId);
-
-        let response;
         
-        if (isNewDialogue) {
-            // ✅ CRÉATION via POST
-            console.log('🆕 [DialogueEditor] Création nouveau dialogue');
-            response = await this.adminPanel.apiCall('/dialogues', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-        } else {
-            // ✅ MISE À JOUR via PUT
-            console.log('📝 [DialogueEditor] Mise à jour dialogue existant');
-            response = await this.adminPanel.apiCall(`/dialogues/${this.currentDialogue.dialogId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-        }
-        
-        if (response.success) {
-            this.adminPanel.showNotification(
-                isNewDialogue ? 'Dialogue créé avec succès' : 'Dialogue mis à jour avec succès', 
-                'success'
-            );
-            
-            // ✅ RECHARGER depuis la DB et re-sélectionner
-            await this.loadDialogues();
-            this.selectDialogue(formData.dialogId);
-            
-        } else {
-            throw new Error(response.error || 'Erreur inconnue');
-        }
-        
-    } catch (error) {
-        console.error('❌ [DialogueEditor] Erreur sauvegarde:', error);
-        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error');
+        this.adminPanel.showNotification('Erreur création dialogue: ' + error.message, 'error');
     }
 }
 
@@ -829,10 +808,221 @@ setupAutoCompletion() {
         }
     }
 
-    async duplicateDialogue() {
+   // Corrections pour l'authentification dans dialogue-editor.js
+
+// ✅ CORRECTION 1: createNewDialogue avec headers d'authentification
+async createNewDialogue() {
+    console.log('🗨️ [DialogueEditor] Création nouveau dialogue en DB');
+    
+    try {
+        // Vérifier que l'AdminPanel est authentifié
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour créer un dialogue', 'error');
+            return;
+        }
+
+        // Générer un ID valide selon le format requis: npcId.category.context[.variant]
+        const timestamp = Date.now();
+        const defaultData = {
+            dialogId: `new_npc.greeting.welcome.${timestamp}`,
+            npcId: 'new_npc',
+            category: 'greeting',
+            context: 'welcome',
+            eng: 'Hello! I am a new NPC.',
+            fr: 'Bonjour ! Je suis un nouveau PNJ.',
+            priority: 5,
+            isActive: true,
+            variables: [],
+            conditions: [],
+            tags: ['new'],
+            version: '1.0.0'
+        };
+
+        console.log('🔑 [DialogueEditor] Envoi avec token:', this.adminPanel.getAuthToken() ? 'Présent' : 'MANQUANT');
+
+        // ✅ CRÉER DIRECTEMENT EN DB VIA API avec authentification
+        const response = await this.adminPanel.apiCall('/dialogues', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            },
+            body: JSON.stringify(defaultData)
+        });
+
+        if (response.success) {
+            this.adminPanel.showNotification('Nouveau dialogue créé en DB', 'success');
+            
+            // Recharger la liste depuis la DB
+            await this.loadDialogues();
+            
+            // Sélectionner le nouveau dialogue
+            this.selectDialogue(defaultData.dialogId);
+            
+        } else {
+            throw new Error(response.error || 'Erreur création dialogue');
+        }
+        
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur création:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            // Rediriger vers la page de connexion ou rafraîchir le token
+            window.location.reload();
+            return;
+        }
+        
+        this.adminPanel.showNotification('Erreur création dialogue: ' + error.message, 'error');
+    }
+}
+
+// ✅ CORRECTION 2: saveDialogue avec headers d'authentification
+async saveDialogue() {
+    if (!this.currentDialogue) {
+        this.adminPanel.showNotification('Aucun dialogue sélectionné', 'error');
+        return;
+    }
+
+    try {
+        // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour sauvegarder', 'error');
+            return;
+        }
+
+        console.log(`🗨️ [DialogueEditor] Sauvegarde dialogue: ${this.currentDialogue.dialogId}`);
+        
+        // Récupérer les données du formulaire
+        const formData = this.getFormData();
+        
+        // ✅ VALIDATION STRICTE pour le format dialogId
+        if (!this.validateDialogue(formData)) {
+            return;
+        }
+
+        // ✅ DÉTERMINER si c'est une création ou mise à jour
+        const isNewDialogue = this.currentDialogue.isNew || 
+                             !this.dialogues.find(d => d.dialogId === this.currentDialogue.dialogId);
+
+        let response;
+        
+        const authHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+        };
+
+        if (isNewDialogue) {
+            // ✅ CRÉATION via POST
+            console.log('🆕 [DialogueEditor] Création nouveau dialogue');
+            response = await this.adminPanel.apiCall('/dialogues', {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // ✅ MISE À JOUR via PUT
+            console.log('📝 [DialogueEditor] Mise à jour dialogue existant');
+            response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
+                method: 'PUT',
+                headers: authHeaders,
+                body: JSON.stringify(formData)
+            });
+        }
+        
+        if (response.success) {
+            this.adminPanel.showNotification(
+                isNewDialogue ? 'Dialogue créé avec succès' : 'Dialogue mis à jour avec succès', 
+                'success'
+            );
+            
+            // ✅ RECHARGER depuis la DB et re-sélectionner
+            await this.loadDialogues();
+            this.selectDialogue(formData.dialogId);
+            
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
+        }
+        
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur sauvegarde:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
+        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error');
+    }
+}
+
+// ✅ CORRECTION 3: deleteDialogue avec headers d'authentification
+async deleteDialogue() {
+    if (!this.currentDialogue) return;
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le dialogue "${this.currentDialogue.dialogId}" ?\n\nCette action est irréversible.`)) {
+        return;
+    }
+
+    try {
+        // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour supprimer', 'error');
+            return;
+        }
+
+        console.log(`🗑️ [DialogueEditor] Suppression dialogue: ${this.currentDialogue.dialogId}`);
+        
+        // ✅ SUPPRIMER via API DELETE avec authentification
+        const response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            }
+        });
+
+        if (response.success) {
+            this.adminPanel.showNotification('Dialogue supprimé avec succès', 'success');
+            
+            // Reset l'éditeur
+            this.currentDialogue = null;
+            this.cancelEdit();
+            
+            // ✅ RECHARGER depuis la DB
+            await this.loadDialogues();
+            
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
+        }
+
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur suppression:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
+        this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error');
+    }
+}
+
+// ✅ CORRECTION 4: duplicateDialogue avec headers d'authentification
+async duplicateDialogue() {
     if (!this.currentDialogue) return;
 
     try {
+        // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour dupliquer', 'error');
+            return;
+        }
+
         const timestamp = Date.now();
         const originalId = this.currentDialogue.dialogId;
         
@@ -858,10 +1048,13 @@ setupAutoCompletion() {
             fr: this.currentDialogue.fr + ' (Copie)'
         };
 
-        // ✅ CRÉER la copie via API
+        // ✅ CRÉER la copie via API avec authentification
         const response = await this.adminPanel.apiCall('/dialogues', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            },
             body: JSON.stringify(duplicateData)
         });
 
@@ -878,10 +1071,17 @@ setupAutoCompletion() {
 
     } catch (error) {
         console.error('❌ [DialogueEditor] Erreur duplication:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
         this.adminPanel.showNotification('Erreur duplication: ' + error.message, 'error');
     }
 }
-
 
    async deleteDialogue() {
     if (!this.currentDialogue) return;
@@ -891,11 +1091,20 @@ setupAutoCompletion() {
     }
 
     try {
+        // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour supprimer', 'error');
+            return;
+        }
+
         console.log(`🗑️ [DialogueEditor] Suppression dialogue: ${this.currentDialogue.dialogId}`);
         
-        // ✅ SUPPRIMER via API DELETE
+        // ✅ SUPPRIMER via API DELETE avec authentification
         const response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+            }
         });
 
         if (response.success) {
@@ -914,6 +1123,14 @@ setupAutoCompletion() {
 
     } catch (error) {
         console.error('❌ [DialogueEditor] Erreur suppression:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
         this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error');
     }
 }
@@ -1232,6 +1449,85 @@ setupAutoCompletion() {
         return JSON.stringify(formData) !== JSON.stringify(this.currentDialogue);
     }
 
+    async saveDialogue() {
+    if (!this.currentDialogue) {
+        this.adminPanel.showNotification('Aucun dialogue sélectionné', 'error');
+        return;
+    }
+
+    try {
+        // Vérifier l'authentification
+        if (!this.adminPanel.getAuthToken()) {
+            this.adminPanel.showNotification('Vous devez être connecté pour sauvegarder', 'error');
+            return;
+        }
+
+        console.log(`🗨️ [DialogueEditor] Sauvegarde dialogue: ${this.currentDialogue.dialogId}`);
+        
+        // Récupérer les données du formulaire
+        const formData = this.getFormData();
+        
+        // ✅ VALIDATION STRICTE pour le format dialogId
+        if (!this.validateDialogue(formData)) {
+            return;
+        }
+
+        // ✅ DÉTERMINER si c'est une création ou mise à jour
+        const isNewDialogue = this.currentDialogue.isNew || 
+                             !this.dialogues.find(d => d.dialogId === this.currentDialogue.dialogId);
+
+        let response;
+        
+        const authHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
+        };
+
+        if (isNewDialogue) {
+            // ✅ CRÉATION via POST
+            console.log('🆕 [DialogueEditor] Création nouveau dialogue');
+            response = await this.adminPanel.apiCall('/dialogues', {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // ✅ MISE À JOUR via PUT
+            console.log('📝 [DialogueEditor] Mise à jour dialogue existant');
+            response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
+                method: 'PUT',
+                headers: authHeaders,
+                body: JSON.stringify(formData)
+            });
+        }
+        
+        if (response.success) {
+            this.adminPanel.showNotification(
+                isNewDialogue ? 'Dialogue créé avec succès' : 'Dialogue mis à jour avec succès', 
+                'success'
+            );
+            
+            // ✅ RECHARGER depuis la DB et re-sélectionner
+            await this.loadDialogues();
+            this.selectDialogue(formData.dialogId);
+            
+        } else {
+            throw new Error(response.error || 'Erreur inconnue');
+        }
+        
+    } catch (error) {
+        console.error('❌ [DialogueEditor] Erreur sauvegarde:', error);
+        
+        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
+        if (error.message.includes('Token requis') || error.message.includes('401')) {
+            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+            window.location.reload();
+            return;
+        }
+        
+        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error');
+    }
+}
     async autoSaveDialogue() {
         try {
             const formData = this.getFormData();
