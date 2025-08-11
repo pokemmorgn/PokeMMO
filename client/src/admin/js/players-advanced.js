@@ -160,13 +160,13 @@ async loadPokemonFromAPI() {
         console.log('🦄 [PlayersAdvanced] Chargement des Pokémon depuis l\'API...')
         this.adminPanel.showLoading('pokemonLoading', true)
         
-        // Utiliser la route pour récupérer tous les Pokémon
-        const pokemonData = await this.adminPanel.apiCall('/pokemon/all')
+        const response = await this.adminPanel.apiCall('/pokemon/list')
+        const pokemonData = response.pokemon || []
         
         this.pokemonCache = pokemonData
         this.pokemonLoaded = true
         
-        console.log(`✅ [PlayersAdvanced] ${pokemonData.length} Pokémon chargés`)
+        console.log(`✅ [PlayersAdvanced] ${pokemonData.length} Pokémon chargés depuis MongoDB`)
         return pokemonData
         
     } catch (error) {
@@ -177,6 +177,8 @@ async loadPokemonFromAPI() {
         this.adminPanel.showLoading('pokemonLoading', false)
     }
 }
+
+    
     showAdvancedModal() {
         const modal = document.getElementById('advancedPlayerModal')
         if (!modal) {
