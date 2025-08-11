@@ -7182,4 +7182,20 @@ router.get('/items/export/all', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// GET /pokemon/all
+router.get('/pokemon/all', async (req, res) => {
+  try {
+    const pokemon = await PokemonData.find({ 
+      isActive: true, 
+      isObtainable: true 
+    })
+    .select('nationalDex nameKey species types baseStats abilities hiddenAbility height weight sprite genderRatio generation')
+    .sort({ nationalDex: 1 })
+    
+    res.json(pokemon)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router;
