@@ -5813,197 +5813,42 @@ router.get('/shops/export/all', requireMacAndDev, async (req: any, res) => {
  * GET /api/admin/pokemon/list
  * Retourne la liste des Pokémon depuis pokemon-index.json
  */
+/**
+ * GET /api/admin/pokemon/list
+ * Retourne la liste des Pokémon depuis la base de données MongoDB
+ */
 router.get('/pokemon/list', requireMacAndDev, async (req: any, res) => {
   try {
-    console.log('🐾 [AdminAPI] Loading Pokemon from pokemon-index.json...')
+    console.log('🐾 [AdminAPI] Loading Pokemon from MongoDB...')
     
-    const fs = require('fs').promises;
-    const path = require('path');
+    // Récupérer les Pokémon depuis la base de données
+    const pokemon = await PokemonData.find({ 
+      isActive: true, 
+      isObtainable: true 
+    })
+    .select('nationalDex nameKey species types baseStats abilities hiddenAbility height weight sprite genderRatio generation')
+    .sort({ nationalDex: 1 })
+    .lean() // Pour de meilleures performances
     
-    // Détecter si on est en mode build ou dev
-    const isDev = __filename.includes('/src/');
-    console.log('🔧 [AdminAPI] Mode détecté:', isDev ? 'DEVELOPMENT' : 'PRODUCTION');
+    console.log(`✅ [AdminAPI] ${pokemon.length} Pokémon loaded from MongoDB`)
     
-    let pokemonIndexPath: string;
-    
-    if (isDev) {
-      // Mode développement : server/src/data/pokemon/pokemon-index.json
-      pokemonIndexPath = path.join(__dirname, '../data/pokemon/pokemon-index.json');
-    } else {
-      // Mode production : server/build/data/pokemon/pokemon-index.json
-      pokemonIndexPath = path.join(__dirname, '../data/pokemon/pokemon-index.json');
-    }
-    
-    console.log('📂 [AdminAPI] Pokemon index path:', pokemonIndexPath);
-    
-    try {
-      const pokemonIndexData = await fs.readFile(pokemonIndexPath, 'utf8');
-      const pokemonIndex = JSON.parse(pokemonIndexData);
-      
-      // Mapping des IDs vers les noms (Génération 1 principalement)
-      const pokemonNames: Record<string, string> = {
-        1: 'Bulbasaur', 2: 'Ivysaur', 3: 'Venusaur',
-        4: 'Charmander', 5: 'Charmeleon', 6: 'Charizard',
-        7: 'Squirtle', 8: 'Wartortle', 9: 'Blastoise',
-        10: 'Caterpie', 11: 'Metapod', 12: 'Butterfree',
-        13: 'Weedle', 14: 'Kakuna', 15: 'Beedrill',
-        16: 'Pidgey', 17: 'Pidgeotto', 18: 'Pidgeot',
-        19: 'Rattata', 20: 'Raticate', 21: 'Spearow', 22: 'Fearow',
-        23: 'Ekans', 24: 'Arbok', 25: 'Pikachu', 26: 'Raichu',
-        27: 'Sandshrew', 28: 'Sandslash', 29: 'Nidoran♀', 30: 'Nidorina', 31: 'Nidoqueen',
-        32: 'Nidoran♂', 33: 'Nidorino', 34: 'Nidoking', 35: 'Clefairy', 36: 'Clefable',
-        37: 'Vulpix', 38: 'Ninetales', 39: 'Jigglypuff', 40: 'Wigglytuff',
-        41: 'Zubat', 42: 'Golbat', 43: 'Oddish', 44: 'Gloom', 45: 'Vileplume',
-        46: 'Paras', 47: 'Parasect', 48: 'Venonat', 49: 'Venomoth',
-        50: 'Diglett', 51: 'Dugtrio', 52: 'Meowth', 53: 'Persian',
-        54: 'Psyduck', 55: 'Golduck', 56: 'Mankey', 57: 'Primeape',
-        58: 'Growlithe', 59: 'Arcanine', 60: 'Poliwag', 61: 'Poliwhirl', 62: 'Poliwrath',
-        63: 'Abra', 64: 'Kadabra', 65: 'Alakazam', 66: 'Machop', 67: 'Machoke', 68: 'Machamp',
-        69: 'Bellsprout', 70: 'Weepinbell', 71: 'Victreebel', 72: 'Tentacool', 73: 'Tentacruel',
-        74: 'Geodude', 75: 'Graveler', 76: 'Golem', 77: 'Ponyta', 78: 'Rapidash',
-        79: 'Slowpoke', 80: 'Slowbro', 81: 'Magnemite', 82: 'Magneton', 83: 'Farfetch\'d',
-        84: 'Doduo', 85: 'Dodrio', 86: 'Seel', 87: 'Dewgong', 88: 'Grimer', 89: 'Muk',
-        90: 'Shellder', 91: 'Cloyster', 92: 'Gastly', 93: 'Haunter', 94: 'Gengar',
-        95: 'Onix', 96: 'Drowzee', 97: 'Hypno', 98: 'Krabby', 99: 'Kingler',
-        100: 'Voltorb', 101: 'Electrode', 102: 'Exeggcute', 103: 'Exeggutor',
-        104: 'Cubone', 105: 'Marowak', 106: 'Hitmonlee', 107: 'Hitmonchan', 108: 'Lickitung',
-        109: 'Koffing', 110: 'Weezing', 111: 'Rhyhorn', 112: 'Rhydon', 113: 'Chansey',
-        114: 'Tangela', 115: 'Kangaskhan', 116: 'Horsea', 117: 'Seadra',
-        118: 'Goldeen', 119: 'Seaking', 120: 'Staryu', 121: 'Starmie', 122: 'Mr. Mime',
-        123: 'Scyther', 124: 'Jynx', 125: 'Electabuzz', 126: 'Magmar', 127: 'Pinsir',
-        128: 'Tauros', 129: 'Magikarp', 130: 'Gyarados', 131: 'Lapras', 132: 'Ditto',
-        133: 'Eevee', 134: 'Vaporeon', 135: 'Jolteon', 136: 'Flareon', 137: 'Porygon',
-        138: 'Omanyte', 139: 'Omastar', 140: 'Kabuto', 141: 'Kabutops', 142: 'Aerodactyl',
-        143: 'Snorlax', 144: 'Articuno', 145: 'Zapdos', 146: 'Moltres',
-        147: 'Dratini', 148: 'Dragonair', 149: 'Dragonite', 150: 'Mewtwo', 151: 'Mew',
-        // Quelques Pokémon additionnels présents dans l'index
-        170: 'Chinchou', 171: 'Lanturn', 194: 'Wooper', 195: 'Quagsire',
-        196: 'Espeon', 197: 'Umbreon', 218: 'Slugma', 219: 'Magcargo',
-        225: 'Delibird', 243: 'Raikou', 244: 'Entei', 245: 'Suicune',
-        470: 'Leafeon', 471: 'Glaceon', 607: 'Litwick', 608: 'Lampent', 609: 'Chandelure'
-      };
-      
-      // Créer la liste des Pokémon depuis l'index
-      const pokemonList = Object.entries(pokemonIndex).map(([id, family]) => {
-        const pokemonId = parseInt(id);
-        const name = pokemonNames[id] || `Pokemon_${id}`;
-        
-        return {
-          id: pokemonId,
-          name: name,
-          family: family,
-          generation: pokemonId <= 151 ? 1 : pokemonId <= 251 ? 2 : pokemonId <= 386 ? 3 : pokemonId <= 493 ? 4 : 5
-        };
-      }).sort((a, b) => a.id - b.id);
-      
-      console.log(`✅ [AdminAPI] ${pokemonList.length} Pokémon loaded from index`);
-      
-      res.json({
-        success: true,
-        pokemon: pokemonList,
-        total: pokemonList.length,
-        source: 'pokemon-index.json'
-      });
-      
-    } catch (fileError) {
-      console.error('❌ [AdminAPI] Error reading pokemon-index.json:', fileError);
-      console.log('📂 [AdminAPI] Tried path:', pokemonIndexPath);
-      
-      // Essayer plusieurs chemins possibles
-      const possiblePaths = [
-        path.join(__dirname, '../data/pokemon/pokemon-index.json'),           // Relatif normal
-        path.join(__dirname, '../../data/pokemon/pokemon-index.json'),        // Un niveau plus haut
-        path.join(process.cwd(), 'server/build/data/pokemon/pokemon-index.json'), // Absolu build
-        path.join(process.cwd(), 'server/src/data/pokemon/pokemon-index.json'),   // Absolu src
-        path.join(process.cwd(), 'server/data/pokemon/pokemon-index.json'),       // Racine server
-        path.join(process.cwd(), 'data/pokemon/pokemon-index.json')               // Racine projet
-      ];
-      
-      console.log('🔍 [AdminAPI] Trying alternative paths...');
-      
-      for (const altPath of possiblePaths) {
-        try {
-          console.log('📂 [AdminAPI] Trying:', altPath);
-          const altPokemonData = await fs.readFile(altPath, 'utf8');
-          const altPokemonIndex = JSON.parse(altPokemonData);
-          
-          // Utiliser le même mapping que ci-dessus
-          const pokemonNames: Record<string, string> = {
-            1: 'Bulbasaur', 2: 'Ivysaur', 3: 'Venusaur', 4: 'Charmander', 5: 'Charmeleon', 6: 'Charizard',
-            7: 'Squirtle', 8: 'Wartortle', 9: 'Blastoise', 10: 'Caterpie', 11: 'Metapod', 12: 'Butterfree',
-            13: 'Weedle', 14: 'Kakuna', 15: 'Beedrill', 16: 'Pidgey', 17: 'Pidgeotto', 18: 'Pidgeot',
-            19: 'Rattata', 20: 'Raticate', 21: 'Spearow', 22: 'Fearow', 23: 'Ekans', 24: 'Arbok',
-            25: 'Pikachu', 26: 'Raichu', 27: 'Sandshrew', 28: 'Sandslash', 29: 'Nidoran♀', 30: 'Nidorina',
-            31: 'Nidoqueen', 32: 'Nidoran♂', 33: 'Nidorino', 34: 'Nidoking', 35: 'Clefairy', 36: 'Clefable',
-            37: 'Vulpix', 38: 'Ninetales', 39: 'Jigglypuff', 40: 'Wigglytuff', 41: 'Zubat', 42: 'Golbat',
-            43: 'Oddish', 44: 'Gloom', 45: 'Vileplume', 46: 'Paras', 47: 'Parasect', 48: 'Venonat',
-            49: 'Venomoth', 50: 'Diglett', 51: 'Dugtrio', 52: 'Meowth', 53: 'Persian', 54: 'Psyduck',
-            55: 'Golduck', 56: 'Mankey', 57: 'Primeape', 58: 'Growlithe', 59: 'Arcanine', 60: 'Poliwag',
-            61: 'Poliwhirl', 62: 'Poliwrath', 63: 'Abra', 64: 'Kadabra', 65: 'Alakazam', 66: 'Machop',
-            67: 'Machoke', 68: 'Machamp', 69: 'Bellsprout', 70: 'Weepinbell', 71: 'Victreebel', 72: 'Tentacool',
-            73: 'Tentacruel', 74: 'Geodude', 75: 'Graveler', 76: 'Golem', 77: 'Ponyta', 78: 'Rapidash',
-            79: 'Slowpoke', 80: 'Slowbro', 81: 'Magnemite', 82: 'Magneton', 83: 'Farfetch\'d', 84: 'Doduo',
-            85: 'Dodrio', 86: 'Seel', 87: 'Dewgong', 88: 'Grimer', 89: 'Muk', 90: 'Shellder', 91: 'Cloyster',
-            92: 'Gastly', 93: 'Haunter', 94: 'Gengar', 95: 'Onix', 96: 'Drowzee', 97: 'Hypno', 98: 'Krabby',
-            99: 'Kingler', 100: 'Voltorb', 101: 'Electrode', 102: 'Exeggcute', 103: 'Exeggutor', 104: 'Cubone',
-            105: 'Marowak', 106: 'Hitmonlee', 107: 'Hitmonchan', 108: 'Lickitung', 109: 'Koffing', 110: 'Weezing',
-            111: 'Rhyhorn', 112: 'Rhydon', 113: 'Chansey', 114: 'Tangela', 115: 'Kangaskhan', 116: 'Horsea',
-            117: 'Seadra', 118: 'Goldeen', 119: 'Seaking', 120: 'Staryu', 121: 'Starmie', 122: 'Mr. Mime',
-            123: 'Scyther', 124: 'Jynx', 125: 'Electabuzz', 126: 'Magmar', 127: 'Pinsir', 128: 'Tauros',
-            129: 'Magikarp', 130: 'Gyarados', 131: 'Lapras', 132: 'Ditto', 133: 'Eevee', 134: 'Vaporeon',
-            135: 'Jolteon', 136: 'Flareon', 137: 'Porygon', 138: 'Omanyte', 139: 'Omastar', 140: 'Kabuto',
-            141: 'Kabutops', 142: 'Aerodactyl', 143: 'Snorlax', 144: 'Articuno', 145: 'Zapdos', 146: 'Moltres',
-            147: 'Dratini', 148: 'Dragonair', 149: 'Dragonite', 150: 'Mewtwo', 151: 'Mew',
-            170: 'Chinchou', 171: 'Lanturn', 194: 'Wooper', 195: 'Quagsire', 196: 'Espeon', 197: 'Umbreon',
-            218: 'Slugma', 219: 'Magcargo', 225: 'Delibird', 243: 'Raikou', 244: 'Entei', 245: 'Suicune',
-            470: 'Leafeon', 471: 'Glaceon', 607: 'Litwick', 608: 'Lampent', 609: 'Chandelure'
-          };
-          
-          const pokemonList = Object.entries(altPokemonIndex).map(([id, family]) => {
-            const pokemonId = parseInt(id);
-            const name = pokemonNames[id] || `Pokemon_${id}`;
-            
-            return {
-              id: pokemonId,
-              name: name,
-              family: family,
-              generation: pokemonId <= 151 ? 1 : pokemonId <= 251 ? 2 : pokemonId <= 386 ? 3 : pokemonId <= 493 ? 4 : 5
-            };
-          }).sort((a, b) => a.id - b.id);
-          
-          console.log(`✅ [AdminAPI] Pokemon found at: ${altPath} (${pokemonList.length} Pokémon)`);
-          return res.json({
-            success: true,
-            pokemon: pokemonList,
-            total: pokemonList.length,
-            source: 'pokemon-index.json'
-          });
-          
-        } catch (altError) {
-          // Continue à l'itération suivante
-        }
-      }
-      
-      // Aucun chemin n'a fonctionné
-      console.error('❌ [AdminAPI] pokemon-index.json not found in any location');
-      res.status(404).json({ 
-        success: false,
-        error: 'Fichier pokemon-index.json non trouvé',
-        searchedPaths: possiblePaths,
-        pokemon: []
-      });
-    }
+    res.json({
+      success: true,
+      pokemon: pokemon,
+      total: pokemon.length,
+      source: 'mongodb'
+    })
     
   } catch (error) {
-    console.error('❌ [AdminAPI] Error loading Pokemon:', error);
+    console.error('❌ [AdminAPI] Error loading Pokemon from DB:', error)
     res.status(500).json({ 
       success: false,
-      error: 'Erreur chargement Pokemon',
+      error: 'Erreur chargement Pokemon depuis la DB',
       details: error instanceof Error ? error.message : 'Unknown error',
       pokemon: []
-    });
+    })
   }
-});
+})
 
 /**
  * GET /api/admin/pokemon/:id
