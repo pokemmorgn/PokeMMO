@@ -2926,20 +2926,21 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
 
 // ✅ ROUTE: Modifier un NPC spécifique dans MongoDB
 // Dans server/src/routes/adminRoutes.ts
-// Remplacer complètement la route PUT /zones/:zoneId/npcs/:npcId par :
-
 router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId, npcId } = req.params;
     const { npc } = req.body;
     
     console.log(`✏️ [NPCs API] Complete MongoDB update NPC ${npcId} in zone ${zoneId}`);
-        // ✅ AJOUTEZ CES LOGS DE DEBUG ICI :
+    
+    // ✅ DIAGNOSTIC COMPLET DES DONNÉES REÇUES
     console.log('🔍 [NPCs API] Request body keys:', Object.keys(req.body));
     console.log('🔍 [NPCs API] NPC data keys:', Object.keys(npc || {}));
+    console.log('🔍 [NPCs API] NPC dialogueId received:', npc?.dialogueId);
+    console.log('🔍 [NPCs API] NPC dialogueIds received:', npc?.dialogueIds);
     console.log('🔍 [NPCs API] NPC shopId received:', npc?.shopId);
-    console.log('🔍 [NPCs API] NPC shopType received:', npc?.shopType);
     console.log('🔍 [NPCs API] NPC type received:', npc?.type);
+    
     if (!npc) {
       return res.status(400).json({
         success: false,
@@ -2947,7 +2948,7 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
       });
     }
     
-    // ✅ MISE À JOUR COMPLÈTE avec TOUS les champs possibles
+    // ✅ CORRECTION PRINCIPALE: Mise à jour COMPLÈTE avec dialogueId en priorité
     const updateData: any = {
       name: npc.name,
       type: npc.type,
@@ -2963,6 +2964,11 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
       repeatable: npc.repeatable !== false,
       cooldownSeconds: npc.cooldownSeconds || 0,
       
+      // ✅ PRIORITÉ 1: CHAMPS DIALOGUE (TOUS)
+      dialogueId: npc.dialogueId || '',                    // ← AJOUTÉ !
+      dialogueIds: npc.dialogueIds || [],                  // ← AJOUTÉ !
+      conditionalDialogueIds: npc.conditionalDialogueIds || {},  // ← AJOUTÉ !
+      
       // Système de quêtes
       questsToGive: npc.questsToGive || [],
       questsToEnd: npc.questsToEnd || [],
@@ -2972,101 +2978,83 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
       // Conditions de spawn
       spawnConditions: npc.spawnConditions || {},
       
+      // ✅ PRIORITÉ 2: CHAMP SHOP
+      shopId: npc.shopId || '',                           // ← DÉJÀ PRÉSENT
+      
       // Métadonnées
       lastUpdated: new Date(),
       version: '2.0.0'
     };
     
-    // ✅ TOUS LES CHAMPS SPÉCIFIQUES AU TYPE
-    // Dialogue NPCs
-    if (npc.dialogueIds !== undefined) updateData.dialogueIds = npc.dialogueIds;
-    if (npc.dialogueId !== undefined) updateData.dialogueId = npc.dialogueId;
-    if (npc.conditionalDialogueIds !== undefined) updateData.conditionalDialogueIds = npc.conditionalDialogueIds;
-    if (npc.zoneInfo !== undefined) updateData.zoneInfo = npc.zoneInfo;
+    // ✅ CORRECTION: Traitement explicite de TOUS les champs dialogue
+    console.log('💬 [NPCs API] === TRAITEMENT CHAMPS DIALOGUE ===');
     
-    // Merchant NPCs
-    if (npc.shopId !== undefined) updateData.shopId = npc.shopId;
+    // DialogueId (champ principal pour NPCs dialogue)
+    if (npc.hasOwnProperty('dialogueId')) {
+      updateData.dialogueId = npc.dialogueId || '';
+      console.log('💬 [NPCs API] dialogueId explicitement défini:', updateData.dialogueId);
+    }
     
-    // Trainer NPCs
-    if (npc.trainerId !== undefined) updateData.trainerId = npc.trainerId;
-    if (npc.trainerClass !== undefined) updateData.trainerClass = npc.trainerClass;
-    if (npc.trainerRank !== undefined) updateData.trainerRank = npc.trainerRank;
-    if (npc.trainerTitle !== undefined) updateData.trainerTitle = npc.trainerTitle;
-    if (npc.battleConfig !== undefined) updateData.battleConfig = npc.battleConfig;
-    if (npc.battleDialogueIds !== undefined) updateData.battleDialogueIds = npc.battleDialogueIds;
-    if (npc.rewards !== undefined) updateData.rewards = npc.rewards;
-    if (npc.rebattle !== undefined) updateData.rebattle = npc.rebattle;
-    if (npc.visionConfig !== undefined) updateData.visionConfig = npc.visionConfig;
-    if (npc.battleConditions !== undefined) updateData.battleConditions = npc.battleConditions;
-    if (npc.progressionFlags !== undefined) updateData.progressionFlags = npc.progressionFlags;
+    // DialogueIds (array pour NPCs avec multiples dialogues)
+    if (npc.hasOwnProperty('dialogueIds')) {
+      updateData.dialogueIds = Array.isArray(npc.dialogueIds) ? npc.dialogueIds : [];
+      console.log('💬 [NPCs API] dialogueIds défini:', updateData.dialogueIds);
+    }
     
-    // Healer NPCs
-    if (npc.healerConfig !== undefined) updateData.healerConfig = npc.healerConfig;
-    if (npc.healerDialogueIds !== undefined) updateData.healerDialogueIds = npc.healerDialogueIds;
-    if (npc.additionalServices !== undefined) updateData.additionalServices = npc.additionalServices;
-    if (npc.serviceRestrictions !== undefined) updateData.serviceRestrictions = npc.serviceRestrictions;
+    // Dialogues conditionnels
+    if (npc.hasOwnProperty('conditionalDialogueIds')) {
+      updateData.conditionalDialogueIds = npc.conditionalDialogueIds || {};
+      console.log('💬 [NPCs API] conditionalDialogueIds défini:', updateData.conditionalDialogueIds);
+    }
     
-    // Gym Leader NPCs
-    if (npc.gymConfig !== undefined) updateData.gymConfig = npc.gymConfig;
-    if (npc.gymDialogueIds !== undefined) updateData.gymDialogueIds = npc.gymDialogueIds;
-    if (npc.challengeConditions !== undefined) updateData.challengeConditions = npc.challengeConditions;
-    if (npc.gymRewards !== undefined) updateData.gymRewards = npc.gymRewards;
-    if (npc.rematchConfig !== undefined) updateData.rematchConfig = npc.rematchConfig;
+    // ✅ TOUS LES AUTRES CHAMPS SPÉCIFIQUES AU TYPE
+    const allSpecificFields = [
+      // Merchant NPCs
+      'shopDialogueIds', 'businessHours', 'accessRestrictions',
+      
+      // Trainer NPCs  
+      'trainerId', 'trainerClass', 'trainerRank', 'trainerTitle',
+      'battleConfig', 'battleDialogueIds', 'rewards', 'rebattle',
+      'visionConfig', 'battleConditions', 'progressionFlags',
+      
+      // Healer NPCs
+      'healerConfig', 'healerDialogueIds', 'additionalServices', 'serviceRestrictions',
+      
+      // Gym Leader NPCs
+      'gymConfig', 'gymDialogueIds', 'challengeConditions', 'gymRewards', 'rematchConfig',
+      
+      // Transport NPCs
+      'transportConfig', 'destinations', 'schedules', 'transportDialogueIds', 'weatherRestrictions',
+      
+      // Service NPCs
+      'serviceConfig', 'availableServices', 'serviceDialogueIds',
+      
+      // Et tous les autres...
+      'minigameConfig', 'contestCategories', 'contestRewards', 'contestDialogueIds', 'contestSchedule',
+      'researchConfig', 'researchServices', 'acceptedPokemon', 'researchDialogueIds', 'researchRewards',
+      'guildConfig', 'recruitmentRequirements', 'guildServices', 'guildDialogueIds', 'rankSystem',
+      'eventConfig', 'eventPeriod', 'eventActivities', 'eventDialogueIds', 'globalProgress',
+      'questMasterConfig', 'questMasterDialogueIds', 'questRankSystem', 'epicRewards', 'specialConditions',
+      'zoneInfo'
+    ];
     
-    // Transport NPCs
-    if (npc.transportConfig !== undefined) updateData.transportConfig = npc.transportConfig;
-    if (npc.destinations !== undefined) updateData.destinations = npc.destinations;
-    if (npc.schedules !== undefined) updateData.schedules = npc.schedules;
-    if (npc.transportDialogueIds !== undefined) updateData.transportDialogueIds = npc.transportDialogueIds;
-    if (npc.weatherRestrictions !== undefined) updateData.weatherRestrictions = npc.weatherRestrictions;
+    // Traiter tous les champs spécifiques
+    allSpecificFields.forEach(fieldName => {
+      if (npc.hasOwnProperty(fieldName)) {
+        updateData[fieldName] = npc[fieldName];
+        console.log(`⚙️ [NPCs API] ${fieldName} défini:`, typeof npc[fieldName]);
+      }
+    });
     
-    // Service NPCs
-    if (npc.serviceConfig !== undefined) updateData.serviceConfig = npc.serviceConfig;
-    if (npc.availableServices !== undefined) updateData.availableServices = npc.availableServices;
-    if (npc.serviceDialogueIds !== undefined) updateData.serviceDialogueIds = npc.serviceDialogueIds;
+    // ✅ DIAGNOSTIC AVANT SAUVEGARDE
+    console.log('💾 [NPCs API] === DONNÉES FINALES POUR MONGODB ===');
+    console.log('💬 updateData.dialogueId:', updateData.dialogueId);
+    console.log('💬 updateData.dialogueIds:', updateData.dialogueIds);
+    console.log('🏪 updateData.shopId:', updateData.shopId);
+    console.log('📊 updateData keys count:', Object.keys(updateData).length);
     
-    // Minigame NPCs
-    if (npc.minigameConfig !== undefined) updateData.minigameConfig = npc.minigameConfig;
-    if (npc.contestCategories !== undefined) updateData.contestCategories = npc.contestCategories;
-    if (npc.contestRewards !== undefined) updateData.contestRewards = npc.contestRewards;
-    if (npc.contestDialogueIds !== undefined) updateData.contestDialogueIds = npc.contestDialogueIds;
-    if (npc.contestSchedule !== undefined) updateData.contestSchedule = npc.contestSchedule;
-    
-    // Researcher NPCs
-    if (npc.researchConfig !== undefined) updateData.researchConfig = npc.researchConfig;
-    if (npc.researchServices !== undefined) updateData.researchServices = npc.researchServices;
-    if (npc.acceptedPokemon !== undefined) updateData.acceptedPokemon = npc.acceptedPokemon;
-    if (npc.researchDialogueIds !== undefined) updateData.researchDialogueIds = npc.researchDialogueIds;
-    if (npc.researchRewards !== undefined) updateData.researchRewards = npc.researchRewards;
-    
-    // Guild NPCs
-    if (npc.guildConfig !== undefined) updateData.guildConfig = npc.guildConfig;
-    if (npc.recruitmentRequirements !== undefined) updateData.recruitmentRequirements = npc.recruitmentRequirements;
-    if (npc.guildServices !== undefined) updateData.guildServices = npc.guildServices;
-    if (npc.guildDialogueIds !== undefined) updateData.guildDialogueIds = npc.guildDialogueIds;
-    if (npc.rankSystem !== undefined) updateData.rankSystem = npc.rankSystem;
-    
-    // Event NPCs
-    if (npc.eventConfig !== undefined) updateData.eventConfig = npc.eventConfig;
-    if (npc.eventPeriod !== undefined) updateData.eventPeriod = npc.eventPeriod;
-    if (npc.eventActivities !== undefined) updateData.eventActivities = npc.eventActivities;
-    if (npc.eventDialogueIds !== undefined) updateData.eventDialogueIds = npc.eventDialogueIds;
-    if (npc.globalProgress !== undefined) updateData.globalProgress = npc.globalProgress;
-    
-    // Quest Master NPCs
-    if (npc.questMasterConfig !== undefined) updateData.questMasterConfig = npc.questMasterConfig;
-    if (npc.questMasterDialogueIds !== undefined) updateData.questMasterDialogueIds = npc.questMasterDialogueIds;
-    if (npc.questRankSystem !== undefined) updateData.questRankSystem = npc.questRankSystem;
-    if (npc.epicRewards !== undefined) updateData.epicRewards = npc.epicRewards;
-    if (npc.specialConditions !== undefined) updateData.specialConditions = npc.specialConditions;
-    
-// ✅ AJOUTEZ CES LOGS JUSTE AVANT LA SAUVEGARDE :
-console.log('🔍 [NPCs API] updateData shopId:', updateData.shopId);
-console.log('🔍 [NPCs API] updateData shopType:', updateData.shopType);
-console.log('🔍 [NPCs API] updateData keys count:', Object.keys(updateData).length);
-
-// ✅ MISE À JOUR avec TOUS les champs
-const updatedNpc = await NpcData.findOneAndUpdate(
+    // ✅ MISE À JOUR avec TOUS les champs
+    const updatedNpc = await NpcData.findOneAndUpdate(
       { 
         zone: zoneId, 
         npcId: parseInt(npcId) 
@@ -3077,17 +3065,20 @@ const updatedNpc = await NpcData.findOneAndUpdate(
         runValidators: true
       }
     );
-
-console.log('🔍 [NPCs API] MongoDB returned shopId:', (updatedNpc as any)?.shopId);
-console.log('🔍 [NPCs API] MongoDB returned shopType:', (updatedNpc as any)?.shopType);
-console.log('🔍 [NPCs API] MongoDB document keys:', Object.keys(updatedNpc?.toObject() || {}));
-      
+    
     if (!updatedNpc) {
       return res.status(404).json({
         success: false,
         error: 'NPC non trouvé'
       });
     }
+    
+    // ✅ DIAGNOSTIC APRÈS SAUVEGARDE
+    console.log('✅ [NPCs API] === VÉRIFICATION POST-SAUVEGARDE ===');
+    console.log('💬 MongoDB saved dialogueId:', (updatedNpc as any)?.dialogueId);
+    console.log('💬 MongoDB saved dialogueIds:', (updatedNpc as any)?.dialogueIds);
+    console.log('🏪 MongoDB saved shopId:', (updatedNpc as any)?.shopId);
+    console.log('📊 Total fields in MongoDB document:', Object.keys(updatedNpc?.toObject() || {}).length);
     
     console.log(`✅ [NPCs API] ALL fields updated for NPC ${npcId} by ${req.user.username}`);
     
@@ -3096,7 +3087,14 @@ console.log('🔍 [NPCs API] MongoDB document keys:', Object.keys(updatedNpc?.to
       message: 'NPC mis à jour avec succès (tous champs)',
       npc: updatedNpc.toNpcFormat(),
       updatedBy: req.user.username,
-      fieldsUpdated: Object.keys(updateData).length
+      fieldsUpdated: Object.keys(updateData).length,
+      // ✅ DIAGNOSTIC DANS LA RÉPONSE
+      debug: {
+        dialogueIdSaved: !!(updatedNpc as any)?.dialogueId,
+        dialogueIdValue: (updatedNpc as any)?.dialogueId,
+        shopIdSaved: !!(updatedNpc as any)?.shopId,
+        shopIdValue: (updatedNpc as any)?.shopId
+      }
     });
     
   } catch (error) {
