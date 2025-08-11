@@ -474,9 +474,32 @@ convertMongoNPCToEditorFormat(mongoNPC) {
     const npc = this.formBuilder.getNPC()
     if (!npc) return
 
+    console.log('💾 [NPCEditor] === SAUVEGARDE MONGODB AVEC DIALOGUEID ===');
+    console.log('📋 NPC collecté avant validation:', {
+        id: npc.id,
+        name: npc.name,
+        type: npc.type,
+        dialogueId: npc.dialogueId,
+        totalFields: Object.keys(npc).length
+    });
+
+    // ✅ VÉRIFICATION SPÉCIALE POUR DIALOGUEID
+    if (npc.type === 'dialogue') {
+        if (!npc.dialogueId && !npc.dialogueIds) {
+            console.warn('⚠️ [NPCEditor] NPC dialogue sans dialogueId ni dialogueIds');
+        }
+        
+        // S'assurer que dialogueId existe (même vide)
+        if (npc.dialogueId === undefined || npc.dialogueId === null) {
+            npc.dialogueId = '';
+            console.log('🔧 [NPCEditor] dialogueId forcé à chaîne vide');
+        }
+    }
+
     // Valider le NPC
     const validation = this.validator.validateNPC(npc)
     if (!validation.valid) {
+        console.error('❌ [NPCEditor] Validation échouée:', validation.errors);
         this.adminPanel.showNotification(`Erreurs de validation : ${validation.errors.length}`, 'error')
         return
     }
@@ -494,28 +517,66 @@ convertMongoNPCToEditorFormat(mongoNPC) {
     this.renderNPCsList()
     this.renderZoneStats()
 
-    // ✅ NOUVEAU: Sauvegarder UN SEUL NPC dans MongoDB
+    // ✅ NOUVEAU: Préparer les données avec vérification complète
     try {
+        const npcForMongo = {
+            ...npc,
+            // ✅ FORCER L'INCLUSION DE DIALOGUEID
+            dialogueId: npc.dialogueId || '',
+            // ✅ S'assurer que shopId est inclus si c'est un merchant
+            shopId: npc.shopId || '',
+            // ✅ Nettoyer les champs MongoDB internes
+            _id: undefined,
+            __v: undefined,
+            createdAt: undefined,
+            updatedAt: undefined
+        };
+        
+        // ✅ DIAGNOSTIC AVANT ENVOI
+        console.log('💾 [NPCEditor] Données préparées pour MongoDB:', {
+            id: npcForMongo.id,
+            name: npcForMongo.name,
+            type: npcForMongo.type,
+            dialogueId: npcForMongo.dialogueId,
+            dialogueIdIncluded: npcForMongo.hasOwnProperty('dialogueId'),
+            shopId: npcForMongo.shopId,
+            position: npcForMongo.position,
+            totalFields: Object.keys(npcForMongo).length
+        });
+        
+        console.log('📤 [NPCEditor] Envoi vers MongoDB...');
+        
         const response = await this.adminPanel.apiCall(`/zones/${this.currentZone}/npcs/${npc.id}`, {
             method: 'PUT',
             body: JSON.stringify({
-                npc: npc,
+                npc: npcForMongo,
                 zone: this.currentZone,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                // ✅ MÉTADONNÉES POUR DÉBUG
+                debug: {
+                    hasDialogueId: !!npcForMongo.dialogueId,
+                    dialogueIdValue: npcForMongo.dialogueId,
+                    fieldsCount: Object.keys(npcForMongo).length
+                }
             })
         })
         
+        console.log('📥 [NPCEditor] Réponse MongoDB:', response);
+        
         if (response.success) {
-            console.log('✅ [NPCEditor] Single NPC saved to MongoDB:', response)
+            console.log('✅ [NPCEditor] NPC sauvegardé avec succès:');
+            console.log('📊 Champs sauvegardés:', response.fieldsUpdated);
+            console.log('💬 dialogueId dans réponse:', response.npc?.dialogueId);
+            
             this.unsavedChanges = false
             this.renderZoneStats()
-            this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
+            this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB (${response.fieldsUpdated} champs)`, 'success')
         } else {
             throw new Error(response.error || 'Erreur sauvegarde MongoDB')
         }
         
     } catch (error) {
-        console.error('❌ [NPCEditor] Error saving single NPC:', error)
+        console.error('❌ [NPCEditor] Erreur sauvegarde NPC:', error)
         this.adminPanel.showNotification('Erreur sauvegarde MongoDB: ' + error.message, 'error')
     }
 }
