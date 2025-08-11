@@ -198,57 +198,110 @@ async loadAvailableZones() {
 // ✅ MÉTHODE CORRIGÉE: convertMongoNPCToEditorFormat
 // À remplacer dans client/src/admin/js/npc-editor.js
 
+// ✅ MÉTHODE CORRIGÉE COMPLÈTE : convertMongoNPCToEditorFormat
+// À remplacer dans client/src/admin/js/npc-editor.js (ligne ~150 environ)
+
 convertMongoNPCToEditorFormat(mongoNPC) {
-    console.log('🔄 [NPCEditor] Converting MongoDB NPC with shopId model:', mongoNPC);
+    console.log('🔄 [NPCEditor] Converting MongoDB NPC - MÉTHODE CORRIGÉE:', mongoNPC);
     
-    // Copier tous les champs de MongoDB
-    const editorNPC = {
-        ...mongoNPC,
-    };
+    // ✅ CORRECTION 1: Copier TOUS les champs MongoDB d'abord
+    const editorNPC = JSON.parse(JSON.stringify(mongoNPC));
     
-    // Forcer les champs critiques
+    // ✅ CORRECTION 2: Normaliser les champs critiques
     editorNPC.id = mongoNPC.npcId || mongoNPC.id;
     editorNPC.name = mongoNPC.name || 'NPC Sans Nom';
     editorNPC.type = mongoNPC.type || 'dialogue';
     editorNPC.sprite = mongoNPC.sprite || 'default.png';
     editorNPC.direction = mongoNPC.direction || 'south';
     
-    // Position avec validation STRICTE
-    editorNPC.position = {
-        x: Number(mongoNPC.position?.x) || 0,
-        y: Number(mongoNPC.position?.y) || 0
-    };
+    // ✅ CORRECTION 3: Position avec validation STRICTE
+    if (mongoNPC.position && typeof mongoNPC.position === 'object') {
+        editorNPC.position = {
+            x: Number(mongoNPC.position.x) || 0,
+            y: Number(mongoNPC.position.y) || 0
+        };
+    } else {
+        editorNPC.position = { x: 0, y: 0 };
+    }
     
-    // ✅ NOUVEAU : Gestion shopId simplifié
+    // ✅ CORRECTION 4: Dialogues - TOUS LES FORMATS
+    console.log('💬 [NPCEditor] Processing dialogue fields...');
+    
+    // Dialogue principal (string)
+    if (mongoNPC.dialogueId) {
+        editorNPC.dialogueId = mongoNPC.dialogueId;
+        console.log('💬 dialogueId preserved:', editorNPC.dialogueId);
+    }
+    
+    // Dialogues multiples (array)
+    if (mongoNPC.dialogueIds && Array.isArray(mongoNPC.dialogueIds)) {
+        editorNPC.dialogueIds = [...mongoNPC.dialogueIds];
+        console.log('💬 dialogueIds preserved:', editorNPC.dialogueIds);
+    }
+    
+    // Dialogues conditionnels (object)
+    if (mongoNPC.conditionalDialogueIds && typeof mongoNPC.conditionalDialogueIds === 'object') {
+        editorNPC.conditionalDialogueIds = { ...mongoNPC.conditionalDialogueIds };
+        console.log('💬 conditionalDialogueIds preserved:', editorNPC.conditionalDialogueIds);
+    }
+    
+    // ✅ CORRECTION 5: ShopId simplifié
     if (mongoNPC.shopId) {
         editorNPC.shopId = mongoNPC.shopId;
-        console.log('🏪 [NPCEditor] ShopId preserved:', editorNPC.shopId);
+        console.log('🏪 shopId preserved:', editorNPC.shopId);
     }
     
-    // ✅ MIGRATION : Si ancien shopConfig existe, migrer vers shopId
+    // Migration depuis ancien shopConfig
     if (mongoNPC.shopConfig?.shopId && !editorNPC.shopId) {
         editorNPC.shopId = mongoNPC.shopConfig.shopId;
-        console.log('🔄 [NPCEditor] Migrated shopConfig.shopId to shopId:', editorNPC.shopId);
+        console.log('🔄 shopConfig.shopId migrated to shopId:', editorNPC.shopId);
+        // Supprimer l'ancien format
+        delete editorNPC.shopConfig;
     }
     
-    // Merger les données de npcData si elles existent
+    // ✅ CORRECTION 6: Quêtes (arrays)
+    ['questsToGive', 'questsToEnd'].forEach(questField => {
+        if (mongoNPC[questField] && Array.isArray(mongoNPC[questField])) {
+            editorNPC[questField] = [...mongoNPC[questField]];
+            console.log(`📜 ${questField} preserved:`, editorNPC[questField]);
+        }
+    });
+    
+    // ✅ CORRECTION 7: Configurations (objects)
+    const objectFields = [
+        'questRequirements', 'questDialogueIds', 'spawnConditions', 'zoneInfo',
+        'battleConfig', 'healerConfig', 'gymConfig', 'transportConfig', 'serviceConfig',
+        'visionConfig', 'minigameConfig', 'researchConfig', 'guildConfig', 'eventConfig'
+    ];
+    
+    objectFields.forEach(objectField => {
+        if (mongoNPC[objectField] && typeof mongoNPC[objectField] === 'object') {
+            editorNPC[objectField] = JSON.parse(JSON.stringify(mongoNPC[objectField]));
+            console.log(`⚙️ ${objectField} preserved as object`);
+        }
+    });
+    
+    // ✅ CORRECTION 8: Merger les données de npcData si elles existent
     if (mongoNPC.npcData && typeof mongoNPC.npcData === 'object') {
-        console.log('🔍 [NPCEditor] Merging npcData fields:', Object.keys(mongoNPC.npcData));
+        console.log('🔍 Merging npcData fields:', Object.keys(mongoNPC.npcData));
         
         Object.entries(mongoNPC.npcData).forEach(([key, value]) => {
+            // Ne pas écraser les champs déjà traités ci-dessus
             if (editorNPC[key] === undefined || editorNPC[key] === null) {
                 editorNPC[key] = value;
+                console.log(`📥 npcData.${key} merged:`, value);
             }
         });
     }
     
-    // S'assurer que les champs obligatoires ont des valeurs par défaut
+    // ✅ CORRECTION 9: Valeurs par défaut pour champs manquants
     const defaults = {
         interactionRadius: 32,
         canWalkAway: true,
         autoFacePlayer: true,
         repeatable: true,
         cooldownSeconds: 0,
+        dialogueIds: [],
         questsToGive: [],
         questsToEnd: [],
         questRequirements: {},
@@ -262,74 +315,21 @@ convertMongoNPCToEditorFormat(mongoNPC) {
         }
     });
     
-    console.log('✅ [NPCEditor] NPC converted with shopId model');
-    console.log('🏪 [NPCEditor] Final shopId:', editorNPC.shopId);
+    // ✅ CORRECTION 10: Nettoyage des champs MongoDB internes
+    const mongoOnlyFields = ['_id', '__v', 'createdAt', 'updatedAt', 'lastUpdated', 'npcData'];
+    mongoOnlyFields.forEach(field => {
+        delete editorNPC[field];
+    });
+    
+    // ✅ DIAGNOSTIC FINAL
+    console.log('✅ [NPCEditor] NPC converted - TOUTES DONNÉES PRÉSERVÉES');
+    console.log('📊 Final NPC keys:', Object.keys(editorNPC).sort());
+    console.log('💬 Final dialogueId:', editorNPC.dialogueId);
+    console.log('💬 Final dialogueIds:', editorNPC.dialogueIds);
+    console.log('🏪 Final shopId:', editorNPC.shopId);
+    console.log('📍 Final position:', editorNPC.position);
     
     return editorNPC;
-}
-
-// ✅ MISE À JOUR : Méthode de sauvegarde pour inclure shopId
-async saveCurrentNPCToMongoDB() {
-    if (!this.selectedNPC || !this.formBuilder) return
-
-    const npc = this.formBuilder.getNPC()
-    if (!npc) return
-
-    // Valider le NPC
-    const validation = this.validator.validateNPC(npc)
-    if (!validation.valid) {
-        this.adminPanel.showNotification(`Erreurs de validation : ${validation.errors.length}`, 'error')
-        return
-    }
-
-    // Sauvegarder localement d'abord
-    const existingIndex = this.npcs.findIndex(n => n.id === npc.id)
-    
-    if (existingIndex !== -1) {
-        this.npcs[existingIndex] = { ...npc }
-    } else {
-        this.npcs.push({ ...npc })
-    }
-    
-    this.selectedNPC = { ...npc }
-    this.renderNPCsList()
-    this.renderZoneStats()
-
-    // ✅ NOUVEAU: Sauvegarder avec shopId simplifié
-    try {
-        // Préparer les données avec le nouveau modèle
-        const npcForMongo = {
-            ...npc,
-            // ✅ S'assurer que shopId est bien inclus au niveau racine
-            shopId: npc.shopId || '',
-            // ✅ Retirer l'ancien shopConfig s'il existe
-            shopConfig: undefined
-        };
-        
-        console.log('💾 [NPCEditor] Saving with shopId:', npcForMongo.shopId);
-        
-        const response = await this.adminPanel.apiCall(`/zones/${this.currentZone}/npcs/${npc.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                npc: npcForMongo,
-                zone: this.currentZone,
-                lastUpdated: new Date().toISOString()
-            })
-        })
-        
-        if (response.success) {
-            console.log('✅ [NPCEditor] NPC saved to MongoDB with shopId model:', response)
-            this.unsavedChanges = false
-            this.renderZoneStats()
-            this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
-        } else {
-            throw new Error(response.error || 'Erreur sauvegarde MongoDB')
-        }
-        
-    } catch (error) {
-        console.error('❌ [NPCEditor] Error saving NPC with shopId:', error)
-        this.adminPanel.showNotification('Erreur sauvegarde MongoDB: ' + error.message, 'error')
-    }
 }
 
     
