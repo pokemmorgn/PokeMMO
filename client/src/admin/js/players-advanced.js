@@ -1105,6 +1105,7 @@ async addPokemonToTeam() {
 }
 
     // ✅ NOUVELLE MÉTHODE: Créer le modal d'ajout de Pokémon
+// ✅ MÉTHODE COMPLÈTE CORRIGÉE
 showAddPokemonModal(pokemonList) {
     // Supprimer le modal existant s'il y en a un
     const existingModal = document.getElementById('addPokemonModal')
@@ -1144,7 +1145,6 @@ showAddPokemonModal(pokemonList) {
                                    autocomplete="off">
                             <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
                             
-                            <!-- Liste d'autocomplétion -->
                             <div id="pokemonSuggestions" style="
                                 position: absolute;
                                 top: 100%;
@@ -1162,7 +1162,6 @@ showAddPokemonModal(pokemonList) {
                         </div>
                     </div>
 
-                    <!-- Prévisualisation du Pokémon sélectionné -->
                     <div id="pokemonPreview" style="
                         background: #f8f9fa; 
                         border: 2px solid #e9ecef; 
@@ -1221,30 +1220,10 @@ showAddPokemonModal(pokemonList) {
                         </label>
                         <select id="pokemonNature" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
                             <option value="hardy">Hardy (Neutre)</option>
-                            <option value="lonely">Lonely (+Att, -Def)</option>
-                            <option value="brave">Brave (+Att, -Vit)</option>
                             <option value="adamant">Adamant (+Att, -AttSp)</option>
-                            <option value="naughty">Naughty (+Att, -DefSp)</option>
-                            <option value="bold">Bold (+Def, -Att)</option>
-                            <option value="docile">Docile (Neutre)</option>
-                            <option value="relaxed">Relaxed (+Def, -Vit)</option>
-                            <option value="impish">Impish (+Def, -AttSp)</option>
-                            <option value="lax">Lax (+Def, -DefSp)</option>
-                            <option value="timid">Timid (+Vit, -Att)</option>
-                            <option value="hasty">Hasty (+Vit, -Def)</option>
-                            <option value="serious">Serious (Neutre)</option>
                             <option value="jolly">Jolly (+Vit, -AttSp)</option>
-                            <option value="naive">Naive (+Vit, -DefSp)</option>
                             <option value="modest">Modest (+AttSp, -Att)</option>
-                            <option value="mild">Mild (+AttSp, -Def)</option>
-                            <option value="quiet">Quiet (+AttSp, -Vit)</option>
-                            <option value="bashful">Bashful (Neutre)</option>
-                            <option value="rash">Rash (+AttSp, -DefSp)</option>
-                            <option value="calm">Calm (+DefSp, -Att)</option>
-                            <option value="gentle">Gentle (+DefSp, -Def)</option>
-                            <option value="sassy">Sassy (+DefSp, -Vit)</option>
-                            <option value="careful">Careful (+DefSp, -AttSp)</option>
-                            <option value="quirky">Quirky (Neutre)</option>
+                            <option value="timid">Timid (+Vit, -Att)</option>
                         </select>
                     </div>
 
@@ -1276,79 +1255,6 @@ showAddPokemonModal(pokemonList) {
                 </div>
             </div>
 
-            <!-- Section avancée (collapsible) -->
-            <div style="margin-bottom: 25px;">
-                <button type="button" 
-                        id="toggleAdvancedOptions" 
-                        onclick="adminPanel.playersAdvanced.toggleAdvancedPokemonOptions()"
-                        style="background: none; border: none; color: #007bff; font-weight: 600; padding: 0; cursor: pointer;">
-                    <i class="fas fa-chevron-down" id="advancedToggleIcon"></i> Options Avancées
-                </button>
-                
-                <div id="advancedPokemonOptions" style="display: none; margin-top: 15px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin-bottom: 15px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">HP IV:</label>
-                            <input type="number" id="ivHp" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">ATT IV:</label>
-                            <input type="number" id="ivAttack" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">DEF IV:</label>
-                            <input type="number" id="ivDefense" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">SPA IV:</label>
-                            <input type="number" id="ivSpecialAttack" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">SPD IV:</label>
-                            <input type="number" id="ivSpecialDefense" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">SPE IV:</label>
-                            <input type="number" id="ivSpeed" value="31" min="0" max="31" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <button type="button" onclick="adminPanel.playersAdvanced.randomizeIVs()" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-dice"></i> IVs Aléatoires
-                        </button>
-                        <button type="button" onclick="adminPanel.playersAdvanced.perfectIVs()" class="btn btn-outline-success btn-sm">
-                            <i class="fas fa-star"></i> IVs Parfaits
-                        </button>
-                        <button type="button" onclick="adminPanel.playersAdvanced.zeroIVs()" class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-minus"></i> IVs Minimaux
-                        </button>
-                    </div>
-
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
-                            <i class="fas fa-fist-raised"></i> Capacité:
-                        </label>
-                        <select id="pokemonAbility" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px;">
-                            <option value="auto">Capacité Automatique</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
-                            <i class="fas fa-gamepad"></i> Attaques Personnalisées:
-                        </label>
-                        <textarea id="pokemonMoves" 
-                                  placeholder="Tapez les IDs des attaques séparées par des virgules (ex: tackle,growl,vine_whip,sleep_powder)&#10;Laissez vide pour les attaques par défaut du niveau"
-                                  rows="3"
-                                  style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
-                        <small style="color: #6c757d; font-size: 0.85rem;">
-                            Maximum 4 attaques. Si vide, les attaques seront générées automatiquement selon le niveau.
-                        </small>
-                    </div>
-                </div>
-            </div>
-
             <div style="text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
                 <button class="btn btn-secondary" onclick="adminPanel.playersAdvanced.closeAddPokemonModal()">
                     <i class="fas fa-times"></i> Annuler
@@ -1359,8 +1265,24 @@ showAddPokemonModal(pokemonList) {
             </div>
         </div>
     `
-    
-    preview.style.display = 'block'
+
+    // Fermeture sur clic extérieur
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            this.closeAddPokemonModal()
+        }
+    })
+
+    document.body.appendChild(modal)
+    modal.classList.add('active')
+
+    // Initialiser l'autocomplétion
+    this.initializePokemonAutocomplete(pokemonList)
+
+    // Focus sur le champ de recherche
+    setTimeout(() => {
+        document.getElementById('pokemonSearchInput')?.focus()
+    }, 100)
 }
 
     // ✅ NOUVELLE MÉTHODE: Configurer les options selon le Pokémon
