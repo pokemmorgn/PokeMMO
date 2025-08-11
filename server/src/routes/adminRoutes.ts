@@ -6194,12 +6194,12 @@ router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
             });
         }
 
-        // Vérifier que les parties ne sont pas vides
-        if (dialogIdParts.some(part => !part.trim())) {
+        // ✅ CORRECTION TYPESCRIPT: Typage explicite du paramètre
+        if (dialogIdParts.some((part: string) => !part.trim())) {
             return res.status(400).json({
                 success: false,
                 error: 'Les parties du dialogId ne peuvent pas être vides',
-                details: `Parties trouvées: [${dialogIdParts.map(p => `"${p}"`).join(', ')}]`
+                details: `Parties trouvées: [${dialogIdParts.map((p: string) => `"${p}"`).join(', ')}]`
             });
         }
 
@@ -6288,12 +6288,13 @@ router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
             createdBy: req.user.username
         });
         
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('❌ [Dialogues API] Erreur création:', error);
         
-        // ✅ GESTION SPÉCIALE DES ERREURS MONGOOSE
-        if (error.name === 'ValidationError') {
-            const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+        // ✅ CORRECTION TYPESCRIPT: Gestion d'erreur typée
+        if (error instanceof Error && error.name === 'ValidationError') {
+            const mongooseError = error as any;
+            const validationErrors = Object.values(mongooseError.errors).map((err: any) => err.message);
             return res.status(400).json({
                 success: false,
                 error: 'Erreurs de validation',
@@ -6309,6 +6310,7 @@ router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
     }
 });
 
+
 // ✅ ROUTE: Mettre à jour un dialogue avec validation complète
 router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => {
     try {
@@ -6318,7 +6320,7 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
         console.log(`🗨️ [Dialogues API] Mise à jour dialogue: ${dialogueId}`);
         console.log(`🗨️ [Dialogues API] Données de mise à jour:`, JSON.stringify(updateData, null, 2));
         
-        // ✅ DÉCODER L'ID DU DIALOGUE (caractères spéciaux)
+        // ✅ DÉCODER L'ID DU DIALOGUE
         const decodedDialogueId = decodeURIComponent(dialogueId);
         
         // Trouver le dialogue existant
@@ -6341,7 +6343,6 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
                 });
             }
 
-            // Vérifier unicité du nouvel ID
             const existingWithNewId = await DialogStringModel.findOne({ dialogId: updateData.dialogId });
             if (existingWithNewId) {
                 return res.status(400).json({
@@ -6359,28 +6360,31 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
         ];
         
         let hasChanges = false;
-        allowedFields.forEach(field => {
+        allowedFields.forEach((field: string) => {
             if (updateData[field] !== undefined) {
                 // ✅ TRAITEMENT SPÉCIAL POUR LES TEXTES (trim)
                 if (['eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'].includes(field)) {
                     const newValue = typeof updateData[field] === 'string' ? updateData[field].trim() : updateData[field];
-                    if (dialogue[field] !== newValue) {
-                        dialogue[field] = newValue;
+                    // ✅ CORRECTION TYPESCRIPT: Cast explicite pour accès dynamique
+                    if ((dialogue as any)[field] !== newValue) {
+                        (dialogue as any)[field] = newValue;
                         hasChanges = true;
                     }
                 }
                 // ✅ TRAITEMENT SPÉCIAL POUR LES ARRAYS
                 else if (['variables', 'conditions', 'tags'].includes(field)) {
                     const newValue = Array.isArray(updateData[field]) ? updateData[field] : [];
-                    if (JSON.stringify(dialogue[field]) !== JSON.stringify(newValue)) {
-                        dialogue[field] = newValue;
+                    // ✅ CORRECTION TYPESCRIPT: Cast explicite pour accès dynamique
+                    if (JSON.stringify((dialogue as any)[field]) !== JSON.stringify(newValue)) {
+                        (dialogue as any)[field] = newValue;
                         hasChanges = true;
                     }
                 }
                 // ✅ AUTRES CHAMPS
                 else {
-                    if (dialogue[field] !== updateData[field]) {
-                        dialogue[field] = updateData[field];
+                    // ✅ CORRECTION TYPESCRIPT: Cast explicite pour accès dynamique
+                    if ((dialogue as any)[field] !== updateData[field]) {
+                        (dialogue as any)[field] = updateData[field];
                         hasChanges = true;
                     }
                 }
@@ -6421,11 +6425,13 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
             changesDetected: hasChanges
         });
         
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('❌ [Dialogues API] Erreur mise à jour:', error);
         
-        if (error.name === 'ValidationError') {
-            const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+        // ✅ CORRECTION TYPESCRIPT: Gestion d'erreur typée
+        if (error instanceof Error && error.name === 'ValidationError') {
+            const mongooseError = error as any;
+            const validationErrors = Object.values(mongooseError.errors).map((err: any) => err.message);
             return res.status(400).json({
                 success: false,
                 error: 'Erreurs de validation lors de la mise à jour',
@@ -6931,8 +6937,8 @@ router.post('/dialogues/validate-id', requireMacAndDev, async (req: any, res) =>
             });
         }
 
-        // Vérifier les parties vides
-        if (parts.some(part => !part.trim())) {
+        // ✅ CORRECTION TYPESCRIPT: Typage explicite du paramètre
+        if (parts.some((part: string) => !part.trim())) {
             return res.json({
                 success: false,
                 valid: false,
@@ -6979,7 +6985,7 @@ router.post('/dialogues/validate-id', requireMacAndDev, async (req: any, res) =>
             }
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('❌ [Dialogues API] Erreur validation ID:', error);
         res.status(500).json({
             success: false,
@@ -6987,7 +6993,6 @@ router.post('/dialogues/validate-id', requireMacAndDev, async (req: any, res) =>
         });
     }
 });
-
 // ✅ NOUVELLE ROUTE: Auto-compléter un dialogId
 router.post('/dialogues/autocomplete-id', requireMacAndDev, async (req: any, res) => {
     try {
