@@ -6064,14 +6064,16 @@ res.json({
 }
 });
 
-// ✅ ROUTE: Lister tous les dialogues
+// Routes dialogues complètement corrigées pour adminRoutes.ts
+
+// ✅ ROUTE: Lister tous les dialogues avec tri et pagination améliorés
 router.get('/dialogues', requireMacAndDev, async (req: any, res) => {
     try {
         console.log('🗨️ [Dialogues API] Chargement des dialogues...');
         
-        const { page = 1, limit = 100, category, npcId, search } = req.query;
+        const { page = 1, limit = 100, category, npcId, search, sortBy = 'dialogId', sortOrder = 'asc' } = req.query;
         
-        // Construire la requête de filtre
+        // ✅ CONSTRUIRE LA REQUÊTE DE FILTRE
         const filter: any = { isActive: true };
         
         if (category && category !== 'all') {
@@ -6082,25 +6084,44 @@ router.get('/dialogues', requireMacAndDev, async (req: any, res) => {
             filter.npcId = npcId;
         }
         
-        if (search) {
+        if (search && search.trim().length >= 2) {
+            const searchRegex = new RegExp(search.trim(), 'i');
             filter.$or = [
-                { dialogId: { $regex: search, $options: 'i' } },
-                { eng: { $regex: search, $options: 'i' } },
-                { fr: { $regex: search, $options: 'i' } },
-                { npcId: { $regex: search, $options: 'i' } }
+                { dialogId: searchRegex },
+                { eng: searchRegex },
+                { fr: searchRegex },
+                { npcId: searchRegex },
+                { context: searchRegex },
+                { tags: { $in: [searchRegex] } }
             ];
         }
         
-        // Exécuter la requête
-        const dialogues = await DialogStringModel.find(filter)
-            .sort({ npcId: 1, category: 1, priority: -1, dialogId: 1 })
-            .limit(parseInt(limit as string))
-            .skip((parseInt(page as string) - 1) * parseInt(limit as string))
-            .lean();
+        // ✅ CONSTRUIRE LE TRI
+        const sortOptions: any = {};
+        const validSortFields = ['dialogId', 'npcId', 'category', 'priority', 'createdAt', 'updatedAt'];
+        const sortField = validSortFields.includes(sortBy) ? sortBy : 'dialogId';
+        const sortDirection = sortOrder === 'desc' ? -1 : 1;
+        sortOptions[sortField] = sortDirection;
         
-        const total = await DialogStringModel.countDocuments(filter);
+        // Tri secondaire pour cohérence
+        if (sortField !== 'dialogId') {
+            sortOptions.dialogId = 1;
+        }
         
-        console.log(`✅ [Dialogues API] ${dialogues.length}/${total} dialogues chargés`);
+        // ✅ EXÉCUTER LA REQUÊTE AVEC PAGINATION
+        const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+        const limitNum = Math.min(parseInt(limit as string), 500); // Limite de sécurité
+        
+        const [dialogues, total] = await Promise.all([
+            DialogStringModel.find(filter)
+                .sort(sortOptions)
+                .limit(limitNum)
+                .skip(skip)
+                .lean(),
+            DialogStringModel.countDocuments(filter)
+        ]);
+        
+        console.log(`✅ [Dialogues API] ${dialogues.length}/${total} dialogues chargés (page ${page})`);
         
         res.json({
             success: true,
@@ -6111,25 +6132,30 @@ router.get('/dialogues', requireMacAndDev, async (req: any, res) => {
                 context: d.context,
                 eng: d.eng,
                 fr: d.fr,
-                es: d.es,
-                de: d.de,
-                ja: d.ja,
-                it: d.it,
-                pt: d.pt,
-                ko: d.ko,
-                zh: d.zh,
-                variables: d.variables,
-                conditions: d.conditions,
-                priority: d.priority,
+                es: d.es || '',
+                de: d.de || '',
+                ja: d.ja || '',
+                it: d.it || '',
+                pt: d.pt || '',
+                ko: d.ko || '',
+                zh: d.zh || '',
+                variables: d.variables || [],
+                conditions: d.conditions || [],
+                priority: d.priority || 5,
                 isActive: d.isActive,
-                version: d.version,
-                tags: d.tags,
+                version: d.version || '1.0.0',
+                tags: d.tags || [],
                 createdAt: d.createdAt,
                 updatedAt: d.updatedAt
             })),
-            total,
-            page: parseInt(page as string),
-            limit: parseInt(limit as string)
+            pagination: {
+                total,
+                page: parseInt(page as string),
+                limit: limitNum,
+                totalPages: Math.ceil(total / limitNum),
+                hasNextPage: skip + limitNum < total,
+                hasPrevPage: parseInt(page as string) > 1
+            }
         });
         
     } catch (error) {
@@ -6142,50 +6168,105 @@ router.get('/dialogues', requireMacAndDev, async (req: any, res) => {
     }
 });
 
-// ✅ ROUTE: Créer un nouveau dialogue
+// ✅ ROUTE: Créer un nouveau dialogue avec validation stricte
 router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
     try {
         const dialogueData = req.body;
         
         console.log(`🗨️ [Dialogues API] Création dialogue: ${dialogueData.dialogId}`);
+        console.log(`🗨️ [Dialogues API] Données reçues:`, JSON.stringify(dialogueData, null, 2));
         
-        // Validation des champs requis
+        // ✅ VALIDATION DES CHAMPS REQUIS
         if (!dialogueData.dialogId || !dialogueData.eng || !dialogueData.fr) {
             return res.status(400).json({
                 success: false,
                 error: 'Champs requis manquants (dialogId, eng, fr)'
             });
         }
-        
-        // Vérifier que l'ID n'existe pas déjà
+
+        // ✅ VALIDATION STRICTE DU FORMAT dialogId
+        const dialogIdParts = dialogueData.dialogId.split('.');
+        if (dialogIdParts.length < 3 || dialogIdParts.length > 4) {
+            return res.status(400).json({
+                success: false,
+                error: 'DialogId doit suivre le format: npcId.category.context[.variant]',
+                details: `Format reçu: "${dialogueData.dialogId}" (${dialogIdParts.length} parties)`
+            });
+        }
+
+        // Vérifier que les parties ne sont pas vides
+        if (dialogIdParts.some(part => !part.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'Les parties du dialogId ne peuvent pas être vides',
+                details: `Parties trouvées: [${dialogIdParts.map(p => `"${p}"`).join(', ')}]`
+            });
+        }
+
+        // ✅ VALIDATION COHÉRENCE npcId avec dialogId
+        if (dialogueData.npcId && dialogueData.npcId !== dialogIdParts[0]) {
+            return res.status(400).json({
+                success: false,
+                error: 'Le npcId doit correspondre à la première partie du dialogId',
+                details: `npcId: "${dialogueData.npcId}", attendu: "${dialogIdParts[0]}"`
+            });
+        }
+
+        // ✅ AUTO-COMPLÉTER npcId et context depuis dialogId
+        if (!dialogueData.npcId) {
+            dialogueData.npcId = dialogIdParts[0];
+            console.log(`🔧 [Dialogues API] npcId auto-complété: ${dialogueData.npcId}`);
+        }
+
+        if (!dialogueData.context) {
+            dialogueData.context = dialogIdParts[2];
+            console.log(`🔧 [Dialogues API] context auto-complété: ${dialogueData.context}`);
+        }
+
+        // ✅ VALIDATION CATÉGORIES VALIDES
+        const validCategories = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+        if (!validCategories.includes(dialogueData.category)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Catégorie invalide',
+                details: `Catégorie "${dialogueData.category}" non supportée. Utilisez: ${validCategories.join(', ')}`
+            });
+        }
+
+        // ✅ VÉRIFIER QUE L'ID N'EXISTE PAS DÉJÀ
         const existing = await DialogStringModel.findOne({ dialogId: dialogueData.dialogId });
         if (existing) {
             return res.status(400).json({
                 success: false,
-                error: 'Un dialogue avec cet ID existe déjà'
+                error: 'Un dialogue avec cet ID existe déjà',
+                details: `dialogId "${dialogueData.dialogId}" est déjà utilisé`
             });
         }
         
-        // Créer le nouveau dialogue
+        // ✅ CRÉER LE NOUVEAU DIALOGUE
         const newDialogue = new DialogStringModel({
             dialogId: dialogueData.dialogId,
             npcId: dialogueData.npcId,
-            category: dialogueData.category || 'greeting',
+            category: dialogueData.category,
             context: dialogueData.context,
-            eng: dialogueData.eng,
-            fr: dialogueData.fr,
-            es: dialogueData.es,
-            de: dialogueData.de,
-            ja: dialogueData.ja,
-            it: dialogueData.it,
-            pt: dialogueData.pt,
-            ko: dialogueData.ko,
-            zh: dialogueData.zh,
-            variables: dialogueData.variables || [],
-            conditions: dialogueData.conditions || [],
-            priority: dialogueData.priority || 5,
+            
+            // Traductions (trim pour éviter les espaces)
+            eng: dialogueData.eng.trim(),
+            fr: dialogueData.fr.trim(),
+            es: dialogueData.es?.trim() || '',
+            de: dialogueData.de?.trim() || '',
+            ja: dialogueData.ja?.trim() || '',
+            it: dialogueData.it?.trim() || '',
+            pt: dialogueData.pt?.trim() || '',
+            ko: dialogueData.ko?.trim() || '',
+            zh: dialogueData.zh?.trim() || '',
+            
+            // Métadonnées
+            variables: Array.isArray(dialogueData.variables) ? dialogueData.variables : [],
+            conditions: Array.isArray(dialogueData.conditions) ? dialogueData.conditions : [],
+            priority: parseInt(dialogueData.priority) || 5,
             isActive: dialogueData.isActive !== false,
-            tags: dialogueData.tags || [],
+            tags: Array.isArray(dialogueData.tags) ? dialogueData.tags : [],
             version: dialogueData.version || '1.0.0'
         });
         
@@ -6200,13 +6281,26 @@ router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
                 dialogId: newDialogue.dialogId,
                 npcId: newDialogue.npcId,
                 category: newDialogue.category,
-                isActive: newDialogue.isActive
+                context: newDialogue.context,
+                isActive: newDialogue.isActive,
+                createdAt: newDialogue.createdAt
             },
             createdBy: req.user.username
         });
         
     } catch (error) {
         console.error('❌ [Dialogues API] Erreur création:', error);
+        
+        // ✅ GESTION SPÉCIALE DES ERREURS MONGOOSE
+        if (error.name === 'ValidationError') {
+            const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+            return res.status(400).json({
+                success: false,
+                error: 'Erreurs de validation',
+                details: validationErrors.join(', ')
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: 'Erreur lors de la création du dialogue',
@@ -6215,38 +6309,102 @@ router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
     }
 });
 
-// ✅ ROUTE: Mettre à jour un dialogue
+// ✅ ROUTE: Mettre à jour un dialogue avec validation complète
 router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => {
     try {
         const { dialogueId } = req.params;
         const updateData = req.body;
         
         console.log(`🗨️ [Dialogues API] Mise à jour dialogue: ${dialogueId}`);
+        console.log(`🗨️ [Dialogues API] Données de mise à jour:`, JSON.stringify(updateData, null, 2));
+        
+        // ✅ DÉCODER L'ID DU DIALOGUE (caractères spéciaux)
+        const decodedDialogueId = decodeURIComponent(dialogueId);
         
         // Trouver le dialogue existant
-        const dialogue = await DialogStringModel.findOne({ dialogId: dialogueId });
+        const dialogue = await DialogStringModel.findOne({ dialogId: decodedDialogueId });
         if (!dialogue) {
             return res.status(404).json({
                 success: false,
-                error: 'Dialogue non trouvé'
+                error: 'Dialogue non trouvé',
+                details: `Aucun dialogue avec l'ID "${decodedDialogueId}"`
             });
         }
+
+        // ✅ SI L'ID DU DIALOGUE CHANGE, VALIDER LE NOUVEAU FORMAT
+        if (updateData.dialogId && updateData.dialogId !== decodedDialogueId) {
+            const newIdParts = updateData.dialogId.split('.');
+            if (newIdParts.length < 3 || newIdParts.length > 4) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Nouveau dialogId doit suivre le format: npcId.category.context[.variant]'
+                });
+            }
+
+            // Vérifier unicité du nouvel ID
+            const existingWithNewId = await DialogStringModel.findOne({ dialogId: updateData.dialogId });
+            if (existingWithNewId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Un dialogue avec le nouvel ID existe déjà'
+                });
+            }
+        }
         
-        // Mettre à jour les champs autorisés
+        // ✅ METTRE À JOUR SEULEMENT LES CHAMPS AUTORISÉS
         const allowedFields = [
-            'npcId', 'category', 'context', 'eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh',
+            'dialogId', 'npcId', 'category', 'context', 
+            'eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh',
             'variables', 'conditions', 'priority', 'isActive', 'tags', 'version'
         ];
         
+        let hasChanges = false;
         allowedFields.forEach(field => {
             if (updateData[field] !== undefined) {
-                (dialogue as any)[field] = updateData[field];
+                // ✅ TRAITEMENT SPÉCIAL POUR LES TEXTES (trim)
+                if (['eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'].includes(field)) {
+                    const newValue = typeof updateData[field] === 'string' ? updateData[field].trim() : updateData[field];
+                    if (dialogue[field] !== newValue) {
+                        dialogue[field] = newValue;
+                        hasChanges = true;
+                    }
+                }
+                // ✅ TRAITEMENT SPÉCIAL POUR LES ARRAYS
+                else if (['variables', 'conditions', 'tags'].includes(field)) {
+                    const newValue = Array.isArray(updateData[field]) ? updateData[field] : [];
+                    if (JSON.stringify(dialogue[field]) !== JSON.stringify(newValue)) {
+                        dialogue[field] = newValue;
+                        hasChanges = true;
+                    }
+                }
+                // ✅ AUTRES CHAMPS
+                else {
+                    if (dialogue[field] !== updateData[field]) {
+                        dialogue[field] = updateData[field];
+                        hasChanges = true;
+                    }
+                }
             }
         });
-        
+
+        if (!hasChanges) {
+            return res.json({
+                success: true,
+                message: 'Aucune modification détectée',
+                dialogue: {
+                    dialogId: dialogue.dialogId,
+                    npcId: dialogue.npcId,
+                    category: dialogue.category,
+                    updatedAt: dialogue.updatedAt
+                }
+            });
+        }
+
+        // ✅ SAUVEGARDER LES MODIFICATIONS
+        dialogue.updatedAt = new Date();
         await dialogue.save();
         
-        console.log(`✅ [Dialogues API] Dialogue mis à jour: ${dialogueId} par ${req.user.username}`);
+        console.log(`✅ [Dialogues API] Dialogue mis à jour: ${dialogue.dialogId} par ${req.user.username}`);
         
         res.json({
             success: true,
@@ -6255,13 +6413,26 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
                 dialogId: dialogue.dialogId,
                 npcId: dialogue.npcId,
                 category: dialogue.category,
+                context: dialogue.context,
+                isActive: dialogue.isActive,
                 updatedAt: dialogue.updatedAt
             },
-            updatedBy: req.user.username
+            updatedBy: req.user.username,
+            changesDetected: hasChanges
         });
         
     } catch (error) {
         console.error('❌ [Dialogues API] Erreur mise à jour:', error);
+        
+        if (error.name === 'ValidationError') {
+            const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+            return res.status(400).json({
+                success: false,
+                error: 'Erreurs de validation lors de la mise à jour',
+                details: validationErrors.join(', ')
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: 'Erreur lors de la mise à jour du dialogue',
@@ -6270,22 +6441,27 @@ router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => 
     }
 });
 
-// ✅ ROUTE: Supprimer un dialogue
+// ✅ ROUTE: Supprimer un dialogue avec décodage URL
 router.delete('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => {
     try {
         const { dialogueId } = req.params;
         
-        console.log(`🗨️ [Dialogues API] Suppression dialogue: ${dialogueId}`);
+        console.log(`🗑️ [Dialogues API] Suppression dialogue: ${dialogueId}`);
         
-        const deletedDialogue = await DialogStringModel.findOneAndDelete({ dialogId: dialogueId });
+        // ✅ DÉCODER L'ID (important pour les IDs avec points)
+        const decodedDialogueId = decodeURIComponent(dialogueId);
+        console.log(`🗑️ [Dialogues API] ID décodé: ${decodedDialogueId}`);
+        
+        const deletedDialogue = await DialogStringModel.findOneAndDelete({ dialogId: decodedDialogueId });
         if (!deletedDialogue) {
             return res.status(404).json({
                 success: false,
-                error: 'Dialogue non trouvé'
+                error: 'Dialogue non trouvé',
+                details: `Aucun dialogue avec l'ID "${decodedDialogueId}"`
             });
         }
         
-        console.log(`✅ [Dialogues API] Dialogue supprimé: ${dialogueId} par ${req.user.username}`);
+        console.log(`✅ [Dialogues API] Dialogue supprimé: ${decodedDialogueId} par ${req.user.username}`);
         
         res.json({
             success: true,
@@ -6308,7 +6484,7 @@ router.delete('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) 
     }
 });
 
-// ✅ ROUTE: Obtenir les statistiques des dialogues
+// ✅ ROUTE: Statistiques des dialogues
 router.get('/dialogues/stats', requireMacAndDev, async (req: any, res) => {
     try {
         console.log('📊 [Dialogues API] Génération des statistiques...');
@@ -6363,10 +6539,10 @@ router.get('/dialogues/stats', requireMacAndDev, async (req: any, res) => {
         
         console.log('✅ [Dialogues API] Statistiques générées');
         
-res.json({
-  success: true,
-  data: stats
-});
+        res.json({
+            success: true,
+            stats
+        });
         
     } catch (error) {
         console.error('❌ [Dialogues API] Erreur statistiques:', error);
@@ -6377,10 +6553,10 @@ res.json({
     }
 });
 
-// ✅ ROUTE: Rechercher des dialogues
+// ✅ ROUTE: Rechercher des dialogues avec filtres avancés
 router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
     try {
-        const { query, category, npcId, language = 'fr', limit = 50 } = req.body;
+        const { query, category, npcId, language = 'fr', limit = 50, includeInactive = false } = req.body;
         
         console.log(`🔍 [Dialogues API] Recherche: "${query}"`);
         
@@ -6392,8 +6568,12 @@ router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
             });
         }
         
-        // Construire les filtres
-        const filter: any = { isActive: true };
+        // ✅ CONSTRUIRE LES FILTRES
+        const filter: any = {};
+        
+        if (!includeInactive) {
+            filter.isActive = true;
+        }
         
         if (category && category !== 'all') {
             filter.category = category;
@@ -6403,22 +6583,24 @@ router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
             filter.npcId = npcId;
         }
         
-        // Recherche textuelle multi-champs
-        const searchRegex = { $regex: query, $options: 'i' };
+        // ✅ RECHERCHE TEXTUELLE MULTI-CHAMPS
+        const searchRegex = { $regex: query.trim(), $options: 'i' };
         filter.$or = [
             { dialogId: searchRegex },
             { npcId: searchRegex },
             { eng: searchRegex },
-            { fr: searchRegex }
+            { fr: searchRegex },
+            { context: searchRegex },
+            { tags: { $in: [searchRegex] } }
         ];
         
-        // Ajouter les autres langues si spécifiées
+        // Ajouter autres langues si spécifiées
         if (language !== 'fr' && language !== 'eng') {
             filter.$or.push({ [language]: searchRegex });
         }
         
         const results = await DialogStringModel.find(filter)
-            .select(`dialogId npcId category ${language} eng priority isActive`)
+            .select(`dialogId npcId category context ${language} eng priority isActive createdAt`)
             .sort({ priority: -1, dialogId: 1 })
             .limit(parseInt(limit))
             .lean();
@@ -6429,12 +6611,15 @@ router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
                 dialogId: r.dialogId,
                 npcId: r.npcId,
                 category: r.category,
+                context: r.context,
                 text: r[language as keyof typeof r] || r.eng,
                 priority: r.priority,
-                isActive: r.isActive
+                isActive: r.isActive,
+                createdAt: r.createdAt
             })),
             query,
-            total: results.length
+            total: results.length,
+            filters: { category, npcId, language, includeInactive }
         });
         
     } catch (error) {
@@ -6446,15 +6631,17 @@ router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
     }
 });
 
-// ✅ ROUTE: Dupliquer un dialogue
+// ✅ ROUTE: Dupliquer un dialogue avec ID valide
 router.post('/dialogues/:dialogueId/duplicate', requireMacAndDev, async (req: any, res) => {
     try {
         const { dialogueId } = req.params;
         
         console.log(`📋 [Dialogues API] Duplication dialogue: ${dialogueId}`);
         
+        const decodedDialogueId = decodeURIComponent(dialogueId);
+        
         // Trouver le dialogue original
-        const originalDialogue = await DialogStringModel.findOne({ dialogId: dialogueId });
+        const originalDialogue = await DialogStringModel.findOne({ dialogId: decodedDialogueId });
         if (!originalDialogue) {
             return res.status(404).json({
                 success: false,
@@ -6462,26 +6649,42 @@ router.post('/dialogues/:dialogueId/duplicate', requireMacAndDev, async (req: an
             });
         }
         
-        // Générer un nouvel ID unique
-        const newDialogueId = `${dialogueId}_copy_${Date.now()}`;
+        // ✅ GÉNÉRER UN NOUVEL ID VALIDE selon le format requis
+        const timestamp = Date.now();
+        const idParts = decodedDialogueId.split('.');
+        let newDialogueId: string;
+        
+        if (idParts.length >= 3) {
+            // Format valide, ajouter variant
+            if (idParts.length === 3) {
+                newDialogueId = `${idParts[0]}.${idParts[1]}.${idParts[2]}.copy_${timestamp}`;
+            } else {
+                newDialogueId = `${idParts[0]}.${idParts[1]}.${idParts[2]}.copy_${timestamp}`;
+            }
+        } else {
+            // Format invalide, créer un ID valide
+            newDialogueId = `${originalDialogue.npcId || 'unknown'}.${originalDialogue.category}.copy.${timestamp}`;
+        }
         
         // Créer la copie
         const duplicateDialogue = new DialogStringModel({
             ...originalDialogue.toObject(),
             _id: undefined, // Nouveau document
             dialogId: newDialogueId,
+            eng: originalDialogue.eng + ' (Copy)',
+            fr: originalDialogue.fr + ' (Copie)',
             createdAt: new Date(),
             updatedAt: new Date()
         });
         
         await duplicateDialogue.save();
         
-        console.log(`✅ [Dialogues API] Dialogue dupliqué: ${dialogueId} -> ${newDialogueId} par ${req.user.username}`);
+        console.log(`✅ [Dialogues API] Dialogue dupliqué: ${decodedDialogueId} -> ${newDialogueId} par ${req.user.username}`);
         
         res.json({
             success: true,
             message: 'Dialogue dupliqué avec succès',
-            originalDialogueId: dialogueId,
+            originalDialogueId: decodedDialogueId,
             newDialogueId: newDialogueId,
             dialogue: {
                 dialogId: duplicateDialogue.dialogId,
@@ -6500,10 +6703,10 @@ router.post('/dialogues/:dialogueId/duplicate', requireMacAndDev, async (req: an
     }
 });
 
-// ✅ ROUTE: Importer des dialogues depuis JSON
+// ✅ ROUTE: Importer des dialogues avec validation stricte
 router.post('/dialogues/import', requireMacAndDev, async (req: any, res) => {
     try {
-        const { dialogues, overwrite = false } = req.body;
+        const { dialogues, overwrite = false, validateFormat = true } = req.body;
         
         console.log(`📥 [Dialogues API] Import de ${dialogues?.length || 0} dialogues par ${req.user.username}`);
         
@@ -6521,11 +6724,21 @@ router.post('/dialogues/import', requireMacAndDev, async (req: any, res) => {
         
         for (const dialogueData of dialogues) {
             try {
-                // Validation de base
+                // ✅ VALIDATION DE BASE
                 if (!dialogueData.dialogId || !dialogueData.eng || !dialogueData.fr) {
                     errorDetails.push(`Dialogue ${dialogueData.dialogId || 'unknown'}: champs requis manquants`);
                     errors++;
                     continue;
+                }
+                
+                // ✅ VALIDATION FORMAT SI DEMANDÉE
+                if (validateFormat) {
+                    const idParts = dialogueData.dialogId.split('.');
+                    if (idParts.length < 3 || idParts.length > 4) {
+                        errorDetails.push(`Dialogue ${dialogueData.dialogId}: format ID invalide`);
+                        errors++;
+                        continue;
+                    }
                 }
                 
                 // Vérifier s'il existe déjà
@@ -6569,7 +6782,7 @@ router.post('/dialogues/import', requireMacAndDev, async (req: any, res) => {
             imported,
             updated,
             errors,
-            errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+            errorDetails: errorDetails.length > 0 ? errorDetails.slice(0, 20) : undefined,
             importedBy: req.user.username
         });
         
@@ -6587,7 +6800,15 @@ router.get('/dialogues/export/all', requireMacAndDev, async (req: any, res) => {
     try {
         console.log(`📤 [Dialogues API] Export de tous les dialogues par ${req.user.username}`);
         
-        const dialogues = await DialogStringModel.find({ isActive: true })
+        const { includeInactive = false } = req.query;
+        
+        // ✅ CONSTRUIRE LE FILTRE
+        const filter: any = {};
+        if (!includeInactive) {
+            filter.isActive = true;
+        }
+        
+        const dialogues = await DialogStringModel.find(filter)
             .sort({ npcId: 1, category: 1, dialogId: 1 })
             .lean();
         
@@ -6596,6 +6817,7 @@ router.get('/dialogues/export/all', requireMacAndDev, async (req: any, res) => {
             exportedBy: req.user.username,
             version: '1.0.0',
             totalDialogues: dialogues.length,
+            includeInactive,
             dialogues: dialogues.map(d => ({
                 dialogId: d.dialogId,
                 npcId: d.npcId,
@@ -6603,19 +6825,19 @@ router.get('/dialogues/export/all', requireMacAndDev, async (req: any, res) => {
                 context: d.context,
                 eng: d.eng,
                 fr: d.fr,
-                es: d.es,
-                de: d.de,
-                ja: d.ja,
-                it: d.it,
-                pt: d.pt,
-                ko: d.ko,
-                zh: d.zh,
-                variables: d.variables,
-                conditions: d.conditions,
-                priority: d.priority,
+                es: d.es || '',
+                de: d.de || '',
+                ja: d.ja || '',
+                it: d.it || '',
+                pt: d.pt || '',
+                ko: d.ko || '',
+                zh: d.zh || '',
+                variables: d.variables || [],
+                conditions: d.conditions || [],
+                priority: d.priority || 5,
                 isActive: d.isActive,
-                tags: d.tags,
-                version: d.version
+                tags: d.tags || [],
+                version: d.version || '1.0.0'
             }))
         };
         
@@ -6643,7 +6865,8 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
         if (!['fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'].includes(language)) {
             return res.status(400).json({
                 success: false,
-                error: 'Langue non supportée'
+                error: 'Langue non supportée',
+                supportedLanguages: ['fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh']
             });
         }
         
@@ -6655,8 +6878,8 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
                 { [language]: null }
             ]
         })
-        .select('dialogId npcId category eng')
-        .sort({ npcId: 1, dialogId: 1 })
+        .select('dialogId npcId category eng priority')
+        .sort({ npcId: 1, priority: -1, dialogId: 1 })
         .lean();
         
         res.json({
@@ -6667,7 +6890,8 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
                 dialogId: d.dialogId,
                 npcId: d.npcId,
                 category: d.category,
-                englishText: d.eng
+                englishText: d.eng,
+                priority: d.priority
             }))
         });
         
@@ -6680,6 +6904,324 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
     }
 });
 
+// ✅ NOUVELLE ROUTE: Valider un dialogId avant création
+router.post('/dialogues/validate-id', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { dialogId } = req.body;
+        
+        if (!dialogId) {
+            return res.status(400).json({
+                success: false,
+                error: 'dialogId requis'
+            });
+        }
+
+        // ✅ VALIDATION DU FORMAT
+        const parts = dialogId.split('.');
+        if (parts.length < 3 || parts.length > 4) {
+            return res.json({
+                success: false,
+                valid: false,
+                error: 'Format invalide',
+                details: 'Le dialogId doit suivre le format: npcId.category.context[.variant]',
+                suggestions: {
+                    format: 'npcId.category.context[.variant]',
+                    example: 'prof_oak.greeting.welcome'
+                }
+            });
+        }
+
+        // Vérifier les parties vides
+        if (parts.some(part => !part.trim())) {
+            return res.json({
+                success: false,
+                valid: false,
+                error: 'Parties vides détectées',
+                details: 'Toutes les parties du dialogId doivent contenir du texte'
+            });
+        }
+
+        // Vérifier l'unicité
+        const existing = await DialogStringModel.findOne({ dialogId });
+        if (existing) {
+            return res.json({
+                success: false,
+                valid: false,
+                error: 'ID déjà utilisé',
+                details: `Un dialogue avec l'ID "${dialogId}" existe déjà`
+            });
+        }
+
+        // Validation des catégories
+        const validCategories = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+        const category = parts[1];
+        if (!validCategories.includes(category)) {
+            return res.json({
+                success: false,
+                valid: false,
+                error: 'Catégorie invalide',
+                details: `La catégorie "${category}" n'est pas supportée`,
+                suggestions: {
+                    validCategories: validCategories
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            valid: true,
+            message: 'DialogId valide',
+            parsed: {
+                npcId: parts[0],
+                category: parts[1],
+                context: parts[2],
+                variant: parts[3] || null
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur validation ID:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la validation'
+        });
+    }
+});
+
+// ✅ NOUVELLE ROUTE: Auto-compléter un dialogId
+router.post('/dialogues/autocomplete-id', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { npcId, category, context, variant } = req.body;
+        
+        if (!npcId || !category || !context) {
+            return res.status(400).json({
+                success: false,
+                error: 'npcId, category et context sont requis'
+            });
+        }
+
+        // ✅ VALIDATION CATÉGORIE
+        const validCategories = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Catégorie invalide',
+                validCategories
+            });
+        }
+
+        // ✅ GÉNÉRER L'ID
+        let dialogId = `${npcId}.${category}.${context}`;
+        if (variant && variant.trim()) {
+            dialogId += `.${variant}`;
+        }
+
+        // ✅ VÉRIFIER UNICITÉ
+        const existing = await DialogStringModel.findOne({ dialogId });
+        if (existing) {
+            // Proposer une alternative avec timestamp
+            const timestamp = Date.now().toString().slice(-6);
+            dialogId = `${npcId}.${category}.${context}.${timestamp}`;
+        }
+
+        res.json({
+            success: true,
+            dialogId,
+            components: {
+                npcId,
+                category,
+                context,
+                variant: variant || null
+            },
+            isUnique: !existing
+        });
+
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur auto-complétion:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'auto-complétion'
+        });
+    }
+});
+
+// ✅ NOUVELLE ROUTE: Obtenir les dialogues par NPC
+router.get('/dialogues/by-npc/:npcId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { npcId } = req.params;
+        const { includeInactive = false } = req.query;
+        
+        console.log(`👤 [Dialogues API] Récupération dialogues pour NPC: ${npcId}`);
+        
+        const filter: any = { npcId };
+        if (!includeInactive) {
+            filter.isActive = true;
+        }
+        
+        const dialogues = await DialogStringModel.find(filter)
+            .sort({ category: 1, priority: -1, dialogId: 1 })
+            .lean();
+        
+        res.json({
+            success: true,
+            npcId,
+            dialogues: dialogues.map(d => ({
+                dialogId: d.dialogId,
+                category: d.category,
+                context: d.context,
+                eng: d.eng,
+                fr: d.fr,
+                priority: d.priority,
+                isActive: d.isActive,
+                tags: d.tags || []
+            })),
+            total: dialogues.length
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur dialogues par NPC:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération des dialogues par NPC'
+        });
+    }
+});
+
+// ✅ NOUVELLE ROUTE: Obtenir les dialogues par catégorie
+router.get('/dialogues/by-category/:category', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { category } = req.params;
+        const { includeInactive = false, limit = 100 } = req.query;
+        
+        console.log(`📂 [Dialogues API] Récupération dialogues pour catégorie: ${category}`);
+        
+        const validCategories = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Catégorie invalide',
+                validCategories
+            });
+        }
+        
+        const filter: any = { category };
+        if (!includeInactive) {
+            filter.isActive = true;
+        }
+        
+        const dialogues = await DialogStringModel.find(filter)
+            .sort({ npcId: 1, priority: -1, dialogId: 1 })
+            .limit(parseInt(limit as string))
+            .lean();
+        
+        res.json({
+            success: true,
+            category,
+            dialogues: dialogues.map(d => ({
+                dialogId: d.dialogId,
+                npcId: d.npcId,
+                context: d.context,
+                eng: d.eng,
+                fr: d.fr,
+                priority: d.priority,
+                isActive: d.isActive
+            })),
+            total: dialogues.length
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur dialogues par catégorie:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération des dialogues par catégorie'
+        });
+    }
+});
+
+// ✅ NOUVELLE ROUTE: Valider l'intégrité des dialogues
+router.get('/dialogues/validate-integrity', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log(`🔍 [Dialogues API] Validation de l'intégrité des dialogues par ${req.user.username}`);
+        
+        const issues: any[] = [];
+        let totalChecked = 0;
+        
+        // ✅ RÉCUPÉRER TOUS LES DIALOGUES ACTIFS
+        const dialogues = await DialogStringModel.find({ isActive: true }).lean();
+        totalChecked = dialogues.length;
+        
+        for (const dialogue of dialogues) {
+            const dialogueIssues: string[] = [];
+            
+            // Vérifier le format de l'ID
+            const idParts = dialogue.dialogId.split('.');
+            if (idParts.length < 3 || idParts.length > 4) {
+                dialogueIssues.push('Format ID invalide');
+            }
+            
+            // Vérifier la cohérence npcId/dialogId
+            if (dialogue.npcId && idParts[0] !== dialogue.npcId) {
+                dialogueIssues.push('Incohérence npcId/dialogId');
+            }
+            
+            // Vérifier les traductions requises
+            if (!dialogue.eng || dialogue.eng.trim() === '') {
+                dialogueIssues.push('Traduction anglaise manquante');
+            }
+            if (!dialogue.fr || dialogue.fr.trim() === '') {
+                dialogueIssues.push('Traduction française manquante');
+            }
+            
+            // Vérifier la catégorie
+            const validCategories = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+            if (!validCategories.includes(dialogue.category)) {
+                dialogueIssues.push('Catégorie invalide');
+            }
+            
+            // Vérifier les conditions JSON
+            if (dialogue.conditions && dialogue.conditions.length > 0) {
+                try {
+                    JSON.stringify(dialogue.conditions);
+                } catch {
+                    dialogueIssues.push('Conditions JSON invalides');
+                }
+            }
+            
+            if (dialogueIssues.length > 0) {
+                issues.push({
+                    dialogId: dialogue.dialogId,
+                    npcId: dialogue.npcId,
+                    category: dialogue.category,
+                    issues: dialogueIssues
+                });
+            }
+        }
+        
+        const summary = {
+            totalChecked,
+            validDialogues: totalChecked - issues.length,
+            invalidDialogues: issues.length,
+            integrityScore: totalChecked > 0 ? ((totalChecked - issues.length) / totalChecked * 100).toFixed(2) + '%' : '100%'
+        };
+        
+        console.log(`✅ [Dialogues API] Validation terminée: ${summary.validDialogues}/${totalChecked} dialogues valides`);
+        
+        res.json({
+            success: true,
+            summary,
+            issues: issues.slice(0, 50), // Limiter à 50 pour éviter les réponses trop lourdes
+            checkedBy: req.user.username,
+            checkedAt: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur validation intégrité:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la validation de l\'intégrité'
+        });
+    }
+});
 // ✅ NOUVELLES ROUTES CRUD pour l'admin des items
 
 /**
