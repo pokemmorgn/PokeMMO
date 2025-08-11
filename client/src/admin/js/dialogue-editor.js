@@ -622,11 +622,15 @@ async createNewDialogue() {
             version: '1.0.0'
         };
 
+        console.log('📤 [DialogueEditor] Envoi données:', defaultData);
+
         // ✅ UTILISER apiCall qui gère l'auth automatiquement
         const response = await this.adminPanel.apiCall('/dialogues', {
             method: 'POST',
             body: JSON.stringify(defaultData)
         });
+
+        console.log('📥 [DialogueEditor] Réponse reçue:', response);
 
         if (response.success) {
             this.adminPanel.showNotification('Nouveau dialogue créé en DB', 'success');
@@ -641,6 +645,7 @@ async createNewDialogue() {
         this.adminPanel.showNotification('Erreur création dialogue: ' + error.message, 'error');
     }
 }
+
 
 
 
@@ -899,6 +904,8 @@ async saveDialogue() {
         this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error');
     }
 }
+
+    
 // ✅ CORRECTION 3: deleteDialogue avec headers d'authentification
 async deleteDialogue() {
     if (!this.currentDialogue) return;
@@ -926,7 +933,8 @@ async deleteDialogue() {
         this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error');
     }
 }
-// ✅ CORRECTION 4: duplicateDialogue avec headers d'authentification
+
+// ✅ CORRECTION: duplicateDialogue - utiliser apiCall correctement
 async duplicateDialogue() {
     if (!this.currentDialogue) return;
 
