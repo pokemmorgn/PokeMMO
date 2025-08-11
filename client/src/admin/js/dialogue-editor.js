@@ -968,58 +968,7 @@ async duplicateDialogue() {
     }
 }
 
-   async deleteDialogue() {
-    if (!this.currentDialogue) return;
-
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le dialogue "${this.currentDialogue.dialogId}" ?\n\nCette action est irréversible.`)) {
-        return;
-    }
-
-    try {
-        // Vérifier l'authentification
-        if (!this.adminPanel.getAuthToken()) {
-            this.adminPanel.showNotification('Vous devez être connecté pour supprimer', 'error');
-            return;
-        }
-
-        console.log(`🗑️ [DialogueEditor] Suppression dialogue: ${this.currentDialogue.dialogId}`);
-        
-        // ✅ SUPPRIMER via API DELETE avec authentification
-        const response = await this.adminPanel.apiCall(`/dialogues/${encodeURIComponent(this.currentDialogue.dialogId)}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.adminPanel.getAuthToken()}`
-            }
-        });
-
-        if (response.success) {
-            this.adminPanel.showNotification('Dialogue supprimé avec succès', 'success');
-            
-            // Reset l'éditeur
-            this.currentDialogue = null;
-            this.cancelEdit();
-            
-            // ✅ RECHARGER depuis la DB
-            await this.loadDialogues();
-            
-        } else {
-            throw new Error(response.error || 'Erreur inconnue');
-        }
-
-    } catch (error) {
-        console.error('❌ [DialogueEditor] Erreur suppression:', error);
-        
-        // ✅ GESTION SPÉCIALE DE L'ERREUR 401
-        if (error.message.includes('Token requis') || error.message.includes('401')) {
-            this.adminPanel.showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
-            window.location.reload();
-            return;
-        }
-        
-        this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error');
-    }
-}
-
+  
     cancelEdit() {
         this.currentDialogue = null;
         document.getElementById('noDialogueSelected').style.display = 'block';
