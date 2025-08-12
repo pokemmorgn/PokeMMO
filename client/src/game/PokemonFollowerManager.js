@@ -276,7 +276,7 @@ export class PokemonFollowerManager {
     
     // Pokémon très petits qui ont besoin d'être agrandis
     const smallPokemon = [
-      025, // Pikachu
+      25, // Pikachu
       172, // Pichu
       173, // Cleffa
       174, // Igglybuff
