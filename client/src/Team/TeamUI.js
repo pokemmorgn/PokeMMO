@@ -659,7 +659,7 @@ updateLanguage() {
       }
       
       div#team-overlay .pokemon-portrait {
-        top: -10px !important; 
+        top: -16px !important; 
         transform: translateY(-2px) !important; 
         width: 80px !important;
         height: 80px !important;
