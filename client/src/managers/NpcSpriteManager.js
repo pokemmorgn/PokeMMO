@@ -13,25 +13,31 @@ export class NpcSpriteManager {
     this.loadingSprites = new Map(); // sprite -> Promise
     this.failedSprites = new Set();
     
-    // ✅ Cache des structures sprite sheets
+    // ✅ Cache des structures sprite sheets (NPC + Pokémon)
     this.spriteStructures = new Map(); // spriteKey -> structure
     
     // ✅ Gestion des handlers actifs pour nettoyage
     this.activeLoadHandlers = new Map();
     
-    // ✅ Configuration
+    // ✅ Configuration étendue
     this.config = {
+      // Sprites NPC classiques
       spritePath: '/assets/npc/',
       spriteExtension: '.png',
+      
+      // ✅ NOUVEAU: Support Pokémon
+      pokemonSpritePath: '/assets/pokemon/',
+      pokemonSpriteFiles: ['Walk-Anim.png', 'Swing-Anim.png'], // Fichiers d'animation supportés
+      pokemonIconFile: 'icons.png', // Fichier d'icônes
+      enablePokemonSprites: true,
+      
       fallbackSprite: 'npc_default',
       enableDebugLogs: true,
       maxRetries: 2,
       retryDelay: 1000,
-      // ✅ Configuration sprite sheets
       defaultFrame: 0,
       detectSpriteSheets: true,
-      // ✅ Configuration fallback - DÉSACTIVÉ pour éviter les problèmes WebGL
-      createFallbackAsSheet: false, // ❌ Désactivé car problématique
+      createFallbackAsSheet: false,
       fallbackSheetStructure: {
         frameWidth: 32,
         frameHeight: 32,
@@ -41,7 +47,7 @@ export class NpcSpriteManager {
       }
     };
     
-    // ✅ Statistiques debug
+    // ✅ Statistiques étendues
     this.stats = {
       totalRequested: 0,
       successfullyLoaded: 0,
@@ -50,31 +56,42 @@ export class NpcSpriteManager {
       fallbacksUsed: 0,
       spriteSheetsDetected: 0,
       simpleImagesLoaded: 0,
-      fallbackCreated: 0
+      fallbackCreated: 0,
+      // ✅ NOUVEAU: Stats Pokémon
+      pokemonSpritesLoaded: 0,
+      pokemonIconsLoaded: 0,
+      pokemonStructuresFromJson: 0
     };
     
-    console.log('[NpcSpriteManager] 🎭 Créé pour spritesheets PNG réels:', scene.scene.key);
+    console.log('[NpcSpriteManager] 🎭 Créé avec support Pokémon sprites');
   }
 
   // ✅ INITIALISATION
-  initialize() {
+  async initialize() {
     if (this.isInitialized) {
       console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
       return this;
     }
     
-    console.log('[NpcSpriteManager] 🚀 === INITIALISATION SPRITESHEETS PNG ===');
+    console.log('[NpcSpriteManager] 🚀 === INITIALISATION NPC + POKÉMON ===');
     
     if (!this.scene || !this.scene.load) {
       console.error('[NpcSpriteManager] ❌ Scène non prête pour chargement');
       return this;
     }
     
-    // ✅ Créer le fallback immédiatement de manière synchrone
+    // ✅ Charger sprite-sizes.json si activé
+    if (this.config.enablePokemonSprites) {
+      console.log('[NpcSpriteManager] 📋 Chargement sprite-sizes.json...');
+      await SpriteUtils.loadSpriteSizes();
+      console.log('[NpcSpriteManager] ✅ sprite-sizes.json chargé');
+    }
+    
+    // ✅ Créer le fallback immédiatement
     this.createImmediateFallback();
     
     this.isInitialized = true;
-    console.log('[NpcSpriteManager] ✅ Initialisé pour spritesheets PNG');
+    console.log('[NpcSpriteManager] ✅ Initialisé avec support Pokémon');
     
     return this;
   }
@@ -159,8 +176,8 @@ export class NpcSpriteManager {
   }
 
   // ✅ MÉTHODE PRINCIPALE : Chargement spritesheets PNG
-  async loadNpcSprite(spriteKey) {
-    console.log(`[NpcSpriteManager] 📥 === CHARGEMENT PNG SPRITESHEET "${spriteKey}" ===`);
+async loadNpcSprite(spriteKey) {
+    console.log(`[NpcSpriteManager] 📥 === CHARGEMENT SPRITE "${spriteKey}" ===`);
     
     this.stats.totalRequested++;
     
@@ -183,8 +200,19 @@ export class NpcSpriteManager {
       return this.getFallbackResult(spriteKey);
     }
     
-    // ✅ Créer promesse de chargement PNG
-    const loadingPromise = this.performPngSpritesheetLoad(spriteKey);
+    // ✅ NOUVEAU : Détecter le type de sprite (NPC classique vs Pokémon)
+    const spriteType = this.detectSpriteType(spriteKey);
+    console.log(`[NpcSpriteManager] 🔍 Type détecté: ${spriteType.type} pour "${spriteKey}"`);
+    
+    // ✅ Choisir la méthode de chargement appropriée
+    let loadingPromise;
+    
+    if (spriteType.type === 'pokemon') {
+      loadingPromise = this.performPokemonSpriteLoad(spriteKey, spriteType);
+    } else {
+      loadingPromise = this.performNpcSpriteLoad(spriteKey);
+    }
+    
     this.loadingSprites.set(spriteKey, loadingPromise);
     
     try {
@@ -200,6 +228,337 @@ export class NpcSpriteManager {
       return this.getFallbackResult(spriteKey);
     }
   }
+
+ // ✅ MÉTHODE EXISTANTE : Chargement NPC classique (inchangée)
+  async performNpcSpriteLoad(spriteKey) {
+    return new Promise(async (resolve, reject) => {
+      console.log(`[NpcSpriteManager] 🖼️ === CHARGEMENT NPC PNG: ${spriteKey} ===`);
+      
+      const hasExtension = spriteKey.endsWith('.png') || spriteKey.endsWith('.jpg') || spriteKey.endsWith('.jpeg');
+      const spritePath = hasExtension 
+        ? `${this.config.spritePath}${spriteKey}`
+        : `${this.config.spritePath}${spriteKey}${this.config.spriteExtension}`;
+      
+      console.log(`[NpcSpriteManager] 📁 Chemin NPC: ${spritePath}`);
+      
+      try {
+        const imageInfo = await this.analyzePngStructure(spritePath, spriteKey);
+        
+        if (imageInfo.isSpriteSheet) {
+          console.log(`[NpcSpriteManager] 🎞️ NPC Spritesheet détecté: ${imageInfo.structure.name}`);
+          await this.loadPngAsSpriteSheet(spriteKey, spritePath, imageInfo.structure);
+          this.spriteStructures.set(spriteKey, imageInfo.structure);
+          this.stats.spriteSheetsDetected++;
+        } else {
+          console.log(`[NpcSpriteManager] 🖼️ NPC Image simple détectée`);
+          await this.loadPngAsSimpleImage(spriteKey, spritePath);
+          this.stats.simpleImagesLoaded++;
+        }
+        
+        console.log(`[NpcSpriteManager] ✅ NPC PNG chargé avec succès: ${spriteKey}`);
+        this.loadedSprites.add(spriteKey);
+        this.stats.successfullyLoaded++;
+        
+        resolve({
+          success: true,
+          spriteKey,
+          fromCache: false,
+          path: spritePath,
+          isSpriteSheet: imageInfo.isSpriteSheet,
+          structure: imageInfo.isSpriteSheet ? imageInfo.structure : null,
+          isPokemon: false
+        });
+        
+      } catch (error) {
+        console.error(`[NpcSpriteManager] ❌ Erreur chargement NPC PNG ${spriteKey}:`, error);
+        reject(error);
+      }
+    });
+  }
+  
+   // ✅ NOUVELLE MÉTHODE : Détection du type de sprite
+  detectSpriteType(spriteKey) {
+    console.log(`[NpcSpriteManager] 🔍 === DÉTECTION TYPE SPRITE: "${spriteKey}" ===`);
+    
+    // ✅ Pattern 1: pokemon:ID:animation (ex: "pokemon:025:walk")
+    const pokemonPatternMatch = spriteKey.match(/^pokemon:(\d+):(\w+)$/i);
+    if (pokemonPatternMatch) {
+      const pokemonId = parseInt(pokemonPatternMatch[1]);
+      const animationType = pokemonPatternMatch[2].toLowerCase();
+      
+      return {
+        type: 'pokemon',
+        pokemonId,
+        animationType,
+        originalKey: spriteKey,
+        format: 'structured'
+      };
+    }
+    
+    // ✅ Pattern 2: pokemonXXX_animation (ex: "pokemon025_walk", "pokemon025_swing")
+    const pokemonNumericMatch = spriteKey.match(/^pokemon(\d+)_(\w+)$/i);
+    if (pokemonNumericMatch) {
+      const pokemonId = parseInt(pokemonNumericMatch[1]);
+      const animationType = pokemonNumericMatch[2].toLowerCase();
+      
+      return {
+        type: 'pokemon',
+        pokemonId,
+        animationType,
+        originalKey: spriteKey,
+        format: 'numeric'
+      };
+    }
+    
+    // ✅ Pattern 3: Simple pokemonXXX (ex: "pokemon025") -> utilise walk par défaut
+    const pokemonSimpleMatch = spriteKey.match(/^pokemon(\d+)$/i);
+    if (pokemonSimpleMatch) {
+      const pokemonId = parseInt(pokemonSimpleMatch[1]);
+      
+      return {
+        type: 'pokemon',
+        pokemonId,
+        animationType: 'walk', // Par défaut
+        originalKey: spriteKey,
+        format: 'simple'
+      };
+    }
+    
+    // ✅ Pattern 4: Nom de Pokémon direct (ex: "pikachu", "charizard")
+    // TODO: Implémenter un mapping nom -> ID si nécessaire
+    
+    // ✅ Par défaut: sprite NPC classique
+    return {
+      type: 'npc',
+      originalKey: spriteKey,
+      format: 'classic'
+    };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement sprite Pokémon
+  async performPokemonSpriteLoad(spriteKey, spriteInfo) {
+    console.log(`[NpcSpriteManager] 🐾 === CHARGEMENT POKÉMON SPRITE ===`);
+    console.log(`[NpcSpriteManager] 🎯 Pokémon ID: ${spriteInfo.pokemonId}, Animation: ${spriteInfo.animationType}`);
+    
+    try {
+      // ✅ Mapper le type d'animation vers le fichier
+      const animationFileMap = {
+        'walk': 'Walk-Anim.png',
+        'move': 'Walk-Anim.png',
+        'swing': 'Swing-Anim.png',
+        'attack': 'Swing-Anim.png',
+        'icon': 'icons.png'
+      };
+      
+      const animationFile = animationFileMap[spriteInfo.animationType] || 'Walk-Anim.png';
+      console.log(`[NpcSpriteManager] 📁 Fichier d'animation: ${animationFile}`);
+      
+      // ✅ Construire le chemin Pokémon
+      const paddedId = spriteInfo.pokemonId.toString().padStart(3, '0');
+      const pokemonSpritePath = `${this.config.pokemonSpritePath}${paddedId}/${animationFile}`;
+      
+      console.log(`[NpcSpriteManager] 📁 Chemin Pokémon: ${pokemonSpritePath}`);
+      
+      // ✅ Obtenir la structure depuis sprite-sizes.json
+      let structure = null;
+      
+      if (SpriteUtils.spriteSizes && SpriteUtils.spriteSizes[spriteInfo.pokemonId]) {
+        const pokemonData = SpriteUtils.spriteSizes[spriteInfo.pokemonId];
+        
+        if (pokemonData[animationFile]) {
+          const sizeString = pokemonData[animationFile];
+          structure = this.parsePokemonStructureFromJson(sizeString, animationFile, spriteInfo.pokemonId);
+          console.log(`[NpcSpriteManager] 📋 Structure JSON trouvée: ${structure.name}`);
+          this.stats.pokemonStructuresFromJson++;
+        }
+      }
+      
+      // ✅ Si pas de structure JSON, analyser l'image
+      if (!structure) {
+        console.log(`[NpcSpriteManager] 🔍 Pas de structure JSON, analyse de l'image...`);
+        const imageInfo = await this.analyzePngStructure(pokemonSpritePath, spriteKey);
+        structure = imageInfo.structure || this.createFallbackPokemonStructure();
+      }
+      
+      // ✅ Charger le sprite Pokémon avec la structure
+      if (animationFile === 'icons.png') {
+        await this.loadPokemonIcon(spriteKey, pokemonSpritePath, structure, spriteInfo);
+        this.stats.pokemonIconsLoaded++;
+      } else {
+        await this.loadPokemonAnimation(spriteKey, pokemonSpritePath, structure, spriteInfo);
+        this.stats.pokemonSpritesLoaded++;
+      }
+      
+      // ✅ Stocker la structure
+      this.spriteStructures.set(spriteKey, {
+        ...structure,
+        pokemonId: spriteInfo.pokemonId,
+        animationType: spriteInfo.animationType,
+        animationFile,
+        isPokemon: true
+      });
+      
+      this.loadedSprites.add(spriteKey);
+      this.stats.successfullyLoaded++;
+      this.stats.spriteSheetsDetected++;
+      
+      console.log(`[NpcSpriteManager] ✅ Pokémon sprite chargé: ${spriteKey}`);
+      
+      return {
+        success: true,
+        spriteKey,
+        fromCache: false,
+        path: pokemonSpritePath,
+        isSpriteSheet: true,
+        structure,
+        isPokemon: true,
+        pokemonInfo: spriteInfo
+      };
+      
+    } catch (error) {
+      console.error(`[NpcSpriteManager] ❌ Erreur chargement Pokémon ${spriteKey}:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Parser structure depuis sprite-sizes.json
+  parsePokemonStructureFromJson(sizeString, animationFile, pokemonId) {
+    console.log(`[NpcSpriteManager] 📋 Parsing structure JSON: ${sizeString} pour ${animationFile}`);
+    
+    const [width, height] = sizeString.split('x').map(Number);
+    
+    // ✅ Utiliser la logique de SpriteUtils pour obtenir la structure
+    const structure = SpriteUtils.getKnownStructureFromSize(sizeString, animationFile);
+    
+    console.log(`[NpcSpriteManager] ✅ Structure JSON parsée: ${structure.name}`);
+    
+    return {
+      ...structure,
+      totalWidth: width,
+      totalHeight: height,
+      source: 'sprite-sizes-json',
+      pokemonId,
+      animationFile
+    };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement animation Pokémon
+  async loadPokemonAnimation(spriteKey, spritePath, structure, spriteInfo) {
+    return new Promise((resolve, reject) => {
+      console.log(`[NpcSpriteManager] 🎞️ Chargement animation Pokémon: ${spriteKey}`);
+      console.log(`[NpcSpriteManager] 📊 Structure: ${structure.frameWidth}x${structure.frameHeight} (${structure.cols}x${structure.rows})`);
+      
+      const timeoutId = setTimeout(() => {
+        this.cleanupLoadHandlers(spriteKey);
+        reject(new Error(`Timeout loading Pokémon animation: ${spriteKey}`));
+      }, 10000);
+      
+      const onSuccess = () => {
+        clearTimeout(timeoutId);
+        this.cleanupLoadHandlers(spriteKey);
+        console.log(`[NpcSpriteManager] ✅ Animation Pokémon chargée: ${spriteKey}`);
+        resolve();
+      };
+      
+      const onError = (fileObj) => {
+        if (fileObj.key === spriteKey) {
+          clearTimeout(timeoutId);
+          this.cleanupLoadHandlers(spriteKey);
+          reject(new Error(`Failed to load Pokémon animation: ${spriteKey}`));
+        }
+      };
+      
+      this.activeLoadHandlers.set(spriteKey, { onSuccess, onError });
+      
+      this.scene.load.once('filecomplete-spritesheet-' + spriteKey, onSuccess);
+      this.scene.load.once('loaderror', onError);
+      
+      try {
+        this.scene.load.spritesheet(spriteKey, spritePath, {
+          frameWidth: structure.frameWidth,
+          frameHeight: structure.frameHeight
+        });
+        
+        if (!this.scene.load.isLoading()) {
+          this.scene.load.start();
+        }
+        
+      } catch (error) {
+        clearTimeout(timeoutId);
+        this.cleanupLoadHandlers(spriteKey);
+        reject(error);
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement icône Pokémon
+  async loadPokemonIcon(spriteKey, spritePath, structure, spriteInfo) {
+    return new Promise((resolve, reject) => {
+      console.log(`[NpcSpriteManager] 🖼️ Chargement icône Pokémon: ${spriteKey}`);
+      
+      const timeoutId = setTimeout(() => {
+        this.cleanupLoadHandlers(spriteKey);
+        reject(new Error(`Timeout loading Pokémon icon: ${spriteKey}`));
+      }, 8000);
+      
+      const onSuccess = () => {
+        clearTimeout(timeoutId);
+        this.cleanupLoadHandlers(spriteKey);
+        console.log(`[NpcSpriteManager] ✅ Icône Pokémon chargée: ${spriteKey}`);
+        resolve();
+      };
+      
+      const onError = (fileObj) => {
+        if (fileObj.key === spriteKey) {
+          clearTimeout(timeoutId);
+          this.cleanupLoadHandlers(spriteKey);
+          reject(new Error(`Failed to load Pokémon icon: ${spriteKey}`));
+        }
+      };
+      
+      this.activeLoadHandlers.set(spriteKey, { onSuccess, onError });
+      
+      // ✅ Pour les icônes, on peut utiliser spritesheet si structure disponible
+      if (structure && structure.cols > 1) {
+        this.scene.load.once('filecomplete-spritesheet-' + spriteKey, onSuccess);
+        this.scene.load.spritesheet(spriteKey, spritePath, {
+          frameWidth: structure.frameWidth,
+          frameHeight: structure.frameHeight
+        });
+      } else {
+        this.scene.load.once('filecomplete-image-' + spriteKey, onSuccess);
+        this.scene.load.image(spriteKey, spritePath);
+      }
+      
+      this.scene.load.once('loaderror', onError);
+      
+      try {
+        if (!this.scene.load.isLoading()) {
+          this.scene.load.start();
+        }
+        
+      } catch (error) {
+        clearTimeout(timeoutId);
+        this.cleanupLoadHandlers(spriteKey);
+        reject(error);
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Structure fallback pour Pokémon
+  createFallbackPokemonStructure() {
+    return {
+      cols: 1,
+      rows: 1,
+      frameWidth: 32,
+      frameHeight: 32,
+      totalFrames: 1,
+      name: 'Pokémon Fallback (1x1)',
+      source: 'pokemon-fallback',
+      qualityScore: 10
+    };
+  }
+
 
   // ✅ NOUVELLE MÉTHODE : Chargement spécialisé PNG
   async performPngSpritesheetLoad(spriteKey) {
@@ -496,14 +855,15 @@ export class NpcSpriteManager {
   }
 
   // ✅ MÉTHODE SIMPLIFIÉE : Info spritesheet PNG
-  getSpriteSheetInfo(spriteKey) {
+getSpriteSheetInfo(spriteKey) {
     const structure = this.spriteStructures.get(spriteKey);
     
     if (!structure) {
       return {
         isSpriteSheet: false,
         frameCount: 1,
-        defaultFrame: 0
+        defaultFrame: 0,
+        isPokemon: false
       };
     }
     
@@ -511,12 +871,65 @@ export class NpcSpriteManager {
       isSpriteSheet: true,
       structure: structure,
       frameCount: structure.totalFrames,
-      defaultFrame: this.getDefaultFrameForSprite(spriteKey),
+      defaultFrame: this.config.defaultFrame,
       frameWidth: structure.frameWidth,
       frameHeight: structure.frameHeight,
       cols: structure.cols,
-      rows: structure.rows
+      rows: structure.rows,
+      // ✅ NOUVEAU: Info Pokémon
+      isPokemon: structure.isPokemon || false,
+      pokemonId: structure.pokemonId || null,
+      animationType: structure.animationType || null,
+      animationFile: structure.animationFile || null
     };
+  }
+
+   // ✅ NOUVELLES MÉTHODES UTILITAIRES POKÉMON
+
+  /**
+   * Génère automatiquement une clé sprite pour un Pokémon
+   */
+  generatePokemonSpriteKey(pokemonId, animationType = 'walk') {
+    return `pokemon:${pokemonId.toString().padStart(3, '0')}:${animationType}`;
+  }
+
+  /**
+   * Charge plusieurs sprites Pokémon en lot
+   */
+  async preloadPokemonSprites(pokemonIds, animationTypes = ['walk']) {
+    console.log(`[NpcSpriteManager] 🐾 Pré-chargement Pokémon: ${pokemonIds.length} Pokémon x ${animationTypes.length} animations`);
+    
+    const spritesToLoad = [];
+    
+    for (const pokemonId of pokemonIds) {
+      for (const animationType of animationTypes) {
+        const spriteKey = this.generatePokemonSpriteKey(pokemonId, animationType);
+        spritesToLoad.push(spriteKey);
+      }
+    }
+    
+    return await this.preloadSprites(spritesToLoad);
+  }
+
+  /**
+   * Obtient les sprites disponibles pour un Pokémon
+   */
+  getAvailablePokemonSprites(pokemonId) {
+    const availableSprites = [];
+    const pokemonPrefix = `pokemon:${pokemonId.toString().padStart(3, '0')}:`;
+    
+    for (const spriteKey of this.loadedSprites) {
+      if (spriteKey.startsWith(pokemonPrefix)) {
+        const animationType = spriteKey.replace(pokemonPrefix, '');
+        availableSprites.push({
+          spriteKey,
+          animationType,
+          structure: this.spriteStructures.get(spriteKey)
+        });
+      }
+    }
+    
+    return availableSprites;
   }
 
   // ✅ MÉTHODES UTILITAIRES (inchangées)
@@ -608,10 +1021,19 @@ export class NpcSpriteManager {
     };
   }
 
-  getDebugInfo() {
+getDebugInfo() {
     const textureList = this.scene.textures ? Object.keys(this.scene.textures.list) : [];
     const npcTextures = textureList.filter(key => 
       this.loadedSprites.has(key) || key === this.config.fallbackSprite
+    );
+    
+    // ✅ Séparer les sprites Pokémon des NPC
+    const pokemonSprites = Array.from(this.loadedSprites).filter(key => 
+      this.spriteStructures.get(key)?.isPokemon
+    );
+    
+    const npcSprites = Array.from(this.loadedSprites).filter(key => 
+      !this.spriteStructures.get(key)?.isPokemon
     );
     
     return {
@@ -621,11 +1043,21 @@ export class NpcSpriteManager {
       cache: {
         loaded: Array.from(this.loadedSprites),
         loading: Array.from(this.loadingSprites.keys()),
-        failed: Array.from(this.failedSprites)
+        failed: Array.from(this.failedSprites),
+        // ✅ NOUVEAU: Séparation par type
+        pokemonSprites,
+        npcSprites
       },
       spriteSheets: {
         count: this.spriteStructures.size,
-        structures: Object.fromEntries(this.spriteStructures)
+        structures: Object.fromEntries(this.spriteStructures),
+        pokemonCount: pokemonSprites.length,
+        npcCount: npcSprites.length
+      },
+      pokemon: {
+        enabled: this.config.enablePokemonSprites,
+        spriteSizesLoaded: SpriteUtils.spriteSizesLoaded,
+        availablePokemon: this.getLoadedPokemonSummary()
       },
       config: { ...this.config },
       sceneTextures: {
@@ -636,14 +1068,41 @@ export class NpcSpriteManager {
       activeHandlers: this.activeLoadHandlers ? this.activeLoadHandlers.size : 0
     };
   }
-
-  debugStats() {
-    console.log('[NpcSpriteManager] 📊 === STATISTIQUES PNG SPRITESHEETS ===');
+getLoadedPokemonSummary() {
+    const pokemonMap = new Map();
+    
+    this.spriteStructures.forEach((structure, spriteKey) => {
+      if (structure.isPokemon) {
+        const pokemonId = structure.pokemonId;
+        if (!pokemonMap.has(pokemonId)) {
+          pokemonMap.set(pokemonId, []);
+        }
+        pokemonMap.get(pokemonId).push({
+          spriteKey,
+          animationType: structure.animationType,
+          animationFile: structure.animationFile
+        });
+      }
+    });
+    
+    return Object.fromEntries(pokemonMap);
+  }
+ debugStats() {
+    console.log('[NpcSpriteManager] 📊 === STATS NPC + POKÉMON ===');
     console.table(this.stats);
-    console.log('📦 PNG Sprites chargés:', Array.from(this.loadedSprites));
-    console.log('❌ PNG Sprites en échec:', Array.from(this.failedSprites));
-    console.log('⏳ PNG Sprites en cours:', Array.from(this.loadingSprites.keys()));
-    console.log('🎞️ PNG Spritesheets détectés:', this.spriteStructures.size);
+    
+    const pokemonSprites = Array.from(this.loadedSprites).filter(key => 
+      this.spriteStructures.get(key)?.isPokemon
+    );
+    
+    const npcSprites = Array.from(this.loadedSprites).filter(key => 
+      !this.spriteStructures.get(key)?.isPokemon
+    );
+    
+    console.log('🐾 Sprites Pokémon chargés:', pokemonSprites);
+    console.log('🎭 Sprites NPC chargés:', npcSprites);
+    console.log('❌ Sprites en échec:', Array.from(this.failedSprites));
+    console.log('⏳ Sprites en cours:', Array.from(this.loadingSprites.keys()));
     
     if (this.spriteStructures.size > 0) {
       console.log('📊 Structures PNG détectées:');
