@@ -12,12 +12,12 @@ export class DialogueUI {
     this.quickActions = [];
     this.currentNpcId = null;
     this.npcIdObserver = null;
-    
+
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
     this.onActionClick = null;
-    
+
     this.init();
   }
 
@@ -27,48 +27,29 @@ export class DialogueUI {
     this.setupEventListeners();
     this.setupNpcIdTracking();
     this.setupQuestButtonInterceptor();
-    
+
     console.log('✅ DialogueUI initialisé avec fix réaffichage');
   }
 
-  // Remet les styles interactifs au moment de l'ouverture
-resetStylesForOpen(targetEl) {
-  const box = targetEl || this.container?.querySelector('#dialogue-box');
-  if (box) {
-    box.style.removeProperty('visibility');
-    box.style.removeProperty('opacity');
-    box.style.removeProperty('z-index');
-    box.style.removeProperty('pointer-events');
-    box.classList.remove('hidden', 'closed');
-    box.style.zIndex = '101';
-    box.style.pointerEvents = 'auto';
-  }
-  if (this.container) {
-    this.container.classList.remove('hidden');
-    this.container.style.pointerEvents = 'auto';
-    // z-index du container est déjà géré par le CSS (.dialogue-container { z-index: 100; })
-  }
-}
-
-  
   // ✅ CONSERVÉ : Système de tracking NPC ID
   setupNpcIdTracking() {
     if (!this.container) return;
-    
+
     this.npcIdObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
-          
-          if (target.classList.contains('dialogue-container') && 
-              !target.classList.contains('hidden')) {
-            
+
+          if (
+            target.classList.contains('dialogue-container') &&
+            !target.classList.contains('hidden')
+          ) {
             this.extractNpcIdOnOpen();
           }
         }
       });
     });
-    
+
     this.npcIdObserver.observe(this.container, {
       attributes: true,
       attributeFilter: ['class']
@@ -77,28 +58,30 @@ resetStylesForOpen(targetEl) {
 
   extractNpcIdOnOpen() {
     let npcId = null;
-    
+
     // 1. Essayer depuis les données d'interaction récentes
     if (window.lastNpcInteraction) {
-      npcId = window.lastNpcInteraction.npcId || 
-              window.lastNpcInteraction.id ||
-              window.lastNpcInteraction.npc?.id;
+      npcId =
+        window.lastNpcInteraction.npcId ||
+        window.lastNpcInteraction.id ||
+        window.lastNpcInteraction.npc?.id;
     }
-    
+
     // 2. Essayer depuis NetworkManager history
     if (!npcId && window.globalNetworkManager?.interactionHistory) {
       const recentNpcInteractions = window.globalNetworkManager.interactionHistory
-        .filter(entry => entry.type.includes('npc') || entry.type.includes('interaction'))
+        .filter((entry) => entry.type.includes('npc') || entry.type.includes('interaction'))
         .slice(-3);
-      
+
       if (recentNpcInteractions.length > 0) {
         const lastInteraction = recentNpcInteractions[recentNpcInteractions.length - 1];
-        npcId = lastInteraction.data?.npcId || 
-                lastInteraction.data?.id ||
-                lastInteraction.data?.npc?.id;
+        npcId =
+          lastInteraction.data?.npcId ||
+          lastInteraction.data?.id ||
+          lastInteraction.data?.npc?.id;
       }
     }
-    
+
     // 3. Essayer depuis l'état des scènes
     if (!npcId && window.game?.scene) {
       const scenes = window.game.scene.getScenes(true);
@@ -109,76 +92,76 @@ resetStylesForOpen(targetEl) {
         }
       }
     }
-    
+
     // 4. Fallback : utiliser un ID par défaut
     if (!npcId) {
       npcId = 2;
     }
-    
+
     this.currentNpcId = npcId;
     this.container.setAttribute('data-current-npc-id', npcId);
-    
+
     console.log('📋 NPC ID extrait:', npcId);
   }
 
   // 🔧 FIX CRITIQUE : Intercepteur quête CORRIGÉ
   setupQuestButtonInterceptor() {
-    document.addEventListener('click', (e) => {
-      const actionBtn = e.target.closest('.action-btn');
-      
-      if (!actionBtn || !this.isVisible) {
-        return;
-      }
-      
-      const isQuestButton = (
-        actionBtn.dataset.actionType === 'quest' ||
-        actionBtn.classList.contains('quest') ||
-        actionBtn.classList.contains('quest-specific') ||
-        actionBtn.dataset.questId
-      );
-      
-      if (isQuestButton) {
-        console.log('🎯 Bouton quête intercepté par DialogueUI');
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        
-        const questId = actionBtn.dataset.questId;
-        const npcId = this.currentNpcId || 
-                     this.container?.getAttribute('data-current-npc-id') || 
-                     2;
-        
-        this.handleQuestAction(parseInt(npcId), questId);
-        return false;
-      }
-    }, false);
+    document.addEventListener(
+      'click',
+      (e) => {
+        const actionBtn = e.target.closest('.action-btn');
+
+        if (!actionBtn || !this.isVisible) {
+          return;
+        }
+
+        const isQuestButton =
+          actionBtn.dataset.actionType === 'quest' ||
+          actionBtn.classList.contains('quest') ||
+          actionBtn.classList.contains('quest-specific') ||
+          actionBtn.dataset.questId;
+
+        if (isQuestButton) {
+          console.log('🎯 Bouton quête intercepté par DialogueUI');
+          e.stopImmediatePropagation();
+          e.preventDefault();
+
+          const questId = actionBtn.dataset.questId;
+          const npcId = this.currentNpcId || this.container?.getAttribute('data-current-npc-id') || 2;
+
+          this.handleQuestAction(parseInt(npcId), questId);
+          return false;
+        }
+      },
+      false
+    );
   }
 
   handleQuestAction(npcId, questId = null) {
     console.log('🎯 Gestion action quête pour NPC:', npcId, 'Quest:', questId);
-    
+
     const questSystem = this.getQuestSystem();
-    
+
     if (questSystem) {
       try {
         if (questId) {
           console.log('📋 Affichage direct de la quête:', questId);
           const success = questSystem.showQuestDetailsForNpc(npcId, [questId]);
-          
+
           if (success) {
             this.hide();
             return;
           }
         }
-        
+
         const success = questSystem.handleQuestActionFromDialogue({
           npcId: npcId,
           actionType: 'quest',
           questId: questId
         });
-        
+
         console.log('✅ QuestSystem appelé, succès:', success);
         this.hide();
-        
       } catch (error) {
         console.error('❌ Erreur QuestSystem:', error);
         this.fallbackQuestAction();
@@ -205,7 +188,7 @@ resetStylesForOpen(targetEl) {
         return null;
       }
     ];
-    
+
     for (const candidate of candidates) {
       try {
         const questSystem = candidate();
@@ -216,13 +199,13 @@ resetStylesForOpen(targetEl) {
         // Ignorer et essayer le suivant
       }
     }
-    
+
     return null;
   }
 
   fallbackQuestAction() {
     console.log('🔄 Fallback action quête');
-    
+
     if (typeof window.toggleQuest === 'function') {
       window.toggleQuest();
     } else if (typeof window.openQuest === 'function') {
@@ -230,19 +213,29 @@ resetStylesForOpen(targetEl) {
     } else {
       console.warn('⚠️ Aucun système de quête de secours disponible');
     }
-    
+
     this.hide();
   }
 
   extractNpcId(data) {
     const candidates = [
-      data.npcId, data.id, data.npc?.id, data.npcData?.id,
-      data.unifiedInterface?.npcId, data.contextualData?.npcId,
-      data.originalData?.npcId, data.meta?.npcId, data.metadata?.npcId,
-      data.params?.npcId, data.parameters?.npcId,
-      data.npc, data.npcData, data.target?.id, data.source?.id
+      data?.npcId,
+      data?.id,
+      data?.npc?.id,
+      data?.npcData?.id,
+      data?.unifiedInterface?.npcId,
+      data?.contextualData?.npcId,
+      data?.originalData?.npcId,
+      data?.meta?.npcId,
+      data?.metadata?.npcId,
+      data?.params?.npcId,
+      data?.parameters?.npcId,
+      data?.npc,
+      data?.npcData,
+      data?.target?.id,
+      data?.source?.id
     ];
-    
+
     for (const candidate of candidates) {
       if (candidate !== undefined && candidate !== null) {
         if (typeof candidate === 'object' && candidate.id) {
@@ -253,7 +246,7 @@ resetStylesForOpen(targetEl) {
         }
       }
     }
-    
+
     return null;
   }
 
@@ -261,7 +254,7 @@ resetStylesForOpen(targetEl) {
     this.container = document.createElement('div');
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
-    
+
     this.container.innerHTML = `
       <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
         <div class="dialogue-main-content">
@@ -275,7 +268,7 @@ resetStylesForOpen(targetEl) {
             </div>
           </div>
         </div>
-        
+
         <div id="dialogue-actions" class="dialogue-actions-integrated" style="display:none;">
           <div class="actions-separator"></div>
           <div class="actions-header">Actions disponibles</div>
@@ -427,42 +420,19 @@ resetStylesForOpen(targetEl) {
         display: block !important;
       }
 
-      .actions-separator {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        margin: -1px 0 12px 0;
-      }
+      .actions-separator { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent); margin: -1px 0 12px 0; }
+      .actions-header { font-size: 12px; color: rgba(255, 255, 255, 0.9); font-weight: bold; margin-bottom: 12px; text-align: center; text-transform: uppercase; letter-spacing: 1px; font-family: 'Arial Rounded MT Bold', Arial, sans-serif; }
 
-      .actions-header {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: bold;
-        margin-bottom: 12px;
-        text-align: center;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
-      }
-
-      .dialogue-box-unified.simple .dialogue-actions-integrated {
-        display: none !important;
-      }
+      .dialogue-box-unified.simple .dialogue-actions-integrated { display: none !important; }
 
       .dialogue-box-unified.with-actions {
-        box-shadow: 
+        box-shadow:
           0 12px 50px rgba(0, 0, 0, 0.7),
           0 0 0 1px rgba(255, 255, 255, 0.2),
           inset 0 2px 0 rgba(255, 255, 255, 0.3);
       }
 
-      .actions-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-      }
+      .actions-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; width: 100%; }
 
       .action-btn {
         background: linear-gradient(135deg, #4a90e2, #357abd);
@@ -488,77 +458,24 @@ resetStylesForOpen(targetEl) {
         z-index: 101;
       }
 
-      .action-btn:hover {
-        background: linear-gradient(135deg, #5ba0f2, #4080cd);
-        border-color: rgba(255, 255, 255, 0.6);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
-      }
+      .action-btn:hover { background: linear-gradient(135deg, #5ba0f2, #4080cd); border-color: rgba(255, 255, 255, 0.6); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4); }
 
-      .action-btn.shop {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: white;
-      }
-
-      .action-btn.shop:hover {
-        background: linear-gradient(135deg, #34ce57, #28a745);
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-      }
+      .action-btn.shop { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+      .action-btn.shop:hover { background: linear-gradient(135deg, #34ce57, #28a745); box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4); }
 
       .action-btn.quest,
-      .action-btn.quest-specific {
-        background: linear-gradient(135deg, #ffc107, #e0a800);
-        color: #333;
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
-      }
-
+      .action-btn.quest-specific { background: linear-gradient(135deg, #ffc107, #e0a800); color: #333; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3); }
       .action-btn.quest:hover,
-      .action-btn.quest-specific:hover {
-        background: linear-gradient(135deg, #ffcd17, #ebb000);
-        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
-      }
+      .action-btn.quest-specific:hover { background: linear-gradient(135deg, #ffcd17, #ebb000); box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); }
 
-      .action-btn.quest-specific {
-        border-left: 4px solid #ff9800;
-        position: relative;
-      }
+      .action-btn.quest-specific { border-left: 4px solid #ff9800; position: relative; }
+      .action-btn.quest-specific::before { content: "📋"; position: absolute; top: -5px; right: -5px; background: #ff9800; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
-      .action-btn.quest-specific::before {
-        content: "📋";
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        background: #ff9800;
-        color: white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      }
+      .action-btn.heal { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
+      .action-btn.heal:hover { background: linear-gradient(135deg, #e4606d, #dc3545); box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4); }
 
-      .action-btn.heal {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-      }
-
-      .action-btn.heal:hover {
-        background: linear-gradient(135deg, #e4606d, #dc3545);
-        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
-      }
-
-      .action-btn.info {
-        background: linear-gradient(135deg, #17a2b8, #138496);
-        color: white;
-      }
-
-      .action-btn.info:hover {
-        background: linear-gradient(135deg, #20c0db, #17a2b8);
-        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
-      }
+      .action-btn.info { background: linear-gradient(135deg, #17a2b8, #138496); color: white; }
+      .action-btn.info:hover { background: linear-gradient(135deg, #20c0db, #17a2b8); box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4); }
     `;
 
     document.head.appendChild(style);
@@ -594,7 +511,7 @@ resetStylesForOpen(targetEl) {
   }
 
   handleKeyDown(e) {
-    if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
+    if (typeof window.isChatFocused === 'function' && window.isChatFocused()) return;
     if (window._questDialogActive) return;
 
     switch (e.code) {
@@ -603,7 +520,6 @@ resetStylesForOpen(targetEl) {
         e.preventDefault();
         e.stopPropagation();
         break;
-
       case 'KeyE':
         if (!this.isUnifiedInterface) {
           this.handleDialogueClick();
@@ -614,170 +530,190 @@ resetStylesForOpen(targetEl) {
     }
   }
 
-showClassicDialogue(data) {
-  this.currentNpcId = this.extractNpcId(data);
-
-  const dialogueBox = this.container.querySelector('#dialogue-box');
-  const portrait = this.container.querySelector('#npc-portrait');
-  const npcName = this.container.querySelector('#npc-name');
-  const npcText = this.container.querySelector('#npc-text');
-  const actionsZone = this.container.querySelector('#dialogue-actions');
-  const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
-
-  portrait.innerHTML = data.portrait
-    ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
-    : '';
-
-  npcName.textContent = data.name || '';
-  npcName.style.display = data.hideName ? 'none' : '';
-
-  const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-  npcText.textContent = lines[0] || "";
-
-  if (lines.length > 1) {
-    continueIndicator.style.display = 'flex';
-    const counter = continueIndicator.querySelector('.dialogue-counter');
-    if (counter) counter.textContent = `1/${lines.length}`;
-  } else {
-    continueIndicator.style.display = 'none';
+  // ====== 🔧 NOUVEAU : Reset styles sûrs à l'ouverture ======
+  resetStylesForOpen(targetEl) {
+    const box = targetEl || this.container?.querySelector('#dialogue-box');
+    if (box) {
+      box.style.removeProperty('visibility');
+      box.style.removeProperty('opacity');
+      box.style.removeProperty('z-index');
+      box.style.removeProperty('pointer-events');
+      box.classList.remove('hidden', 'closed');
+      box.style.zIndex = '101';
+      box.style.pointerEvents = 'auto';
+    }
+    if (this.container) {
+      this.container.classList.remove('hidden');
+      this.container.style.pointerEvents = 'auto';
+    }
   }
 
-  actionsZone.style.display = 'none';
-  const box = this.container.querySelector('#dialogue-box');
-  box.className = 'dialogue-box-unified simple';
+  // ====== AFFICHAGE ======
+  showClassicDialogue(data) {
+    this.currentNpcId = this.extractNpcId(data);
 
-  this.classicDialogueData = {
-    lines: lines,
-    currentPage: 0,
-    onClose: data.onClose
-  };
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const portrait = this.container.querySelector('#npc-portrait');
+    const npcName = this.container.querySelector('#npc-name');
+    const npcText = this.container.querySelector('#npc-text');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
+    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
-  // Affichage + reset styles sûrs
-  this.container.classList.remove('hidden');
-  dialogueBox.style.display = 'flex';
-  this.resetStylesForOpen(dialogueBox);
-  this.isVisible = true;
+    portrait.innerHTML = data.portrait
+      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+      : '';
 
-  console.log('✅ Dialogue classique affiché');
-}
+    npcName.textContent = data.name || '';
+    npcName.style.display = data.hideName ? 'none' : '';
 
+    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ''];
+    npcText.textContent = lines[0] || '';
 
-showDialogueWithActions(data) {
-  this.currentNpcId = this.extractNpcId(data);
+    if (lines.length > 1) {
+      continueIndicator.style.display = 'flex';
+      const counter = continueIndicator.querySelector('.dialogue-counter');
+      if (counter) {
+        counter.textContent = `1/${lines.length}`;
+      }
+    } else {
+      continueIndicator.style.display = 'none';
+    }
 
-  const dialogueBox = this.container.querySelector('#dialogue-box');
-  const actionsZone = this.container.querySelector('#dialogue-actions');
-  const actionsButtons = this.container.querySelector('#actions-buttons');
-
-  const portrait = this.container.querySelector('#npc-portrait');
-  const npcName = this.container.querySelector('#npc-name');
-  const npcText = this.container.querySelector('#npc-text');
-
-  portrait.innerHTML = data.portrait
-    ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
-    : '';
-
-  npcName.textContent = data.name || '';
-  npcName.style.display = data.hideName ? 'none' : '';
-
-  const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-  npcText.textContent = lines[0] || "";
-
-  if (data.actions && data.actions.length > 0) {
-    actionsButtons.innerHTML = '';
-    data.actions.forEach(action => {
-      const actionBtn = this.createActionButton(action);
-      actionsButtons.appendChild(actionBtn);
-    });
-    actionsZone.style.display = 'block';
-    dialogueBox.className = 'dialogue-box-unified with-actions';
-  } else {
     actionsZone.style.display = 'none';
     dialogueBox.className = 'dialogue-box-unified simple';
+
+    this.classicDialogueData = {
+      lines: lines,
+      currentPage: 0,
+      onClose: data.onClose
+    };
+
+    // 🔧 Affichage + reset styles sûrs
+    this.container.classList.remove('hidden');
+    dialogueBox.style.display = 'flex';
+    this.resetStylesForOpen(dialogueBox);
+    this.isVisible = true;
+
+    console.log('✅ Dialogue classique affiché');
   }
 
-  this.classicDialogueData = {
-    lines: lines,
-    currentPage: 0,
-    onClose: data.onClose
-  };
+  showDialogueWithActions(data) {
+    this.currentNpcId = this.extractNpcId(data);
 
-  // Affichage + reset styles sûrs
-  this.container.classList.remove('hidden');
-  dialogueBox.style.display = 'flex';
-  this.resetStylesForOpen(dialogueBox);
-  this.isVisible = true;
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
+    const actionsButtons = this.container.querySelector('#actions-buttons');
 
-  console.log('✅ Dialogue avec actions affiché');
-}
+    const portrait = this.container.querySelector('#npc-portrait');
+    const npcName = this.container.querySelector('#npc-name');
+    const npcText = this.container.querySelector('#npc-text');
 
+    portrait.innerHTML = data.portrait
+      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+      : '';
+
+    npcName.textContent = data.name || '';
+    npcName.style.display = data.hideName ? 'none' : '';
+
+    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ''];
+    npcText.textContent = lines[0] || '';
+
+    if (data.actions && data.actions.length > 0) {
+      actionsButtons.innerHTML = '';
+
+      data.actions.forEach((action) => {
+        const actionBtn = this.createActionButton(action);
+        actionsButtons.appendChild(actionBtn);
+      });
+
+      actionsZone.style.display = 'block';
+      dialogueBox.className = 'dialogue-box-unified with-actions';
+      console.log(`✅ [DialogueUI] ${data.actions.length} boutons d'action créés`);
+    } else {
+      actionsZone.style.display = 'none';
+      dialogueBox.className = 'dialogue-box-unified simple';
+    }
+
+    this.classicDialogueData = {
+      lines: lines,
+      currentPage: 0,
+      onClose: data.onClose
+    };
+
+    // 🔧 Affichage + reset styles sûrs
+    this.container.classList.remove('hidden');
+    dialogueBox.style.display = 'flex';
+    this.resetStylesForOpen(dialogueBox);
+    this.isVisible = true;
+
+    console.log('✅ Dialogue avec actions affiché');
+  }
 
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
-    
+
     button.dataset.actionId = action.id;
     button.dataset.actionType = action.type;
-    
+
     if (action.questId) {
       button.dataset.questId = action.questId;
       button.classList.add('quest-specific');
     }
-    
+
     button.innerHTML = `
       <span class="action-icon">${action.icon || '🔧'}</span>
       <span class="action-label">${action.label}</span>
       ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
     `;
-    
+
     if (action.type !== 'quest') {
       button.addEventListener('click', (e) => {
         console.log(`🎯 [DialogueUI] Bouton ${action.type} cliqué DIRECTEMENT`);
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (this.onActionClick && typeof this.onActionClick === 'function') {
           this.onActionClick(action);
         }
       });
     }
-    
+
     console.log('🔧 [DialogueUI] Bouton créé:', {
       id: action.id,
       type: action.type,
       label: action.label,
       hasDirectListener: action.type !== 'quest'
     });
-    
+
     return button;
   }
 
-showUnifiedInterface(data) {
-  this.currentNpcId = this.extractNpcId(data);
+  showUnifiedInterface(data) {
+    this.currentNpcId = this.extractNpcId(data);
 
-  const unifiedInterface = this.container.querySelector('#unified-interface');
+    const unifiedInterface = this.container.querySelector('#unified-interface');
 
-  this.setupUnifiedHeader(data);
-  this.setupUnifiedTabs(data.tabs);
-  this.setupQuickActions(data.quickActions);
+    this.setupUnifiedHeader(data);
+    this.setupUnifiedTabs(data.tabs);
+    this.setupQuickActions(data.quickActions);
 
-  this.onTabSwitch = data.onTabSwitch;
-  this.onClose = data.onClose;
+    this.onTabSwitch = data.onTabSwitch;
+    this.onClose = data.onClose;
 
-  if (this.tabs.length > 0) {
-    this.switchToTab(this.tabs[0].id);
+    if (this.tabs.length > 0) {
+      this.switchToTab(this.tabs[0].id);
+    }
+
+    // 🔧 Affichage + reset styles sûrs
+    this.container.classList.remove('hidden');
+    unifiedInterface.style.display = 'flex';
+    this.resetStylesForOpen(unifiedInterface);
+    this.isVisible = true;
+    this.isUnifiedInterface = true;
+
+    console.log('✅ Interface unifiée affichée');
   }
-
-  // Affichage + reset styles sûrs
-  this.container.classList.remove('hidden');
-  unifiedInterface.style.display = 'flex';
-  this.resetStylesForOpen(unifiedInterface);
-  this.isVisible = true;
-  this.isUnifiedInterface = true;
-
-  console.log('✅ Interface unifiée affichée');
-}
-
 
   setupUnifiedHeader(data) {
     const npcImage = this.container.querySelector('#unified-npc-image');
@@ -793,24 +729,24 @@ showUnifiedInterface(data) {
   setupUnifiedTabs(tabs) {
     const tabsContainer = this.container.querySelector('#unified-tabs');
     tabsContainer.innerHTML = '';
-    
+
     this.tabs = tabs || [];
-    
-    this.tabs.forEach((tab, index) => {
+
+    this.tabs.forEach((tab) => {
       const tabElement = document.createElement('button');
       tabElement.className = 'unified-tab';
       tabElement.dataset.tabId = tab.id;
-      
+
       tabElement.innerHTML = `
         <span class="tab-icon">${tab.icon || '📄'}</span>
         <span class="tab-label">${tab.label}</span>
         ${tab.badge ? `<span class="tab-badge">${tab.badge}</span>` : ''}
       `;
-      
+
       tabElement.addEventListener('click', () => {
         this.switchToTab(tab.id);
       });
-      
+
       tabsContainer.appendChild(tabElement);
     });
   }
@@ -818,17 +754,17 @@ showUnifiedInterface(data) {
   setupQuickActions(actions) {
     const actionsContainer = this.container.querySelector('#quick-actions');
     actionsContainer.innerHTML = '';
-    
+
     this.quickActions = actions || [];
-    
-    this.quickActions.forEach(action => {
+
+    this.quickActions.forEach((action) => {
       const actionBtn = document.createElement('button');
       actionBtn.className = `quick-action-btn ${action.type || 'primary'}`;
       actionBtn.innerHTML = `
         <span>${action.icon || '🔧'}</span>
         <span>${action.label}</span>
       `;
-      
+
       actionBtn.addEventListener('click', () => {
         if (action.callback && typeof action.callback === 'function') {
           action.callback();
@@ -837,14 +773,14 @@ showUnifiedInterface(data) {
           this.onQuickAction(action);
         }
       });
-      
+
       actionsContainer.appendChild(actionBtn);
     });
   }
 
   switchToTab(tabId) {
     const tabs = this.container.querySelectorAll('.unified-tab');
-    tabs.forEach(tab => {
+    tabs.forEach((tab) => {
       tab.classList.toggle('active', tab.dataset.tabId === tabId);
     });
 
@@ -858,7 +794,7 @@ showUnifiedInterface(data) {
 
   loadTabContent(tabId) {
     const contentContainer = this.container.querySelector('#unified-content');
-    
+
     contentContainer.innerHTML = `
       <div class="unified-loading">
         <div class="unified-loading-spinner"></div>
@@ -877,7 +813,7 @@ showUnifiedInterface(data) {
   show(data) {
     // 🔧 FIX : S'assurer que l'interface précédente est bien cachée avant d'afficher la nouvelle
     this.forceHideAll();
-    
+
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
     } else if (data.actions && data.actions.length > 0) {
@@ -887,41 +823,70 @@ showUnifiedInterface(data) {
     }
   }
 
-// Force le masquage de toutes les interfaces sans casser les styles
-forceHideAll() {
-  const dialogueBox = this.container.querySelector('#dialogue-box');
-  const unifiedInterface = this.container.querySelector('#unified-interface');
+  // 🔧 NOUVELLE MÉTHODE : Force le masquage de toutes les interfaces sans casser les styles
+  forceHideAll() {
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const unifiedInterface = this.container.querySelector('#unified-interface');
 
-  if (dialogueBox) dialogueBox.style.display = 'none';
-  if (unifiedInterface) unifiedInterface.style.display = 'none';
+    if (dialogueBox) dialogueBox.style.display = 'none';
+    if (unifiedInterface) unifiedInterface.style.display = 'none';
 
-  this.isUnifiedInterface = false;
-}
-
-
-  // 🔧 FIX CRITIQUE : Méthode hide corrigée
-// Méthode hide corrigée (pas de z-index / pointer-events sauvage)
-hide() {
-  console.log('🔄 Masquage du dialogue...');
-  this.forceHideAll();
-
-  if (this.container) {
-    this.container.classList.add('hidden'); // CSS gère opacity + pointer-events
-    // Ne pas toucher à z-index ici
+    this.isUnifiedInterface = false;
   }
 
-  this.isVisible = false;
-  this.isUnifiedInterface = false;
-  this.currentTab = null;
-  this.tabs = [];
-  this.quickActions = [];
-  this.classicDialogueData = null;
+  // 🔧 FIX CRITIQUE : Méthode hide corrigée (pas de z-index / pointer-events sauvage)
+  hide() {
+    console.log('🔄 Masquage du dialogue...');
 
-  if (this.onClose && typeof this.onClose === 'function') {
-    this.onClose();
-    this.onClose = null;
+    // Masquer tous les éléments internes
+    this.forceHideAll();
+
+    // Masquer le conteneur principal
+    this.container.classList.add('hidden');
+    this.isVisible = false;
+    this.isUnifiedInterface = false;
+    this.currentTab = null;
+    this.tabs = [];
+    this.quickActions = [];
+    this.classicDialogueData = null;
+
+    // Appeler le callback de fermeture
+    if (this.onClose && typeof this.onClose === 'function') {
+      this.onClose();
+      this.onClose = null;
+    }
+
+    console.log('✅ Dialogue masqué - peut être réaffiché');
   }
 
-  console.log('✅ Dialogue masqué - peut être réaffiché');
-}
+  isOpen() {
+    return this.isVisible;
+  }
 
+  getCurrentTab() {
+    return this.currentTab;
+  }
+
+  getContentContainer() {
+    return this.container.querySelector('#unified-content');
+  }
+
+  destroy() {
+    if (this.npcIdObserver) {
+      this.npcIdObserver.disconnect();
+      this.npcIdObserver = null;
+    }
+
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
+
+    const style = document.querySelector('#dialogue-ui-styles');
+    if (style) {
+      style.remove();
+    }
+
+    this.container = null;
+    this.currentNpcId = null;
+  }
+}
