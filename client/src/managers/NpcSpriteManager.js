@@ -421,26 +421,162 @@ async loadNpcSprite(spriteKey) {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Parser structure depuis sprite-sizes.json
-  parsePokemonStructureFromJson(sizeString, animationFile, pokemonId) {
-    console.log(`[NpcSpriteManager] 📋 Parsing structure JSON: ${sizeString} pour ${animationFile}`);
+  // Dans NpcSpriteManager.js - Remplacer parsePokemonStructureFromJson
+
+parsePokemonStructureFromJson(sizeString, animationFile, pokemonId) {
+  console.log(`[NpcSpriteManager] 📋 Auto-détection structure: ${sizeString} pour ${animationFile}`);
+  
+  const [width, height] = sizeString.split('x').map(Number);
+  
+  // ✅ DÉTECTION AUTOMATIQUE INTELLIGENTE
+  let bestStructure = null;
+  let bestScore = 0;
+  
+  // ✅ Tailles de frames communes pour les Pokémon (carrés ET rectangulaires)
+  const commonFrameSizes = [
+    { w: 32, h: 32 },   // Carré standard
+    { w: 32, h: 40 },   // Pikachu style 4x8
+    { w: 40, h: 40 },   // Bulbizarre style
+    { w: 48, h: 48 },   // Plus gros Pokémon
+    { w: 64, h: 64 },   // Très gros
+    { w: 40, h: 32 },   // Rectangulaire inversé
+    { w: 48, h: 32 },   // Large
+    { w: 32, h: 48 }    // Haut
+  ];
+  
+  for (const frameSize of commonFrameSizes) {
+    // Tester cette taille de frame
+    const cols = width / frameSize.w;
+    const rows = height / frameSize.h;
     
-    const [width, height] = sizeString.split('x').map(Number);
+    // Vérifier si ça donne des divisions entières
+    if (cols % 1 === 0 && rows % 1 === 0 && cols >= 1 && rows >= 1) {
+      
+      let score = 0;
+      
+      // ✅ SCORING : Préférer certaines configurations
+      
+      // Bonus pour frames carrés
+      if (frameSize.w === frameSize.h) score += 50;
+      
+      // Bonus pour tailles de frames courantes
+      if (frameSize.w === 32 && frameSize.h === 32) score += 100;
+      else if (frameSize.w === 32 && frameSize.h === 40) score += 120; // ✅ BONUS SPÉCIAL PIKACHU
+      else if (frameSize.w === 40 && frameSize.h === 40) score += 80;
+      else if (frameSize.w === 48) score += 60;
+      
+      // ✅ Bonus pour patterns typiques Pokémon Walk-Anim
+      if (animationFile === 'Walk-Anim.png') {
+        if (rows === 8 && cols >= 4 && cols <= 6) score += 80; // Pattern classique 4-6x8
+        if (rows === 10 && cols === 4) score += 90; // Pattern alternatif 4x10
+        if (cols * rows >= 32 && cols * rows <= 64) score += 40; // Nombre de frames raisonnable
+      }
+      
+      // Malus pour frames trop grandes ou trop petites
+      if (frameSize.w > 128 || frameSize.h > 128) score -= 50;
+      if (frameSize.w < 16 || frameSize.h < 16) score -= 50;
+      
+      // Malus pour trop de frames
+      if (cols * rows > 100) score -= 30;
+      
+      const structure = {
+        cols: cols,
+        rows: rows,
+        frameWidth: frameSize.w,
+        frameHeight: frameSize.h,
+        totalFrames: cols * rows,
+        score: score,
+        name: `Auto Pokémon ${cols}x${rows} (${frameSize.w}x${frameSize.h})`,
+        source: 'pokemon-auto-detection'
+      };
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestStructure = structure;
+      }
+      
+      console.log(`[NpcSpriteManager] 🧮 Test ${cols}x${rows} (${frameSize.w}x${frameSize.h}) = score ${score}`);
+    }
+  }
+  
+  // ✅ FALLBACK : Si pas de frames carrés, tester frames rectangulaires
+  if (!bestStructure || bestScore < 50) {
+    console.log(`[NpcSpriteManager] 🔄 Test frames rectangulaires...`);
     
-    // ✅ Utiliser la logique de SpriteUtils pour obtenir la structure
-    const structure = SpriteUtils.getKnownStructureFromSize(sizeString, animationFile);
+    // Tester différents ratios largeur/hauteur
+    const aspectRatios = [
+      { w: 1, h: 1 },   // Carré
+      { w: 4, h: 3 },   // 4:3
+      { w: 3, h: 4 },   // 3:4
+      { w: 2, h: 3 },   // 2:3
+      { w: 3, h: 2 }    // 3:2
+    ];
     
-    console.log(`[NpcSpriteManager] ✅ Structure JSON parsée: ${structure.name}`);
-    
-    return {
-      ...structure,
-      totalWidth: width,
-      totalHeight: height,
-      source: 'sprite-sizes-json',
-      pokemonId,
-      animationFile
+    for (const ratio of aspectRatios) {
+      // Chercher une taille de base qui donne des dimensions entières
+      for (let baseSize = 16; baseSize <= 96; baseSize += 8) {
+        const frameW = baseSize * ratio.w;
+        const frameH = baseSize * ratio.h;
+        
+        const cols = width / frameW;
+        const rows = height / frameH;
+        
+        if (cols % 1 === 0 && rows % 1 === 0 && cols >= 1 && rows >= 1) {
+          let score = 30; // Score de base pour rectangulaires
+          
+          // Bonus pour tailles raisonnables
+          if (frameW >= 24 && frameW <= 64 && frameH >= 24 && frameH <= 64) score += 40;
+          if (cols * rows >= 16 && cols * rows <= 80) score += 20;
+          
+          const structure = {
+            cols: cols,
+            rows: rows,
+            frameWidth: frameW,
+            frameHeight: frameH,
+            totalFrames: cols * rows,
+            score: score,
+            name: `Auto Pokémon ${cols}x${rows} (${frameW}x${frameH})`,
+            source: 'pokemon-auto-rectangular'
+          };
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestStructure = structure;
+          }
+          
+          console.log(`[NpcSpriteManager] 🧮 Test rect ${cols}x${rows} (${frameW}x${frameH}) = score ${score}`);
+        }
+      }
+    }
+  }
+  
+  // ✅ DERNIER FALLBACK : Structure simple
+  if (!bestStructure) {
+    console.warn(`[NpcSpriteManager] ⚠️ Aucune structure détectée, fallback 1x1`);
+    bestStructure = {
+      cols: 1,
+      rows: 1,
+      frameWidth: width,
+      frameHeight: height,
+      totalFrames: 1,
+      score: 0,
+      name: `Pokémon Fallback 1x1 (${width}x${height})`,
+      source: 'pokemon-fallback'
     };
   }
+  
+  console.log(`[NpcSpriteManager] ✅ MEILLEURE STRUCTURE (score ${bestScore}): ${bestStructure.name}`);
+  console.log(`[NpcSpriteManager] 📐 Frame finale: ${bestStructure.frameWidth}x${bestStructure.frameHeight}`);
+  
+  return {
+    ...bestStructure,
+    totalWidth: width,
+    totalHeight: height,
+    pokemonId,
+    animationFile,
+    qualityScore: bestScore
+  };
+}
 
   // ✅ NOUVELLE MÉTHODE : Chargement animation Pokémon
   async loadPokemonAnimation(spriteKey, spritePath, structure, spriteInfo) {
