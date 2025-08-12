@@ -31,6 +31,26 @@ export class DialogueUI {
     console.log('✅ DialogueUI initialisé avec fix réaffichage');
   }
 
+  // Remet les styles interactifs au moment de l'ouverture
+resetStylesForOpen(targetEl) {
+  const box = targetEl || this.container?.querySelector('#dialogue-box');
+  if (box) {
+    box.style.removeProperty('visibility');
+    box.style.removeProperty('opacity');
+    box.style.removeProperty('z-index');
+    box.style.removeProperty('pointer-events');
+    box.classList.remove('hidden', 'closed');
+    box.style.zIndex = '101';
+    box.style.pointerEvents = 'auto';
+  }
+  if (this.container) {
+    this.container.classList.remove('hidden');
+    this.container.style.pointerEvents = 'auto';
+    // z-index du container est déjà géré par le CSS (.dialogue-container { z-index: 100; })
+  }
+}
+
+  
   // ✅ CONSERVÉ : Système de tracking NPC ID
   setupNpcIdTracking() {
     if (!this.container) return;
@@ -594,112 +614,103 @@ export class DialogueUI {
     }
   }
 
-  showClassicDialogue(data) {
-    this.currentNpcId = this.extractNpcId(data);
+showClassicDialogue(data) {
+  this.currentNpcId = this.extractNpcId(data);
 
-    const dialogueBox = this.container.querySelector('#dialogue-box');
-    const portrait = this.container.querySelector('#npc-portrait');
-    const npcName = this.container.querySelector('#npc-name');
-    const npcText = this.container.querySelector('#npc-text');
-    const actionsZone = this.container.querySelector('#dialogue-actions');
-    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
+  const dialogueBox = this.container.querySelector('#dialogue-box');
+  const portrait = this.container.querySelector('#npc-portrait');
+  const npcName = this.container.querySelector('#npc-name');
+  const npcText = this.container.querySelector('#npc-text');
+  const actionsZone = this.container.querySelector('#dialogue-actions');
+  const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
-    portrait.innerHTML = data.portrait
-      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
-      : '';
+  portrait.innerHTML = data.portrait
+    ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+    : '';
 
-    npcName.textContent = data.name || '';
-    if (data.hideName) {
-      npcName.style.display = 'none';
-    } else {
-      npcName.style.display = '';
-    }
+  npcName.textContent = data.name || '';
+  npcName.style.display = data.hideName ? 'none' : '';
 
-    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-    npcText.textContent = lines[0] || "";
+  const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+  npcText.textContent = lines[0] || "";
 
-    if (lines.length > 1) {
-      continueIndicator.style.display = 'flex';
-      const counter = continueIndicator.querySelector('.dialogue-counter');
-      if (counter) {
-        counter.textContent = `1/${lines.length}`;
-      }
-    } else {
-      continueIndicator.style.display = 'none';
-    }
+  if (lines.length > 1) {
+    continueIndicator.style.display = 'flex';
+    const counter = continueIndicator.querySelector('.dialogue-counter');
+    if (counter) counter.textContent = `1/${lines.length}`;
+  } else {
+    continueIndicator.style.display = 'none';
+  }
 
+  actionsZone.style.display = 'none';
+  const box = this.container.querySelector('#dialogue-box');
+  box.className = 'dialogue-box-unified simple';
+
+  this.classicDialogueData = {
+    lines: lines,
+    currentPage: 0,
+    onClose: data.onClose
+  };
+
+  // Affichage + reset styles sûrs
+  this.container.classList.remove('hidden');
+  dialogueBox.style.display = 'flex';
+  this.resetStylesForOpen(dialogueBox);
+  this.isVisible = true;
+
+  console.log('✅ Dialogue classique affiché');
+}
+
+
+showDialogueWithActions(data) {
+  this.currentNpcId = this.extractNpcId(data);
+
+  const dialogueBox = this.container.querySelector('#dialogue-box');
+  const actionsZone = this.container.querySelector('#dialogue-actions');
+  const actionsButtons = this.container.querySelector('#actions-buttons');
+
+  const portrait = this.container.querySelector('#npc-portrait');
+  const npcName = this.container.querySelector('#npc-name');
+  const npcText = this.container.querySelector('#npc-text');
+
+  portrait.innerHTML = data.portrait
+    ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+    : '';
+
+  npcName.textContent = data.name || '';
+  npcName.style.display = data.hideName ? 'none' : '';
+
+  const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+  npcText.textContent = lines[0] || "";
+
+  if (data.actions && data.actions.length > 0) {
+    actionsButtons.innerHTML = '';
+    data.actions.forEach(action => {
+      const actionBtn = this.createActionButton(action);
+      actionsButtons.appendChild(actionBtn);
+    });
+    actionsZone.style.display = 'block';
+    dialogueBox.className = 'dialogue-box-unified with-actions';
+  } else {
     actionsZone.style.display = 'none';
     dialogueBox.className = 'dialogue-box-unified simple';
-
-    this.classicDialogueData = {
-      lines: lines,
-      currentPage: 0,
-      onClose: data.onClose
-    };
-
-    // 🔧 FIX CRITIQUE : S'assurer que display: flex est bien appliqué
-    this.container.classList.remove('hidden');
-    dialogueBox.style.display = 'flex';
-    this.isVisible = true;
-    
-    console.log('✅ Dialogue classique affiché');
   }
 
-  showDialogueWithActions(data) {
-    this.currentNpcId = this.extractNpcId(data);
+  this.classicDialogueData = {
+    lines: lines,
+    currentPage: 0,
+    onClose: data.onClose
+  };
 
-    const dialogueBox = this.container.querySelector('#dialogue-box');
-    const actionsZone = this.container.querySelector('#dialogue-actions');
-    const actionsButtons = this.container.querySelector('#actions-buttons');
+  // Affichage + reset styles sûrs
+  this.container.classList.remove('hidden');
+  dialogueBox.style.display = 'flex';
+  this.resetStylesForOpen(dialogueBox);
+  this.isVisible = true;
 
-    const portrait = this.container.querySelector('#npc-portrait');
-    const npcName = this.container.querySelector('#npc-name');
-    const npcText = this.container.querySelector('#npc-text');
+  console.log('✅ Dialogue avec actions affiché');
+}
 
-    portrait.innerHTML = data.portrait
-      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
-      : '';
-
-    npcName.textContent = data.name || '';
-    if (data.hideName) {
-      npcName.style.display = 'none';
-    } else {
-      npcName.style.display = '';
-    }
-
-    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-    npcText.textContent = lines[0] || "";
-
-    if (data.actions && data.actions.length > 0) {
-      actionsButtons.innerHTML = '';
-      
-      data.actions.forEach(action => {
-        const actionBtn = this.createActionButton(action);
-        actionsButtons.appendChild(actionBtn);
-      });
-      
-      actionsZone.style.display = 'block';
-      dialogueBox.className = 'dialogue-box-unified with-actions';
-      
-      console.log(`✅ [DialogueUI] ${data.actions.length} boutons d'action créés`);
-    } else {
-      actionsZone.style.display = 'none';
-      dialogueBox.className = 'dialogue-box-unified simple';
-    }
-
-    this.classicDialogueData = {
-      lines: lines,
-      currentPage: 0,
-      onClose: data.onClose
-    };
-
-    // 🔧 FIX CRITIQUE : S'assurer que display: flex est bien appliqué
-    this.container.classList.remove('hidden');
-    dialogueBox.style.display = 'flex';
-    this.isVisible = true;
-    
-    console.log('✅ Dialogue avec actions affiché');
-  }
 
   createActionButton(action) {
     const button = document.createElement('button');
@@ -741,30 +752,32 @@ export class DialogueUI {
     return button;
   }
 
-  showUnifiedInterface(data) {
-    this.currentNpcId = this.extractNpcId(data);
+showUnifiedInterface(data) {
+  this.currentNpcId = this.extractNpcId(data);
 
-    const unifiedInterface = this.container.querySelector('#unified-interface');
-    
-    this.setupUnifiedHeader(data);
-    this.setupUnifiedTabs(data.tabs);
-    this.setupQuickActions(data.quickActions);
-    
-    this.onTabSwitch = data.onTabSwitch;
-    this.onClose = data.onClose;
-    
-    if (this.tabs.length > 0) {
-      this.switchToTab(this.tabs[0].id);
-    }
-    
-    // 🔧 FIX CRITIQUE : S'assurer que display: flex est bien appliqué
-    this.container.classList.remove('hidden');
-    unifiedInterface.style.display = 'flex';
-    this.isVisible = true;
-    this.isUnifiedInterface = true;
-    
-    console.log('✅ Interface unifiée affichée');
+  const unifiedInterface = this.container.querySelector('#unified-interface');
+
+  this.setupUnifiedHeader(data);
+  this.setupUnifiedTabs(data.tabs);
+  this.setupQuickActions(data.quickActions);
+
+  this.onTabSwitch = data.onTabSwitch;
+  this.onClose = data.onClose;
+
+  if (this.tabs.length > 0) {
+    this.switchToTab(this.tabs[0].id);
   }
+
+  // Affichage + reset styles sûrs
+  this.container.classList.remove('hidden');
+  unifiedInterface.style.display = 'flex';
+  this.resetStylesForOpen(unifiedInterface);
+  this.isVisible = true;
+  this.isUnifiedInterface = true;
+
+  console.log('✅ Interface unifiée affichée');
+}
+
 
   setupUnifiedHeader(data) {
     const npcImage = this.container.querySelector('#unified-npc-image');
@@ -874,70 +887,41 @@ export class DialogueUI {
     }
   }
 
-  // 🔧 NOUVELLE MÉTHODE : Force le masquage de toutes les interfaces
-  forceHideAll() {
-    const dialogueBox = this.container.querySelector('#dialogue-box');
-    const unifiedInterface = this.container.querySelector('#unified-interface');
-    
-    dialogueBox.style.display = 'none';
-    unifiedInterface.style.display = 'none';
-    
-    this.isUnifiedInterface = false;
-  }
+// Force le masquage de toutes les interfaces sans casser les styles
+forceHideAll() {
+  const dialogueBox = this.container.querySelector('#dialogue-box');
+  const unifiedInterface = this.container.querySelector('#unified-interface');
+
+  if (dialogueBox) dialogueBox.style.display = 'none';
+  if (unifiedInterface) unifiedInterface.style.display = 'none';
+
+  this.isUnifiedInterface = false;
+}
+
 
   // 🔧 FIX CRITIQUE : Méthode hide corrigée
-  hide() {
-    console.log('🔄 Masquage du dialogue...');
-    
-    // Masquer tous les éléments internes SANS changer leur display
-    this.forceHideAll();
-    
-    // Masquer le conteneur principal
-    this.container.classList.add('hidden');
-    this.isVisible = false;
-    this.isUnifiedInterface = false;
-    this.currentTab = null;
-    this.tabs = [];
-    this.quickActions = [];
-    this.classicDialogueData = null;
+// Méthode hide corrigée (pas de z-index / pointer-events sauvage)
+hide() {
+  console.log('🔄 Masquage du dialogue...');
+  this.forceHideAll();
 
-    // Appeler le callback de fermeture
-    if (this.onClose && typeof this.onClose === 'function') {
-      this.onClose();
-      this.onClose = null;
-    }
-    
-    console.log('✅ Dialogue masqué - peut être réaffiché');
+  if (this.container) {
+    this.container.classList.add('hidden'); // CSS gère opacity + pointer-events
+    // Ne pas toucher à z-index ici
   }
 
-  isOpen() {
-    return this.isVisible;
+  this.isVisible = false;
+  this.isUnifiedInterface = false;
+  this.currentTab = null;
+  this.tabs = [];
+  this.quickActions = [];
+  this.classicDialogueData = null;
+
+  if (this.onClose && typeof this.onClose === 'function') {
+    this.onClose();
+    this.onClose = null;
   }
 
-  getCurrentTab() {
-    return this.currentTab;
-  }
-
-  getContentContainer() {
-    return this.container.querySelector('#unified-content');
-  }
-
-  destroy() {
-    if (this.npcIdObserver) {
-      this.npcIdObserver.disconnect();
-      this.npcIdObserver = null;
-    }
-    
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
-    }
-    
-    const style = document.querySelector('#dialogue-ui-styles');
-    if (style) {
-      style.remove();
-    }
-    
-    this.container = null;
-    this.currentNpcId = null;
-  }
+  console.log('✅ Dialogue masqué - peut être réaffiché');
 }
+
