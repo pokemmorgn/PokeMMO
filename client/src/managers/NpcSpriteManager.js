@@ -371,7 +371,7 @@ async loadNpcSprite(spriteKey) {
         const cachedStructure = this.spriteStructures.get(spriteKey);
         
         if (cachedStructure && cachedStructure.source !== 'pokemon-json-local') {
-          console.log(`[NpcSpriteManager] 🔄 Sprite en cache mais avec mauvaise structure, rechargement...`);
+          console.log(`[NpcSpriteManager] 🔄 Sprite en cache mais avec mauvaise structure (source: ${cachedStructure.source || 'undefined'}), rechargement...`);
           
           // Supprimer le cache incorrect
           this.loadedSprites.delete(spriteKey);
