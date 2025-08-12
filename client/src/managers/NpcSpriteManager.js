@@ -56,29 +56,148 @@ export class NpcSpriteManager {
     console.log('[NpcSpriteManager] 🎭 Créé pour spritesheets PNG réels:', scene.scene.key);
   }
 
-  // ✅ INITIALISATION
-  initialize() {
-    if (this.isInitialized) {
-      console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
-      return this;
-    }
-    
-    console.log('[NpcSpriteManager] 🚀 === INITIALISATION SPRITESHEETS PNG ===');
-    
-    if (!this.scene || !this.scene.load) {
-      console.error('[NpcSpriteManager] ❌ Scène non prête pour chargement');
-      return this;
-    }
-    
-    // ✅ Créer le fallback immédiatement de manière synchrone
-    this.createImmediateFallback();
-    
-    this.isInitialized = true;
-    console.log('[NpcSpriteManager] ✅ Initialisé pour spritesheets PNG');
-    
+ // ✅ INITIALISATION AVEC SPRITEUTILS
+async initialize() {
+  if (this.isInitialized) {
+    console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
     return this;
   }
+  
+  console.log('[NpcSpriteManager] 🚀 === INITIALISATION AVEC SPRITEUTILS ===');
+  
+  if (!this.scene || !this.scene.load) {
+    console.error('[NpcSpriteManager] ❌ Scène non prête pour chargement');
+    return this;
+  }
+  
+  // ✅ Charger sprite-sizes.json via SpriteUtils
+  console.log('[NpcSpriteManager] 📋 Chargement SpriteUtils...');
+  await SpriteUtils.loadSpriteSizes();
+  console.log('[NpcSpriteManager] ✅ SpriteUtils chargé');
+  
+  // ✅ Créer le fallback
+  this.createImmediateFallback();
+  
+  this.isInitialized = true;
+  console.log('[NpcSpriteManager] ✅ Initialisé avec SpriteUtils');
+  
+  return this;
+}
 
+  // ✅ NOUVELLE MÉTHODE : Détection du type de sprite
+detectSpriteType(spriteKey) {
+  console.log(`[NpcSpriteManager] 🔍 Détection type: "${spriteKey}"`);
+  
+  // Pattern: pokemon:ID:animation
+  const pokemonPatternMatch = spriteKey.match(/^pokemon:(\d+):(\w+)$/i);
+  if (pokemonPatternMatch) {
+    return {
+      type: 'pokemon',
+      pokemonId: parseInt(pokemonPatternMatch[1]),
+      animationType: pokemonPatternMatch[2].toLowerCase(),
+      originalKey: spriteKey,
+      format: 'structured'
+    };
+  }
+  
+  // Pattern: pokemonXXX_animation
+  const pokemonNumericMatch = spriteKey.match(/^pokemon(\d+)_(\w+)$/i);
+  if (pokemonNumericMatch) {
+    return {
+      type: 'pokemon',
+      pokemonId: parseInt(pokemonNumericMatch[1]),
+      animationType: pokemonNumericMatch[2].toLowerCase(),
+      originalKey: spriteKey,
+      format: 'numeric'
+    };
+  }
+  
+  // Pattern: pokemonXXX
+  const pokemonSimpleMatch = spriteKey.match(/^pokemon(\d+)$/i);
+  if (pokemonSimpleMatch) {
+    return {
+      type: 'pokemon',
+      pokemonId: parseInt(pokemonSimpleMatch[1]),
+      animationType: 'walk',
+      originalKey: spriteKey,
+      format: 'simple'
+    };
+  }
+  
+  return {
+    type: 'npc',
+    originalKey: spriteKey,
+    format: 'classic'
+  };
+}
+
+  // ✅ NOUVELLE MÉTHODE : Chargement Pokémon avec SpriteUtils
+async loadPokemonSpriteWithSpriteUtils(spriteKey, spriteInfo) {
+  console.log(`[NpcSpriteManager] 🐾 === CHARGEMENT POKÉMON AVEC SPRITEUTILS ===`);
+  console.log(`[NpcSpriteManager] 🎯 Pokémon ID: ${spriteInfo.pokemonId}, Animation: ${spriteInfo.animationType}`);
+  
+  try {
+    // ✅ Mapper animation vers fichier
+    const animationFileMap = {
+      'walk': 'Walk-Anim.png',
+      'move': 'Walk-Anim.png',
+      'swing': 'Swing-Anim.png',
+      'attack': 'Swing-Anim.png',
+      'icon': 'icons.png'
+    };
+    
+    const animationFile = animationFileMap[spriteInfo.animationType] || 'Walk-Anim.png';
+    console.log(`[NpcSpriteManager] 📁 Fichier: ${animationFile}`);
+    
+    // ✅ UTILISER SPRITEUTILS COMME OVERWORLDPOKEMONMANAGER
+    console.log(`[NpcSpriteManager] 📋 Utilisation SpriteUtils.loadPokemonSpriteStructure...`);
+    
+    const structure = await SpriteUtils.loadPokemonSpriteStructure(
+      spriteInfo.pokemonId, 
+      animationFile, 
+      this.scene
+    );
+    
+    console.log(`[NpcSpriteManager] ✅ Structure SpriteUtils: ${structure.name}`);
+    
+    // ✅ Charger le spritesheet avec la structure correcte
+    const paddedId = spriteInfo.pokemonId.toString().padStart(3, '0');
+    const pokemonSpritePath = `/assets/pokemon/${paddedId}/${animationFile}`;
+    
+    await this.loadPngAsSpriteSheet(spriteKey, pokemonSpritePath, structure);
+    
+    // ✅ Stocker la structure
+    this.spriteStructures.set(spriteKey, {
+      ...structure,
+      pokemonId: spriteInfo.pokemonId,
+      animationType: spriteInfo.animationType,
+      animationFile,
+      isPokemon: true,
+      source: 'spriteutils-json'
+    });
+    
+    this.loadedSprites.add(spriteKey);
+    this.stats.successfullyLoaded++;
+    this.stats.spriteSheetsDetected++;
+    
+    console.log(`[NpcSpriteManager] ✅ Pokémon sprite chargé: ${spriteKey}`);
+    
+    return {
+      success: true,
+      spriteKey,
+      fromCache: false,
+      path: pokemonSpritePath,
+      isSpriteSheet: true,
+      structure,
+      isPokemon: true,
+      pokemonInfo: spriteInfo
+    };
+    
+  } catch (error) {
+    console.error(`[NpcSpriteManager] ❌ Erreur Pokémon ${spriteKey}:`, error);
+    throw error;
+  }
+}
   // ✅ NOUVELLE MÉTHODE : Créer fallback immédiat sans async
   createImmediateFallback() {
     console.log('[NpcSpriteManager] ⚡ Création fallback immédiat...');
@@ -184,7 +303,15 @@ export class NpcSpriteManager {
     }
     
     // ✅ Créer promesse de chargement PNG
-    const loadingPromise = this.performPngSpritesheetLoad(spriteKey);
+// ✅ Détecter le type et charger approprié
+const spriteType = this.detectSpriteType(spriteKey);
+
+let loadingPromise;
+if (spriteType.type === 'pokemon') {
+  loadingPromise = this.loadPokemonSpriteWithSpriteUtils(spriteKey, spriteType);
+} else {
+  loadingPromise = this.performPngSpritesheetLoad(spriteKey);
+}
     this.loadingSprites.set(spriteKey, loadingPromise);
     
     try {
@@ -511,7 +638,7 @@ export class NpcSpriteManager {
       isSpriteSheet: true,
       structure: structure,
       frameCount: structure.totalFrames,
-      defaultFrame: this.getDefaultFrameForSprite(spriteKey),
+      defaultFrame: 0, // ✅ TOUJOURS FRAME 0 POUR NPCs
       frameWidth: structure.frameWidth,
       frameHeight: structure.frameHeight,
       cols: structure.cols,
