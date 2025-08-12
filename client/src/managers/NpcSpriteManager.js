@@ -12,7 +12,9 @@ export class NpcSpriteManager {
     this.loadedSprites = new Set();
     this.loadingSprites = new Map(); // sprite -> Promise
     this.failedSprites = new Set();
-    
+     // ✅ NOUVEAU : Cache local pour sprite-sizes.json
+  this.pokemonSpriteSizes = null;
+  this.pokemonSpriteSizesLoaded = false;
     // ✅ Cache des structures sprite sheets (NPC + Pokémon)
     this.spriteStructures = new Map(); // spriteKey -> structure
     
@@ -67,34 +69,159 @@ export class NpcSpriteManager {
   }
 
   // ✅ INITIALISATION
-  async initialize() {
-    if (this.isInitialized) {
-      console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
-      return this;
-    }
-    
-    console.log('[NpcSpriteManager] 🚀 === INITIALISATION NPC + POKÉMON ===');
-    
-    if (!this.scene || !this.scene.load) {
-      console.error('[NpcSpriteManager] ❌ Scène non prête pour chargement');
-      return this;
-    }
-    
-    // ✅ Charger sprite-sizes.json si activé
-    if (this.config.enablePokemonSprites) {
-      console.log('[NpcSpriteManager] 📋 Chargement sprite-sizes.json...');
-      await SpriteUtils.loadSpriteSizes();
-      console.log('[NpcSpriteManager] ✅ sprite-sizes.json chargé');
-    }
-    
-    // ✅ Créer le fallback immédiatement
-    this.createImmediateFallback();
-    
-    this.isInitialized = true;
-    console.log('[NpcSpriteManager] ✅ Initialisé avec support Pokémon');
-    
+ // ✅ MODIFIER la méthode initialize pour charger le JSON
+async initialize() {
+  if (this.isInitialized) {
+    console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
     return this;
   }
+  
+  console.log('[NpcSpriteManager] 🚀 === INITIALISATION NPC + POKÉMON ===');
+  
+  if (!this.scene || !this.scene.load) {
+    console.error('[NpcSpriteManager] ❌ Scène non prête pour chargement');
+    return this;
+  }
+  
+  // ✅ Charger sprite-sizes.json directement
+  if (this.config.enablePokemonSprites) {
+    console.log('[NpcSpriteManager] 📋 Chargement sprite-sizes.json direct...');
+    await this.loadPokemonSpriteSizes();
+  }
+  
+  // ✅ Créer le fallback immédiatement
+  this.createImmediateFallback();
+  
+  this.isInitialized = true;
+  console.log('[NpcSpriteManager] ✅ Initialisé avec JSON Pokémon direct');
+  
+  return this;
+}
+
+// ✅ MODIFIER performPokemonSpriteLoad pour utiliser le JSON local
+async performPokemonSpriteLoad(spriteKey, spriteInfo) {
+  console.log(`[NpcSpriteManager] 🐾 === CHARGEMENT POKÉMON SPRITE ===`);
+  console.log(`[NpcSpriteManager] 🎯 Pokémon ID: ${spriteInfo.pokemonId}, Animation: ${spriteInfo.animationType}`);
+  
+  try {
+    // ✅ Mapper le type d'animation vers le fichier
+    const animationFileMap = {
+      'walk': 'Walk-Anim.png',
+      'move': 'Walk-Anim.png',
+      'swing': 'Swing-Anim.png',
+      'attack': 'Swing-Anim.png',
+      'icon': 'icons.png'
+    };
+    
+    const animationFile = animationFileMap[spriteInfo.animationType] || 'Walk-Anim.png';
+    console.log(`[NpcSpriteManager] 📁 Fichier d'animation: ${animationFile}`);
+    
+    // ✅ Construire le chemin Pokémon
+    const paddedId = spriteInfo.pokemonId.toString().padStart(3, '0');
+    const pokemonSpritePath = `${this.config.pokemonSpritePath}${paddedId}/${animationFile}`;
+    
+    console.log(`[NpcSpriteManager] 📁 Chemin Pokémon: ${pokemonSpritePath}`);
+    
+    // ✅ NOUVEAU : Obtenir la structure depuis JSON LOCAL
+    let structure = null;
+    
+    if (this.pokemonSpriteSizes && this.pokemonSpriteSizes[paddedId]) {
+      const pokemonData = this.pokemonSpriteSizes[paddedId];
+      
+      if (pokemonData[animationFile]) {
+        const sizeString = pokemonData[animationFile];
+        structure = this.parsePokemonStructureFromJsonLocal(sizeString, animationFile, spriteInfo.pokemonId);
+        console.log(`[NpcSpriteManager] 📋 Structure JSON trouvée: ${structure.name}`);
+        this.stats.pokemonStructuresFromJson++;
+      } else {
+        console.log(`[NpcSpriteManager] ⚠️ ${animationFile} non trouvé pour Pokémon ${paddedId}`);
+      }
+    } else {
+      console.log(`[NpcSpriteManager] ⚠️ Pokémon ${paddedId} non trouvé dans JSON local`);
+    }
+    
+    // ✅ Si pas de structure JSON, analyser l'image
+    if (!structure) {
+      console.log(`[NpcSpriteManager] 🔍 Pas de structure JSON, analyse de l'image...`);
+      const imageInfo = await this.analyzePngStructure(pokemonSpritePath, spriteKey);
+      structure = imageInfo.structure || this.createFallbackPokemonStructure();
+    }
+    
+    // ... reste de la méthode inchangé (chargement du sprite)
+    
+  } catch (error) {
+    console.error(`[NpcSpriteManager] ❌ Erreur chargement Pokémon ${spriteKey}:`, error);
+    throw error;
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE : Parser structure depuis JSON local (utilise logique SpriteUtils)
+parsePokemonStructureFromJsonLocal(sizeString, animationFile, pokemonId) {
+  console.log(`[NpcSpriteManager] 📋 Parsing JSON local: ${sizeString} pour ${animationFile}`);
+  
+  const [width, height] = sizeString.split('x').map(Number);
+  
+  // ✅ LOGIQUE IDENTIQUE À SpriteUtils.getKnownStructureFromSize
+  let structure;
+  
+  if (animationFile.includes('Walk-Anim')) {
+    if (width === 160 && height === 256) structure = { cols: 5, rows: 8 };
+    else if (width === 240 && height === 320) structure = { cols: 6, rows: 8 };
+    else if (width === 192 && height === 256) structure = { cols: 6, rows: 8 };
+    else if (width === 128 && height === 256) structure = { cols: 4, rows: 8 };
+    else if (width === 128 && height === 320) structure = { cols: 4, rows: 8 }; // ✅ PIKACHU !
+    else if (width === 256 && height === 256) structure = { cols: 8, rows: 8 };
+    else {
+      // Détection automatique pour autres tailles
+      const possibleCols = [4, 5, 6, 8, 9, 10];
+      for (const cols of possibleCols) {
+        if (width % cols === 0 && height === 256) {
+          structure = { cols, rows: 8 };
+          break;
+        }
+        if (width % cols === 0 && height === 320) {
+          structure = { cols, rows: 8 }; // Force 8 rows pour 320 height
+          break;
+        }
+      }
+    }
+  } else if (animationFile.includes('Swing-Anim')) {
+    if (width === 288) structure = { cols: 9, rows: 1 };
+    else if (width === 256) structure = { cols: 8, rows: 1 };
+    else if (width === 192) structure = { cols: 6, rows: 1 };
+    else {
+      const possibleCols = [6, 8, 9, 10];
+      for (const cols of possibleCols) {
+        if (width % cols === 0) {
+          structure = { cols, rows: 1 };
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!structure) {
+    // Fallback si aucune structure connue
+    structure = { cols: 1, rows: 1 };
+  }
+  
+  const finalStructure = {
+    ...structure,
+    frameWidth: width / structure.cols,
+    frameHeight: height / structure.rows,
+    totalFrames: structure.cols * structure.rows,
+    totalWidth: width,
+    totalHeight: height,
+    name: `JSON Pokémon ${structure.cols}x${structure.rows} (${width/structure.cols}x${height/structure.rows})`,
+    source: 'pokemon-json-local',
+    qualityScore: 100,
+    pokemonId,
+    animationFile
+  };
+  
+  console.log(`[NpcSpriteManager] ✅ Structure JSON locale: ${finalStructure.name}`);
+  return finalStructure;
+}
 
   // ✅ NOUVELLE MÉTHODE : Créer fallback immédiat sans async
   createImmediateFallback() {
@@ -147,6 +274,44 @@ export class NpcSpriteManager {
     }
   }
 
+  async loadPokemonSpriteSizes() {
+  if (this.pokemonSpriteSizesLoaded) return;
+  
+  try {
+    console.log('[NpcSpriteManager] 📋 Chargement direct sprite_sizes.json...');
+    
+    const response = await fetch('/assets/pokemon/sprite_sizes.json');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const jsonData = await response.json();
+    
+    // ✅ Extraire spriteSizes du JSON imbriqué
+    if (jsonData.spriteSizes) {
+      this.pokemonSpriteSizes = jsonData.spriteSizes;
+      console.log('[NpcSpriteManager] ✅ Structure JSON imbriquée extraite');
+    } else {
+      this.pokemonSpriteSizes = jsonData;
+      console.log('[NpcSpriteManager] ✅ Structure JSON plate utilisée');
+    }
+    
+    this.pokemonSpriteSizesLoaded = true;
+    
+    console.log(`[NpcSpriteManager] ✅ ${Object.keys(this.pokemonSpriteSizes).length} Pokémon dans JSON`);
+    
+    // Test Pikachu
+    if (this.pokemonSpriteSizes['025']) {
+      console.log('[NpcSpriteManager] ⚡ Pikachu détecté:', this.pokemonSpriteSizes['025']);
+    }
+    
+  } catch (error) {
+    console.warn('[NpcSpriteManager] ⚠️ Impossible de charger sprite_sizes.json:', error);
+    this.pokemonSpriteSizes = {};
+    this.pokemonSpriteSizesLoaded = true;
+  }
+}
+  
   // ✅ NOUVELLE MÉTHODE : Fallback ultime
   createUltimateFallback() {
     console.log('[NpcSpriteManager] 🚨 Création fallback ultime...');
