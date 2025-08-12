@@ -341,58 +341,99 @@ parsePokemonStructureFromJsonLocal(sizeString, animationFile, pokemonId) {
   }
 
   // ✅ MÉTHODE PRINCIPALE : Chargement spritesheets PNG
+// Dans NpcSpriteManager.js - Remplacer la méthode loadNpcSprite
+
 async loadNpcSprite(spriteKey) {
-    console.log(`[NpcSpriteManager] 📥 === CHARGEMENT SPRITE "${spriteKey}" ===`);
+  console.log(`[NpcSpriteManager] 📥 === CHARGEMENT SPRITE "${spriteKey}" ===`);
+  
+  this.stats.totalRequested++;
+  
+  // ✅ NOUVEAU : Vérifier si c'est un sprite Pokémon avec JSON disponible
+  const spriteType = this.detectSpriteType(spriteKey);
+  
+  if (spriteType.type === 'pokemon') {
+    const paddedId = spriteType.pokemonId.toString().padStart(3, '0');
+    const animationFileMap = {
+      'walk': 'Walk-Anim.png',
+      'swing': 'Swing-Anim.png',
+      'icon': 'icons.png'
+    };
+    const animationFile = animationFileMap[spriteType.animationType] || 'Walk-Anim.png';
     
-    this.stats.totalRequested++;
+    // ✅ VÉRIFIER SI JSON DISPONIBLE
+    const hasJsonData = this.pokemonSpriteSizes && 
+                       this.pokemonSpriteSizes[paddedId] && 
+                       this.pokemonSpriteSizes[paddedId][animationFile];
     
-    // ✅ Vérifier si déjà chargé
-    if (this.isSpriteCached(spriteKey)) {
-      console.log(`[NpcSpriteManager] ⚡ Sprite en cache: ${spriteKey}`);
-      this.stats.cached++;
-      return { success: true, spriteKey, fromCache: true };
-    }
-    
-    // ✅ Vérifier si déjà en cours de chargement
-    if (this.loadingSprites.has(spriteKey)) {
-      console.log(`[NpcSpriteManager] ⏳ Sprite en cours de chargement: ${spriteKey}`);
-      return await this.loadingSprites.get(spriteKey);
-    }
-    
-    // ✅ Vérifier si déjà en échec
-    if (this.failedSprites.has(spriteKey)) {
-      console.log(`[NpcSpriteManager] ❌ Sprite déjà en échec: ${spriteKey}`);
-      return this.getFallbackResult(spriteKey);
-    }
-    
-    // ✅ NOUVEAU : Détecter le type de sprite (NPC classique vs Pokémon)
-    const spriteType = this.detectSpriteType(spriteKey);
-    console.log(`[NpcSpriteManager] 🔍 Type détecté: ${spriteType.type} pour "${spriteKey}"`);
-    
-    // ✅ Choisir la méthode de chargement appropriée
-    let loadingPromise;
-    
-    if (spriteType.type === 'pokemon') {
-      loadingPromise = this.performPokemonSpriteLoad(spriteKey, spriteType);
-    } else {
-      loadingPromise = this.performNpcSpriteLoad(spriteKey);
-    }
-    
-    this.loadingSprites.set(spriteKey, loadingPromise);
-    
-    try {
-      const result = await loadingPromise;
-      this.loadingSprites.delete(spriteKey);
-      return result;
-      
-    } catch (error) {
-      console.error(`[NpcSpriteManager] ❌ Erreur chargement ${spriteKey}:`, error);
-      this.loadingSprites.delete(spriteKey);
-      this.failedSprites.add(spriteKey);
-      this.stats.failed++;
-      return this.getFallbackResult(spriteKey);
+    if (hasJsonData) {
+      // ✅ JSON DISPONIBLE : Vérifier si la structure en cache est correcte
+      if (this.isSpriteCached(spriteKey)) {
+        const cachedStructure = this.spriteStructures.get(spriteKey);
+        
+        if (cachedStructure && cachedStructure.source !== 'pokemon-json-local') {
+          console.log(`[NpcSpriteManager] 🔄 Sprite en cache mais avec mauvaise structure, rechargement...`);
+          
+          // Supprimer le cache incorrect
+          this.loadedSprites.delete(spriteKey);
+          this.spriteStructures.delete(spriteKey);
+          
+          if (this.scene.textures.exists(spriteKey)) {
+            this.scene.textures.remove(spriteKey);
+          }
+          
+          console.log(`[NpcSpriteManager] 🧹 Cache incorrect supprimé pour ${spriteKey}`);
+        } else if (cachedStructure && cachedStructure.source === 'pokemon-json-local') {
+          console.log(`[NpcSpriteManager] ✅ Cache correct avec JSON, utilisation directe`);
+          this.stats.cached++;
+          return { success: true, spriteKey, fromCache: true, correctStructure: true };
+        }
+      }
     }
   }
+  
+  // ✅ Vérifier si déjà chargé (pour sprites non-Pokémon ou sans JSON)
+  if (this.isSpriteCached(spriteKey)) {
+    console.log(`[NpcSpriteManager] ⚡ Sprite en cache: ${spriteKey}`);
+    this.stats.cached++;
+    return { success: true, spriteKey, fromCache: true };
+  }
+  
+  // ✅ Vérifier si déjà en cours de chargement
+  if (this.loadingSprites.has(spriteKey)) {
+    console.log(`[NpcSpriteManager] ⏳ Sprite en cours de chargement: ${spriteKey}`);
+    return await this.loadingSprites.get(spriteKey);
+  }
+  
+  // ✅ Vérifier si déjà en échec
+  if (this.failedSprites.has(spriteKey)) {
+    console.log(`[NpcSpriteManager] ❌ Sprite déjà en échec: ${spriteKey}`);
+    return this.getFallbackResult(spriteKey);
+  }
+  
+  // ✅ Choisir la méthode de chargement appropriée
+  let loadingPromise;
+  
+  if (spriteType.type === 'pokemon') {
+    loadingPromise = this.performPokemonSpriteLoad(spriteKey, spriteType);
+  } else {
+    loadingPromise = this.performNpcSpriteLoad(spriteKey);
+  }
+  
+  this.loadingSprites.set(spriteKey, loadingPromise);
+  
+  try {
+    const result = await loadingPromise;
+    this.loadingSprites.delete(spriteKey);
+    return result;
+    
+  } catch (error) {
+    console.error(`[NpcSpriteManager] ❌ Erreur chargement ${spriteKey}:`, error);
+    this.loadingSprites.delete(spriteKey);
+    this.failedSprites.add(spriteKey);
+    this.stats.failed++;
+    return this.getFallbackResult(spriteKey);
+  }
+}
 
  // ✅ MÉTHODE EXISTANTE : Chargement NPC classique (inchangée)
   async performNpcSpriteLoad(spriteKey) {
