@@ -31,6 +31,13 @@ export class NpcManager {
     this.isSpawning = true;
     
     try {
+      // ✅ AJOUTEZ CES LIGNES ICI ⬇️
+      if (!this.npcSpriteManager.isInitialized) {
+        console.log("⏳ Finalisation de l'initialisation du sprite manager...");
+        await this.npcSpriteManager.initialize();
+      }
+      // ✅ AJOUTEZ CES LIGNES ICI ⬆️
+      
       console.log("👥 === SPAWN NPCs AVEC SPRITES DYNAMIQUES ===");
       console.log(`📊 Zone: ${this.scene.scene.key}`);
       console.log(`📊 NPCs à spawner: ${npcList.length}`);
