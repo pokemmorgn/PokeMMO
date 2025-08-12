@@ -19,7 +19,17 @@ export class PokemonFollowerManager {
     // ✅ NOUVEAU: Cache des dernières positions pour éviter les doublons
     this.lastPositions = new Map(); // sessionId -> {x, y, direction, isMoving}
     
-    console.log("🐾 [PokemonFollowerManager] Version unifiée avec SpriteUtils initialisée");
+    // ✅ NOUVEAU: Système de normalisation des tailles
+    this.sizeNormalizationEnabled = true; // Activer la normalisation des tailles
+    this.targetFollowerHeight = 48; // Hauteur cible en pixels (ajustable)
+    this.minScale = 0.5; // Échelle minimale
+    this.maxScale = 2.5; // Échelle maximale
+    this.sizeOverrides = new Map(); // Overrides spécifiques par Pokémon
+    
+    // Configuration des tailles spéciales pour certains Pokémon
+    this.initializeSizeOverrides();
+    
+    console.log("🐾 [PokemonFollowerManager] Version unifiée avec normalisation des tailles initialisée");
   }
 
   /**
@@ -237,8 +247,97 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ UNIFIÉ: Mapping des directions comme dans OverworldPokemonManager
+   * ✅ NOUVEAU: Initialise les overrides de taille pour des Pokémon spécifiques
    */
+  initializeSizeOverrides() {
+    // Pokémon très grands qui ont besoin d'être réduits
+    const largePokemon = [
+      482, // Azelf
+      484, // Palkia  
+      487, // Giratina
+      493, // Arceus
+      149, // Dragonite
+      130, // Leviator/Gyarados
+      144, // Articuno
+      145, // Zapdos
+      146, // Moltres
+      150, // Mewtwo
+      151, // Mew
+      249, // Lugia
+      250, // Ho-Oh
+      380, // Latias
+      381, // Latios
+      382, // Kyogre
+      383, // Groudon
+      384, // Rayquaza
+      385, // Jirachi
+      386, // Deoxys
+    ];
+    
+    // Pokémon très petits qui ont besoin d'être agrandis
+    const smallPokemon = [
+      025, // Pikachu
+      172, // Pichu
+      173, // Cleffa
+      174, // Igglybuff
+      175, // Togepi
+      236, // Tyrogue
+      238, // Smoochum
+      239, // Elekid
+      240, // Magby
+      298, // Azurill
+      360, // Wynaut
+      433, // Chingling
+      438, // Bonsly
+      439, // Mime Jr.
+      440, // Happiny
+      446, // Munchlax
+      447, // Riolu
+    ];
+    
+    // Appliquer des échelles spécifiques
+    largePokemon.forEach(id => {
+      this.sizeOverrides.set(id, 0.7); // Réduire les gros Pokémon
+    });
+    
+    smallPokemon.forEach(id => {
+      this.sizeOverrides.set(id, 1.4); // Agrandir les petits Pokémon
+    });
+    
+    // Cas spéciaux
+    this.sizeOverrides.set(130, 0.6); // Leviator encore plus petit
+    this.sizeOverrides.set(149, 0.8); // Dragonite un peu plus petit
+    this.sizeOverrides.set(025, 1.2); // Pikachu juste un peu plus grand
+    
+    console.log(`📏 [PokemonFollowerManager] ${this.sizeOverrides.size} overrides de taille configurés`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Calcule l'échelle optimale pour un Pokémon
+   */
+  calculateOptimalScale(pokemonId, frameWidth, frameHeight) {
+    // Vérifier s'il y a un override spécifique
+    if (this.sizeOverrides.has(pokemonId)) {
+      const overrideScale = this.sizeOverrides.get(pokemonId);
+      console.log(`📏 [PokemonFollowerManager] Override taille Pokémon ${pokemonId}: ${overrideScale}`);
+      return overrideScale;
+    }
+    
+    // Si la normalisation est désactivée, utiliser l'échelle par défaut
+    if (!this.sizeNormalizationEnabled) {
+      return 1.2; // Échelle par défaut
+    }
+    
+    // Calculer l'échelle basée sur la hauteur de la frame
+    const targetScale = this.targetFollowerHeight / frameHeight;
+    
+    // Limiter l'échelle entre min et max
+    const clampedScale = Math.max(this.minScale, Math.min(this.maxScale, targetScale));
+    
+    console.log(`📏 [PokemonFollowerManager] Pokémon ${pokemonId}: frame ${frameWidth}x${frameHeight} → échelle ${clampedScale.toFixed(2)}`);
+    
+    return clampedScale;
+  }
   getDirectionForAnimation(direction) {
     const mapping = {
       'down': 'down',
@@ -316,7 +415,15 @@ export class PokemonFollowerManager {
       
       // Configuration du sprite
       follower.setOrigin(0.5, 1);
-      follower.setScale(1.2);
+      
+      // ✅ NOUVEAU: Calcul automatique de l'échelle selon la taille du Pokémon
+      const structure = this.spriteStructures.get(`${followerData.pokemonId}_${animationFile}`);
+      const optimalScale = structure 
+        ? this.calculateOptimalScale(followerData.pokemonId, structure.frameWidth, structure.frameHeight)
+        : 1.2; // Fallback
+      
+      follower.setScale(optimalScale);
+      console.log(`📏 [PokemonFollowerManager] Pokémon ${followerData.pokemonId} échelle: ${optimalScale}`);
       
       // Profondeur initiale selon la direction
       this.setInitialFollowerDepth(follower, followerData.direction || 'down');
@@ -630,8 +737,117 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ NOUVEAU: Méthodes pour ajuster les performances
+   * ✅ NOUVEAU: Configure la normalisation des tailles
    */
+  setSizeNormalization(enabled, targetHeight = 48, minScale = 0.5, maxScale = 2.5) {
+    this.sizeNormalizationEnabled = enabled;
+    this.targetFollowerHeight = targetHeight;
+    this.minScale = minScale;
+    this.maxScale = maxScale;
+    
+    console.log(`📏 [PokemonFollowerManager] Normalisation: ${enabled}, hauteur cible: ${targetHeight}px, échelle: ${minScale}-${maxScale}`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Ajoute un override de taille pour un Pokémon spécifique
+   */
+  addSizeOverride(pokemonId, scale) {
+    this.sizeOverrides.set(pokemonId, scale);
+    console.log(`📏 [PokemonFollowerManager] Override ajouté: Pokémon ${pokemonId} → échelle ${scale}`);
+    
+    // Mettre à jour les followers existants avec ce Pokémon
+    this.followers.forEach(follower => {
+      if (follower.pokemonId === pokemonId) {
+        follower.setScale(scale);
+        console.log(`🔄 [PokemonFollowerManager] Échelle mise à jour pour follower ${follower.sessionId}`);
+      }
+    });
+  }
+
+  /**
+   * ✅ NOUVEAU: Supprime un override de taille
+   */
+  removeSizeOverride(pokemonId) {
+    if (this.sizeOverrides.delete(pokemonId)) {
+      console.log(`📏 [PokemonFollowerManager] Override supprimé pour Pokémon ${pokemonId}`);
+      
+      // Recalculer l'échelle pour les followers existants
+      this.followers.forEach(follower => {
+        if (follower.pokemonId === pokemonId) {
+          const structure = this.spriteStructures.get(`${pokemonId}_${follower.animations[follower.currentAnimation] || 'Walk-Anim.png'}`);
+          if (structure) {
+            const newScale = this.calculateOptimalScale(pokemonId, structure.frameWidth, structure.frameHeight);
+            follower.setScale(newScale);
+            console.log(`🔄 [PokemonFollowerManager] Échelle recalculée: ${newScale} pour follower ${follower.sessionId}`);
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Met à jour l'échelle de tous les followers selon les nouveaux paramètres
+   */
+  updateAllFollowerScales() {
+    this.followers.forEach((follower, sessionId) => {
+      const animationFile = follower.animations[follower.currentAnimation] || 'Walk-Anim.png';
+      const structure = this.spriteStructures.get(`${follower.pokemonId}_${animationFile}`);
+      
+      if (structure) {
+        const newScale = this.calculateOptimalScale(follower.pokemonId, structure.frameWidth, structure.frameHeight);
+        follower.setScale(newScale);
+        console.log(`🔄 [PokemonFollowerManager] Échelle mise à jour: ${newScale} pour ${follower.nickname || `Pokémon #${follower.pokemonId}`}`);
+      }
+    });
+    
+    console.log(`✅ [PokemonFollowerManager] Toutes les échelles mises à jour`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Obtient les informations de taille d'un Pokémon
+   */
+  getPokemonSizeInfo(pokemonId, animationFile = 'Walk-Anim.png') {
+    const structure = this.spriteStructures.get(`${pokemonId}_${animationFile}`);
+    const hasOverride = this.sizeOverrides.has(pokemonId);
+    const overrideScale = hasOverride ? this.sizeOverrides.get(pokemonId) : null;
+    
+    if (!structure) {
+      return {
+        pokemonId,
+        animationFile,
+        available: false,
+        message: 'Structure non trouvée'
+      };
+    }
+    
+    const calculatedScale = this.calculateOptimalScale(pokemonId, structure.frameWidth, structure.frameHeight);
+    
+    return {
+      pokemonId,
+      animationFile,
+      available: true,
+      frameSize: {
+        width: structure.frameWidth,
+        height: structure.frameHeight
+      },
+      hasOverride,
+      overrideScale,
+      calculatedScale,
+      finalScale: hasOverride ? overrideScale : calculatedScale,
+      sizeCategory: this.categorizePokemonSize(structure.frameHeight)
+    };
+  }
+
+  /**
+   * ✅ NOUVEAU: Catégorise un Pokémon selon sa taille
+   */
+  categorizePokemonSize(frameHeight) {
+    if (frameHeight <= 32) return 'Très petit';
+    if (frameHeight <= 48) return 'Petit';
+    if (frameHeight <= 64) return 'Normal';
+    if (frameHeight <= 80) return 'Grand';
+    return 'Très grand';
+  }
   setSmoothingEnabled(enabled) {
     this.smoothingEnabled = enabled;
     console.log(`🎛️ [PokemonFollowerManager] Lissage des mouvements: ${enabled ? 'activé' : 'désactivé'}`);
@@ -648,19 +864,31 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * Debug - affiche l'état des followers
+   * Debug - affiche l'état des followers avec informations de taille
    */
   debugFollowers() {
-    console.log(`🔍 [PokemonFollowerManager] === DEBUG FOLLOWERS UNIFIÉ ===`);
+    console.log(`🔍 [PokemonFollowerManager] === DEBUG FOLLOWERS UNIFIÉ AVEC TAILLES ===`);
     console.log(`📊 Followers actifs: ${this.followers.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`⏳ Sprites en chargement: ${this.loadingSprites.size}`);
     console.log(`📐 Structures détectées: ${this.spriteStructures.size}`);
     console.log(`💾 Positions en cache: ${this.lastPositions.size}`);
     console.log(`🎛️ Lissage: ${this.smoothingEnabled}, Vitesse: ${this.interpolationSpeed}, Distance max: ${this.maxInterpolationDistance}`);
+    console.log(`📏 Normalisation taille: ${this.sizeNormalizationEnabled}, Hauteur cible: ${this.targetFollowerHeight}px`);
     console.log(`🎬 Support animations: Walk-Anim, Swing-Anim via SpriteUtils`);
+    console.log(`🔧 Overrides de taille: ${this.sizeOverrides.size}`);
+    
+    // Afficher les overrides
+    if (this.sizeOverrides.size > 0) {
+      console.log(`📋 Overrides configurés:`);
+      this.sizeOverrides.forEach((scale, pokemonId) => {
+        console.log(`  - Pokémon ${pokemonId}: échelle ${scale}`);
+      });
+    }
     
     this.followers.forEach((follower, sessionId) => {
+      const sizeInfo = this.getPokemonSizeInfo(follower.pokemonId, follower.animations[follower.currentAnimation] || 'Walk-Anim.png');
+      
       console.log(`🐾 ${sessionId}:`, {
         pokemonId: follower.pokemonId,
         nickname: follower.nickname,
@@ -670,9 +898,53 @@ export class PokemonFollowerManager {
         isMoving: follower.isMoving,
         isInterpolating: follower.isInterpolating,
         currentAnimation: follower.currentAnimation,
-        animations: follower.animations,
+        scale: follower.scaleX,
+        sizeInfo: {
+          frameSize: sizeInfo.frameSize,
+          category: sizeInfo.sizeCategory,
+          hasOverride: sizeInfo.hasOverride,
+          finalScale: sizeInfo.finalScale
+        },
         lastUpdate: follower.lastUpdateTime ? `${Date.now() - follower.lastUpdateTime}ms ago` : 'N/A',
         visible: follower.visible
+      });
+    });
+  }
+
+  /**
+   * ✅ NOUVEAU: Debug spécifique aux tailles
+   */
+  debugSizes() {
+    console.log(`📏 [PokemonFollowerManager] === DEBUG TAILLES ===`);
+    console.log(`Normalisation: ${this.sizeNormalizationEnabled}`);
+    console.log(`Hauteur cible: ${this.targetFollowerHeight}px`);
+    console.log(`Échelle min/max: ${this.minScale} - ${this.maxScale}`);
+    console.log(`Overrides configurés: ${this.sizeOverrides.size}`);
+    
+    // Analyser les tailles des Pokémon chargés
+    const sizeAnalysis = new Map();
+    this.spriteStructures.forEach((structure, key) => {
+      const [pokemonId, animationFile] = key.split('_');
+      const category = this.categorizePokemonSize(structure.frameHeight);
+      
+      if (!sizeAnalysis.has(category)) {
+        sizeAnalysis.set(category, []);
+      }
+      
+      sizeAnalysis.get(category).push({
+        pokemonId: parseInt(pokemonId),
+        animationFile,
+        frameSize: `${structure.frameWidth}x${structure.frameHeight}`,
+        hasOverride: this.sizeOverrides.has(parseInt(pokemonId))
+      });
+    });
+    
+    console.log(`📊 Répartition par taille:`);
+    sizeAnalysis.forEach((pokemon, category) => {
+      console.log(`  ${category}: ${pokemon.length} Pokémon`);
+      pokemon.forEach(p => {
+        const override = p.hasOverride ? ` (override: ${this.sizeOverrides.get(p.pokemonId)})` : '';
+        console.log(`    - #${p.pokemonId} (${p.frameSize})${override}`);
       });
     });
   }
