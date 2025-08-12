@@ -307,7 +307,7 @@ export class PokemonFollowerManager {
     // Cas spéciaux
     this.sizeOverrides.set(130, 0.6); // Leviator encore plus petit
     this.sizeOverrides.set(149, 0.8); // Dragonite un peu plus petit
-    this.sizeOverrides.set(025, 1.2); // Pikachu juste un peu plus grand
+    this.sizeOverrides.set(25, 1.2); // Pikachu juste un peu plus grand
     
     console.log(`📏 [PokemonFollowerManager] ${this.sizeOverrides.size} overrides de taille configurés`);
   }
