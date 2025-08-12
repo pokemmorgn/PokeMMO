@@ -620,7 +620,7 @@ updateLanguage() {
         display: flex !important;
         justify-content: space-between !important;
         align-items: flex-start !important;
-        margin-top: 15px !important;
+        margin-top: 6px !important;
         gap: 5px !important;
       }
       
@@ -652,12 +652,15 @@ updateLanguage() {
         text-align: center !important;
         flex: 1 !important;
         display: flex !important;
-        align-items: center !important;
+        margin: 0 !important;         
+        height: 84px !important;           
+        align-items: flex-start !important;
         justify-content: center !important;
-        margin: 8px 0 !important;
       }
       
       div#team-overlay .pokemon-portrait {
+        top: -10px !important; 
+        transform: translateY(-2px) !important; 
         width: 80px !important;
         height: 80px !important;
         border-radius: 12px !important;
