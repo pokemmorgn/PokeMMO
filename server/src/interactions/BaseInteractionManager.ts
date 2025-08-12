@@ -707,9 +707,9 @@ class WorldUpdateTimer {
       
       // ✅ Afficher un échantillon des quest statuses créés
       if (Object.keys(questStatuses).length > 0) {
-        console.log(`📋 [WorldUpdateTimer] Échantillon quest statuses:`, 
-          Object.fromEntries(Object.entries(questStatuses).slice(0, 3))
-        );
+       // console.log(`📋 [WorldUpdateTimer] Échantillon quest statuses:`, 
+        //  Object.fromEntries(Object.entries(questStatuses).slice(0, 3))
+      //  );
       }
       
     } catch (error) {
