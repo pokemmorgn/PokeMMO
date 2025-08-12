@@ -425,6 +425,25 @@ export class PokemonFollowerManager {
       follower.setScale(optimalScale);
       console.log(`📏 [PokemonFollowerManager] Pokémon ${followerData.pokemonId} échelle: ${optimalScale}`);
       
+      // ✅ NOUVEAU: Ajuster la hitbox proportionnellement à l'échelle
+      if (follower.body) {
+        const baseBodyWidth = 16;
+        const baseBodyHeight = 16;
+        const baseOffsetX = 8;
+        const baseOffsetY = 16;
+        
+        // Calculer les nouvelles dimensions de la hitbox
+        const newBodyWidth = Math.max(8, baseBodyWidth * optimalScale);
+        const newBodyHeight = Math.max(8, baseBodyHeight * optimalScale);
+        const newOffsetX = baseOffsetX * optimalScale;
+        const newOffsetY = baseOffsetY * optimalScale;
+        
+        follower.body.setSize(newBodyWidth, newBodyHeight);
+        follower.body.setOffset(newOffsetX, newOffsetY);
+        
+        console.log(`🎯 [PokemonFollowerManager] Hitbox ajustée: ${newBodyWidth}x${newBodyHeight} offset(${newOffsetX}, ${newOffsetY})`);
+      }
+      
       // Profondeur initiale selon la direction
       this.setInitialFollowerDepth(follower, followerData.direction || 'down');
       
@@ -759,7 +778,26 @@ export class PokemonFollowerManager {
     this.followers.forEach(follower => {
       if (follower.pokemonId === pokemonId) {
         follower.setScale(scale);
-        console.log(`🔄 [PokemonFollowerManager] Échelle mise à jour pour follower ${follower.sessionId}`);
+        
+        // ✅ NOUVEAU: Ajuster aussi la hitbox
+        if (follower.body) {
+          const baseBodyWidth = 16;
+          const baseBodyHeight = 16;
+          const baseOffsetX = 8;
+          const baseOffsetY = 16;
+          
+          const newBodyWidth = Math.max(8, baseBodyWidth * scale);
+          const newBodyHeight = Math.max(8, baseBodyHeight * scale);
+          const newOffsetX = baseOffsetX * scale;
+          const newOffsetY = baseOffsetY * scale;
+          
+          follower.body.setSize(newBodyWidth, newBodyHeight);
+          follower.body.setOffset(newOffsetX, newOffsetY);
+          
+          console.log(`🎯 [PokemonFollowerManager] Hitbox mise à jour: ${newBodyWidth}x${newBodyHeight}`);
+        }
+        
+        console.log(`🔄 [PokemonFollowerManager] Échelle et hitbox mises à jour pour follower ${follower.sessionId}`);
       }
     });
   }
@@ -796,11 +834,28 @@ export class PokemonFollowerManager {
       if (structure) {
         const newScale = this.calculateOptimalScale(follower.pokemonId, structure.frameWidth, structure.frameHeight);
         follower.setScale(newScale);
-        console.log(`🔄 [PokemonFollowerManager] Échelle mise à jour: ${newScale} pour ${follower.nickname || `Pokémon #${follower.pokemonId}`}`);
+        
+        // ✅ NOUVEAU: Ajuster aussi la hitbox
+        if (follower.body) {
+          const baseBodyWidth = 16;
+          const baseBodyHeight = 16;
+          const baseOffsetX = 8;
+          const baseOffsetY = 16;
+          
+          const newBodyWidth = Math.max(8, baseBodyWidth * newScale);
+          const newBodyHeight = Math.max(8, baseBodyHeight * newScale);
+          const newOffsetX = baseOffsetX * newScale;
+          const newOffsetY = baseOffsetY * newScale;
+          
+          follower.body.setSize(newBodyWidth, newBodyHeight);
+          follower.body.setOffset(newOffsetX, newOffsetY);
+        }
+        
+        console.log(`🔄 [PokemonFollowerManager] Échelle et hitbox mises à jour: ${newScale} pour ${follower.nickname || `Pokémon #${follower.pokemonId}`}`);
       }
     });
     
-    console.log(`✅ [PokemonFollowerManager] Toutes les échelles mises à jour`);
+    console.log(`✅ [PokemonFollowerManager] Toutes les échelles et hitboxes mises à jour`);
   }
 
   /**
@@ -839,8 +894,44 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ NOUVEAU: Catégorise un Pokémon selon sa taille
+   * ✅ NOUVEAU: Ajuste manuellement la hitbox d'un follower
    */
+  adjustFollowerHitbox(sessionId, width, height, offsetX, offsetY) {
+    const follower = this.followers.get(sessionId);
+    if (follower && follower.body) {
+      follower.body.setSize(width, height);
+      follower.body.setOffset(offsetX, offsetY);
+      console.log(`🎯 [PokemonFollowerManager] Hitbox ajustée manuellement pour ${sessionId}: ${width}x${height} offset(${offsetX}, ${offsetY})`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * ✅ NOUVEAU: Réinitialise la hitbox d'un follower selon son échelle
+   */
+  resetFollowerHitbox(sessionId) {
+    const follower = this.followers.get(sessionId);
+    if (follower && follower.body) {
+      const scale = follower.scaleX;
+      const baseBodyWidth = 16;
+      const baseBodyHeight = 16;
+      const baseOffsetX = 8;
+      const baseOffsetY = 16;
+      
+      const newBodyWidth = Math.max(8, baseBodyWidth * scale);
+      const newBodyHeight = Math.max(8, baseBodyHeight * scale);
+      const newOffsetX = baseOffsetX * scale;
+      const newOffsetY = baseOffsetY * scale;
+      
+      follower.body.setSize(newBodyWidth, newBodyHeight);
+      follower.body.setOffset(newOffsetX, newOffsetY);
+      
+      console.log(`🔄 [PokemonFollowerManager] Hitbox réinitialisée pour ${sessionId}: ${newBodyWidth}x${newBodyHeight}`);
+      return true;
+    }
+    return false;
+  }
   categorizePokemonSize(frameHeight) {
     if (frameHeight <= 32) return 'Très petit';
     if (frameHeight <= 48) return 'Petit';
