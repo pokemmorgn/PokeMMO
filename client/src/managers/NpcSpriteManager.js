@@ -148,6 +148,41 @@ async performPokemonSpriteLoad(spriteKey, spriteInfo) {
     }
     
     // ... reste de la méthode inchangé (chargement du sprite)
+
+    // ✅ Charger le sprite Pokémon avec la structure
+    if (animationFile === 'icons.png') {
+      await this.loadPokemonIcon(spriteKey, pokemonSpritePath, structure, spriteInfo);
+      this.stats.pokemonIconsLoaded++;
+    } else {
+      await this.loadPokemonAnimation(spriteKey, pokemonSpritePath, structure, spriteInfo);
+      this.stats.pokemonSpritesLoaded++;
+    }
+    
+    // ✅ Stocker la structure
+    this.spriteStructures.set(spriteKey, {
+      ...structure,
+      pokemonId: spriteInfo.pokemonId,
+      animationType: spriteInfo.animationType,
+      animationFile,
+      isPokemon: true
+    });
+    
+    this.loadedSprites.add(spriteKey);
+    this.stats.successfullyLoaded++;
+    this.stats.spriteSheetsDetected++;
+    
+    console.log(`[NpcSpriteManager] ✅ Pokémon sprite chargé: ${spriteKey}`);
+    
+    return {
+      success: true,
+      spriteKey,
+      fromCache: false,
+      path: pokemonSpritePath,
+      isSpriteSheet: true,
+      structure,
+      isPokemon: true,
+      pokemonInfo: spriteInfo
+    };
     
   } catch (error) {
     console.error(`[NpcSpriteManager] ❌ Erreur chargement Pokémon ${spriteKey}:`, error);
