@@ -29,6 +29,8 @@ export class PokemonFollowerManager {
     // Configuration des tailles spéciales pour certains Pokémon
     this.initializeSizeOverrides();
     
+    this.depthManagementEnabled = true; // Gestion de profondeur
+    
     console.log("🐾 [PokemonFollowerManager] Version unifiée avec normalisation des tailles initialisée");
   }
 
@@ -612,7 +614,11 @@ export class PokemonFollowerManager {
     // Mettre à jour la direction
     if (followerData.direction !== undefined) {
       follower.lastDirection = followerData.direction;
-      this.updateFollowerDepth(follower, followerData.direction);
+      
+      // ✅ CORRIGÉ: Mise à jour de profondeur seulement si activée
+      if (this.depthManagementEnabled) {
+        this.updateFollowerDepth(follower, followerData.direction);
+      }
     }
     
     // Mettre à jour le timestamp et cache
@@ -621,32 +627,21 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ NOUVEAU: Définit la profondeur initiale selon la direction
+   * ✅ CORRIGÉ: Définit la profondeur initiale selon la direction (plus conservateur)
    */
   setInitialFollowerDepth(follower, direction) {
     const myPlayer = this.getMyPlayer();
     const playerDepth = myPlayer ? (myPlayer.depth || 4.5) : 4.5;
     
-    switch (direction) {
-      case 'up':
-        follower.setDepth(playerDepth + 0.5);
-        break;
-      case 'down':
-        follower.setDepth(playerDepth - 0.5);
-        break;
-      case 'left':
-      case 'right':
-        follower.setDepth(playerDepth - 0.1);
-        break;
-      default:
-        follower.setDepth(playerDepth - 0.5);
-    }
+    // ✅ NOUVEAU: Follower toujours légèrement derrière le joueur pour éviter les conflits visuels
+    const followerDepth = playerDepth - 0.1;
+    follower.setDepth(followerDepth);
     
-    console.log(`🎯 [PokemonFollowerManager] Profondeur initiale: ${follower.depth} (direction: ${direction}, joueur: ${playerDepth})`);
+    console.log(`🎯 [PokemonFollowerManager] Profondeur initiale: ${follower.depth} (joueur: ${playerDepth})`);
   }
 
   /**
-   * ✅ NOUVEAU: Met à jour la profondeur selon la direction
+   * ✅ CORRIGÉ: Met à jour la profondeur de façon plus stable
    */
   updateFollowerDepth(follower, direction) {
     const myPlayer = this.getMyPlayer();
@@ -655,23 +650,17 @@ export class PokemonFollowerManager {
     const playerDepth = myPlayer.depth || 4.5;
     const oldDepth = follower.depth;
     
-    switch (direction) {
-      case 'up':
-        follower.setDepth(playerDepth + 0.5);
-        break;
-      case 'down':
-        follower.setDepth(playerDepth - 0.5);
-        break;
-      case 'left':
-      case 'right':
-        follower.setDepth(playerDepth - 0.1);
-        break;
-      default:
-        follower.setDepth(playerDepth - 0.5);
-    }
+    // ✅ NOUVEAU: Profondeur basée sur la position Y plutôt que la direction
+    // Plus le Pokémon est bas sur l'écran, plus il doit être devant
+    const baseDepth = playerDepth - 0.1;
+    const yBasedAdjustment = (follower.y - myPlayer.y) / 1000; // Ajustement très subtil
+    const newDepth = baseDepth + yBasedAdjustment;
     
-    if (Math.abs(oldDepth - follower.depth) > 0.1) {
-      console.log(`🎭 [PokemonFollowerManager] Profondeur mise à jour: ${oldDepth} → ${follower.depth} (direction: ${direction})`);
+    follower.setDepth(newDepth);
+    
+    // Log seulement si le changement est significatif
+    if (Math.abs(oldDepth - follower.depth) > 0.05) {
+      console.log(`🎭 [PokemonFollowerManager] Profondeur ajustée: ${oldDepth.toFixed(3)} → ${follower.depth.toFixed(3)}`);
     }
   }
 
@@ -709,12 +698,13 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ OPTIMISÉ: Met à jour tous les followers avec interpolation
+   * ✅ OPTIMISÉ: Met à jour tous les followers avec interpolation et profondeur
    */
   update(delta = 16) {
     if (!this.smoothingEnabled) return;
     
     this.followers.forEach((follower) => {
+      // Interpolation de position
       if (follower.isInterpolating) {
         const currentX = follower.x;
         const currentY = follower.y;
@@ -733,6 +723,22 @@ export class PokemonFollowerManager {
           const factor = Math.min(this.interpolationSpeed, distance / 60);
           follower.x += distanceX * factor;
           follower.y += distanceY * factor;
+        }
+      }
+      
+      // ✅ NOUVEAU: Mise à jour subtile de la profondeur basée sur Y
+      if (this.depthManagementEnabled) {
+        const myPlayer = this.getMyPlayer();
+        if (myPlayer) {
+          const playerDepth = myPlayer.depth || 4.5;
+          const baseDepth = playerDepth - 0.1;
+          const yBasedAdjustment = (follower.y - myPlayer.y) / 1000;
+          const newDepth = baseDepth + yBasedAdjustment;
+          
+          // Mise à jour seulement si le changement est significatif
+          if (Math.abs(follower.depth - newDepth) > 0.01) {
+            follower.setDepth(newDepth);
+          }
         }
       }
     });
@@ -908,8 +914,53 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * ✅ NOUVEAU: Réinitialise la hitbox d'un follower selon son échelle
+   * ✅ NOUVEAU: Met à jour la profondeur de tous les followers de façon cohérente
    */
+  updateAllFollowerDepths() {
+    const myPlayer = this.getMyPlayer();
+    if (!myPlayer) return;
+    
+    const playerDepth = myPlayer.depth || 4.5;
+    
+    this.followers.forEach((follower, sessionId) => {
+      const baseDepth = playerDepth - 0.1;
+      const yBasedAdjustment = (follower.y - myPlayer.y) / 1000;
+      const newDepth = baseDepth + yBasedAdjustment;
+      
+      follower.setDepth(newDepth);
+    });
+    
+    console.log(`🎭 [PokemonFollowerManager] Profondeur mise à jour pour tous les followers`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Force une profondeur fixe pour un follower
+   */
+  setFollowerDepth(sessionId, depth) {
+    const follower = this.followers.get(sessionId);
+    if (follower) {
+      follower.setDepth(depth);
+      console.log(`🎭 [PokemonFollowerManager] Profondeur forcée: ${depth} pour ${sessionId}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * ✅ NOUVEAU: Désactive complètement la gestion automatique de profondeur
+   */
+  disableDepthManagement() {
+    this.depthManagementEnabled = false;
+    console.log(`🎭 [PokemonFollowerManager] Gestion automatique de profondeur désactivée`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Active la gestion automatique de profondeur
+   */
+  enableDepthManagement() {
+    this.depthManagementEnabled = true;
+    console.log(`🎭 [PokemonFollowerManager] Gestion automatique de profondeur activée`);
+  }
   resetFollowerHitbox(sessionId) {
     const follower = this.followers.get(sessionId);
     if (follower && follower.body) {
