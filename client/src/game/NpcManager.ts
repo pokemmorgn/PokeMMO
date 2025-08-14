@@ -202,7 +202,7 @@ export class NpcManager {
 
       // ✅ ÉTAPE 5: Configuration plus robuste du sprite
       sprite.setOrigin(0.5, 1)
-        .setDepth(16)
+        .setDepth(6)
         .setScale(1)
         .setVisible(true)  // ✅ FORCER VISIBLE
         .setActive(true)   // ✅ FORCER ACTIF
@@ -446,7 +446,7 @@ async createNpcWithUltimateFallback(npc) {
     
     // ✅ Configuration du sprite
     sprite.setOrigin(0.5, 1)
-      .setDepth(4)
+      .setDepth(6)
       .setScale(1)
       .setVisible(true)
       .setActive(true)
@@ -675,7 +675,7 @@ async reloadNpcSprite(npcId, newSpriteKey = null) {
         // ✅ Forcer toutes les propriétés de visibilité
         visual.sprite.setVisible(true);
         visual.sprite.setActive(true);
-        visual.sprite.setDepth(4);
+        visual.sprite.setDepth(6);
         visual.sprite.setScale(1);
         visual.sprite.setAlpha(1);
         
