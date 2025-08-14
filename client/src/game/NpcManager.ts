@@ -202,7 +202,7 @@ export class NpcManager {
 
       // ✅ ÉTAPE 5: Configuration plus robuste du sprite
       sprite.setOrigin(0.5, 1)
-        .setDepth(4)
+        .setDepth(16)
         .setScale(1)
         .setVisible(true)  // ✅ FORCER VISIBLE
         .setActive(true)   // ✅ FORCER ACTIF
