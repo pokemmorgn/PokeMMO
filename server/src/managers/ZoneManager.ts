@@ -277,56 +277,69 @@ export class ZoneManager {
     this.loadZone('beach', new BeachZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour beach");
     this.collisions.set('beach', new CollisionManager("beach.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('village', new VillageZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour village");
     this.collisions.set('village', new CollisionManager("village.tmj"));
+this.connectNpcCollisions('beach');
 
     this.loadZone('villagewindmill', new VillageZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour village");
     this.collisions.set('villagewindmill', new CollisionManager("villagewindmill.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('villagelab', new VillageLabZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour villagelab");
     this.collisions.set('villagelab', new CollisionManager("villagelab.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('villagehouse1', new Villagehouse1(this.room));
     console.log("[ZoneManager] Initialisation collisions pour villagehouse1");
     this.collisions.set('villagehouse1', new CollisionManager("villagehouse1.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('villageflorist', new VillageFloristZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour villageflorist");
     this.collisions.set('villageflorist', new CollisionManager("villageflorist.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('villagehouse2', new VillageHouse2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour villagehouse2");
     this.collisions.set('villagehouse2', new CollisionManager("villagehouse2.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     // Zones Lavandia
     this.loadZone('lavandiaanalysis', new LavandiaAnalysisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour analysis");
     this.collisions.set('lavandiaanalysis', new CollisionManager("lavandiaanalysis.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiabossroom', new LavandiaBossRoomZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour bossroom");
     this.collisions.set('lavandiabossroom', new CollisionManager("lavandiabossroom.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiacelebitemple', new LavandiaCelebiTempleZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour celebitemple");
     this.collisions.set('lavandiacelebitemple', new CollisionManager("lavandiacelebitemple.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiaequipment', new LavandiaEquipmentZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour equipment");
     this.collisions.set('lavandiaequipment', new CollisionManager("lavandiaequipment.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiafurniture', new LavandiaFurnitureZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour furniture");
     this.collisions.set('lavandiafurniture', new CollisionManager("lavandiafurniture.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahealingcenter', new LavandiaHealingCenterZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour healingcenter");
     this.collisions.set('lavandiahealingcenter', new CollisionManager("lavandiahealingcenter.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse1', new LavandiaHouse1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house1");
     this.collisions.set('lavandiahouse1', new CollisionManager("lavandiahouse1.tmj"));
@@ -334,56 +347,69 @@ export class ZoneManager {
     this.loadZone('lavandiahouse2', new LavandiaHouse2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house2");
     this.collisions.set('lavandiahouse2', new CollisionManager("lavandiahouse2.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse3', new LavandiaHouse3Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house3");
     this.collisions.set('lavandiahouse3', new CollisionManager("lavandiahouse3.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse4', new LavandiaHouse4Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house4");
     this.collisions.set('lavandiahouse4', new CollisionManager("lavandiahouse4.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse5', new LavandiaHouse5Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house5");
     this.collisions.set('lavandiahouse5', new CollisionManager("lavandiahouse5.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse6', new LavandiaHouse6Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house6");
     this.collisions.set('lavandiahouse6', new CollisionManager("lavandiahouse6.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse7', new LavandiaHouse7Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house7");
     this.collisions.set('lavandiahouse7', new CollisionManager("lavandiahouse7.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse8', new LavandiaHouse8Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house8");
     this.collisions.set('lavandiahouse8', new CollisionManager("lavandiahouse8.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiahouse9', new LavandiaHouse9Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house9");
     this.collisions.set('lavandiahouse9', new CollisionManager("lavandiahouse9.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('lavandiaresearchlab', new LavandiaResearchLabZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour researchlab");
     this.collisions.set('lavandiaresearchlab', new CollisionManager("lavandiaresearchlab.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     // Zones Nocther Cave
     this.loadZone('noctherbcave1', new NoctherbCave1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour noctherbcave1");
     this.collisions.set('noctherbcave1', new CollisionManager("noctherbcave1.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('noctherbcave2', new NoctherbCave2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour noctherbcave2");
     this.collisions.set('noctherbcave2', new CollisionManager("noctherbcave2.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('noctherbcave2bis', new NoctherbCave2BisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour noctherbcave2bis");
     this.collisions.set('noctherbcave2bis', new CollisionManager("noctherbcave2bis.tmj"));
+this.connectNpcCollisions('beach');
 
     this.loadZone('wraithmoor', new WraithmoorZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour wraithmoor");
     this.collisions.set('wraithmoor', new CollisionManager("wraithmoor.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('wraithmoorcimetery', new WraithmoorCimeteryZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour wraithmoorcimetery");
     this.collisions.set('wraithmoorcimetery', new CollisionManager("wraithmoorcimetery.tmj"));
@@ -391,24 +417,29 @@ export class ZoneManager {
     this.loadZone('wraithmoormanor1', new WraithmoorManor1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour wraithmoormanor1");
     this.collisions.set('wraithmoormanor1', new CollisionManager("wraithmoormanor1.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     // Zones Road
     this.loadZone('road1', new Road1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour road1");
     this.collisions.set('road1', new CollisionManager("road1.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('road1house', new Road1HouseZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour road1house");
     this.collisions.set('road1house', new CollisionManager("road1house.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('road2', new Road2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour road2");
     this.collisions.set('road2', new CollisionManager("road2.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     this.loadZone('road3', new Road3Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour road3");
     this.collisions.set('road3', new CollisionManager("road3.tmj"));
-    
+    this.connectNpcCollisions('beach');
+
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
     console.log(`✅ Collisions chargées pour :`, Array.from(this.collisions.keys()));
   }
@@ -812,4 +843,19 @@ export class ZoneManager {
       console.log(`⏳ [ZoneManager] QuestManager pas encore prêt pour debug`);
     }
   }
+  private connectNpcCollisions(zoneName: string): void {
+  const collisionManager = this.collisions.get(zoneName);
+  if (!collisionManager) {
+    console.warn(`⚠️ [ZoneManager] Pas de CollisionManager pour ${zoneName}`);
+    return;
+  }
+
+  const npcManager = this.room.getNpcManager(zoneName);
+  if (npcManager) {
+    npcManager.setCollisionManager(collisionManager);
+    console.log(`🔗 [ZoneManager] CollisionManager connecté au NPCManager pour ${zoneName}`);
+  } else {
+    console.warn(`⚠️ [ZoneManager] NPCManager non trouvé pour ${zoneName}`);
+  }
+}
 }
