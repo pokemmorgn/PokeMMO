@@ -106,6 +106,7 @@ export class NpcManager {
   private initializationPromise: Promise<void> | null = null;
   
   private loadedZones: Set<string> = new Set();
+  private collisionManager: any = null;
   private validationErrors: Map<number, string[]> = new Map();
   private lastLoadTime: number = 0;
   
@@ -242,6 +243,9 @@ export class NpcManager {
       
       if (npcsData.length > 0) {
         this.addNpcsToCollection(npcsData, zoneName);
+        if (this.collisionManager) {
+  this.addAllNpcsToCollision(npcsData);
+}
       }
       
       if (this.config.useCache && npcsData.length > 0) {
@@ -460,7 +464,8 @@ export class NpcManager {
       this.mongoCache.delete(zoneName);
       
       this.notifyReloadCallbacks('insert', npcData);
-      
+      this.addNpcToCollision(npcData);
+
     } catch (error) {
       console.error('❌ [HotReload] Erreur ajout:', error);
     }
@@ -488,7 +493,8 @@ export class NpcManager {
       this.loadedZones.add(zoneName);
       
       this.notifyReloadCallbacks('update', npcData);
-      
+      this.addNpcToCollision(npcData);
+
     } catch (error) {
       console.error('❌ [HotReload] Erreur update:', error);
     }
@@ -517,6 +523,8 @@ export class NpcManager {
         this.mongoCache.delete(deletedNpc.zone);
         
         this.notifyReloadCallbacks('delete', deletedNpc);
+        this.removeNpcFromCollision(deletedNpc.id);
+
       }
       
     } catch (error) {
@@ -700,4 +708,36 @@ getNpcById(id: number, serverZone?: string): NpcData | undefined {
     console.log(`\n💾 Cache: ${this.mongoCache.size} zones en cache`);
     console.log(`\n⚙️ Config:`, this.config);
   }
+  setCollisionManager(collisionManager: any): void {
+  this.collisionManager = collisionManager;
+  console.log(`🎯 [NPCManager] CollisionManager configuré`);
+}
+
+private addAllNpcsToCollision(npcsData: any[]): void {
+  for (const npc of npcsData) {
+    this.addNpcToCollision(npc);
+  }
+}
+
+private addNpcToCollision(npc: any): void {
+  if (!this.collisionManager) return;
+
+  const config = npc.collisionConfig;
+  const width = config?.width || 16;
+  const height = config?.height || 16;
+  const offsetX = config?.offsetX || 0;
+  const offsetY = config?.offsetY || 0;
+
+  const finalX = npc.x + offsetX;
+  const finalY = npc.y + offsetY;
+
+  if (config?.enabled !== false) {
+    this.collisionManager.addNpcCollision(npc.id, finalX, finalY, width, height);
+  }
+}
+
+private removeNpcFromCollision(npcId: number): void {
+  if (!this.collisionManager) return;
+  this.collisionManager.removeNpcCollision(npcId);
+}
 }
