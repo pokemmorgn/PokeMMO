@@ -136,6 +136,16 @@ export interface INpcData extends Document {
   
   // === VISION DRESSEURS (inchangé) ===
   visionConfig?: TrainerVisionConfig;
+
+  // === COLLISION CONFIG ===
+collisionConfig?: {
+  enabled: boolean;
+  type: 'rectangle';
+  width: number;
+  height: number;
+  offsetX?: number;
+  offsetY?: number;
+};
   
   // === DONNÉES RUNTIME TRAINERS (inchangé) ===
   trainerRuntime?: TrainerRuntimeData;
@@ -416,6 +426,18 @@ const NpcDataSchema = new Schema<INpcData>({
     type: TrainerVisionConfigSchema,
     default: undefined
   },
+
+  collisionConfig: { 
+  type: {
+    enabled: { type: Boolean, default: true },
+    type: { type: String, enum: ['rectangle'], default: 'rectangle' },
+    width: { type: Number, default: 16, min: 8, max: 64 },
+    height: { type: Number, default: 16, min: 8, max: 64 },
+    offsetX: { type: Number, default: 0, min: -32, max: 32 },
+    offsetY: { type: Number, default: 0, min: -32, max: 32 }
+  },
+  default: undefined
+},
   
   trainerRuntime: { 
     type: TrainerRuntimeDataSchema,
@@ -691,6 +713,7 @@ NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
     // Données existantes (combat/trainer - inchangées)
     battleConfig: this.battleConfig,
     visionConfig: this.visionConfig,
+    collisionConfig: this.collisionConfig,
     trainerRuntime: this.trainerRuntime,
     
     // Shop simplifié
@@ -729,6 +752,7 @@ NpcDataSchema.methods.updateFromJson = async function(
   // Données existantes (combat/trainer - inchangées)
   if (jsonData.battleConfig) this.battleConfig = jsonData.battleConfig;
   if (jsonData.visionConfig) this.visionConfig = jsonData.visionConfig;
+  if (jsonData.collisionConfig) this.collisionConfig = jsonData.collisionConfig;
   if (jsonData.trainerRuntime) this.trainerRuntime = jsonData.trainerRuntime;
   
   // Shop : seulement shopId
