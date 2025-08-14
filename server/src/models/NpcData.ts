@@ -427,7 +427,7 @@ const NpcDataSchema = new Schema<INpcData>({
     default: undefined
   },
 
-  collisionConfig: { 
+ collisionConfig: { 
   type: {
     enabled: { type: Boolean, default: true },
     type: { type: String, enum: ['rectangle'], default: 'rectangle' },
@@ -435,8 +435,8 @@ const NpcDataSchema = new Schema<INpcData>({
     height: { type: Number, default: 16, min: 8, max: 64 },
     offsetX: { type: Number, default: 0, min: -32, max: 32 },
     offsetY: { type: Number, default: 0, min: -32, max: 32 }
-  },
-  default: undefined
+  }
+  // ← PAS DE LIGNE "default" ICI
 },
   
   trainerRuntime: { 
